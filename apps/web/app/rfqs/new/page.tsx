@@ -40,9 +40,11 @@ export default function NewRfq() {
               buyer who simply stops answering.
             </div>
           </div>
-          <p className="hero-links">
-            <Link href="/rfqs">← back to the board</Link>
-          </p>
+          <nav className="page-nav">
+            <Link className="btn-nav" href="/rfqs">
+              ← Back to the board
+            </Link>
+          </nav>
         </div>
       </div>
     </div>

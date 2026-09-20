@@ -63,9 +63,14 @@ export default async function BidPage({ params }: { params: Promise<{ id: string
               returned with the final milestone.
             </div>
           </div>
-          <p className="hero-links">
-            <Link href={`/rfqs/${id}`}>← RFQ details</Link>
-          </p>
+          <nav className="page-nav">
+            <Link className="btn-nav" href={`/rfqs/${id}`}>
+              ← RFQ details
+            </Link>
+            <Link className="btn-nav ghost" href="/rfqs">
+              All RFQs
+            </Link>
+          </nav>
         </div>
       </div>
     </div>

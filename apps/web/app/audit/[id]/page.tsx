@@ -38,7 +38,9 @@ export default async function AuditPage({ params }: { params: Promise<{ id: stri
           <div className="head">Nothing to verify</div>
           <div className="note">{audit.reason}</div>
         </div>
-      ) : (
+      ) : null}
+
+      {!audit.verified && audit.reason ? null : (
         <div className="grid">
           <div className="panel">
             <div className="head">
@@ -96,12 +98,18 @@ export default async function AuditPage({ params }: { params: Promise<{ id: stri
                 </div>
               )}
             </div>
-            <p className="hero-links">
-              <Link href={`/rfqs/${id}`}>← back to the RFQ</Link>
-            </p>
           </div>
         </div>
       )}
+
+      <nav className="page-nav">
+        <Link className="btn-nav" href={`/rfqs/${id}`}>
+          ← Back to the RFQ
+        </Link>
+        <Link className="btn-nav ghost" href="/rfqs">
+          All RFQs
+        </Link>
+      </nav>
     </div>
   );
 }

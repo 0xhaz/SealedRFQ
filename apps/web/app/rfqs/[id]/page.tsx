@@ -272,22 +272,28 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
         </div>
       )}
 
-      <p className="hero-links">
-        <Link href="/rfqs">← back to the board</Link>
+      <nav className="page-nav">
+        <Link className="btn-nav" href="/rfqs">
+          ← Back to the board
+        </Link>
         {(rfq.phase === "Bidding" || rfq.phase === "Reveal") && (
-          <Link href={`/rfqs/${id}/bid`}>
+          <Link className="btn-nav primary" href={`/rfqs/${id}/bid`}>
             {rfq.phase === "Bidding" ? "Submit a sealed bid →" : "Reveal your bid →"}
           </Link>
         )}
+        <Link className="btn-nav" href={`/audit/${id}`}>
+          Audit the decision
+        </Link>
         <a
+          className="btn-nav ghost"
           href={explorerAddress(contracts.RFQRegistry)}
           target="_blank"
           rel="noreferrer"
           title={`RFQRegistry on ${chain.name}`}
         >
-          contract ↗
+          Contract ↗
         </a>
-      </p>
+      </nav>
     </div>
   );
 }
