@@ -450,6 +450,8 @@ body::before {
   display: grid;
   grid-template-columns: minmax(0, 1.62fr) minmax(320px, 1fr);
   gap: 18px;
+  /* Panels size to their content: stretching left a tall empty area under short tables. */
+  align-items: start;
 }
 
 .panel {
@@ -5703,4 +5705,18 @@ button.field-wallet {
   line-height: 1.65;
   color: #6b3a10;
   max-width: 78ch;
+}
+
+/* ============================================================
+   Vertical rhythm between top-level blocks
+   Consecutive .grid rows (and a .panel that follows one) had no margin, so panels in different
+   rows sat flush against each other and read as one run-on box.
+   ============================================================ */
+.shell > .grid,
+.shell > .panel,
+.shell > .stats {
+  margin-bottom: 18px;
+}
+.shell > .desk-head + .stats {
+  margin-top: 4px;
 }
