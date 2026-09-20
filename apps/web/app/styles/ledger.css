@@ -5221,3 +5221,169 @@ button.field-wallet {
   flex-shrink: 0;
   align-self: center;
 }
+
+/* ============================================================
+   RFQ lifecycle flow (replaces the wrapping .story-acts grid)
+   Four ordered steps with connectors, so the section reads as a sequence rather than four
+   unrelated cards. Four across on wide screens, two on tablets, one on phones; the connector
+   turns from an arrow into a downward tick whenever the steps stack.
+   ============================================================ */
+.flow {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 30px 18px;
+  margin-top: 22px;
+}
+@media (min-width: 720px) {
+  .flow {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (min-width: 1180px) {
+  .flow {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0 34px;
+  }
+}
+
+.flow-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border: 1.5px solid var(--ink);
+  border-radius: 8px;
+  padding: 22px 20px 20px;
+  box-shadow: var(--shadow);
+}
+.flow-step.is-gate {
+  border-color: var(--red);
+  box-shadow: 4px 4px 0 rgba(217, 45, 45, 0.18);
+}
+
+/*
+ * Connectors only where they tell the truth: a downward tick when the steps are one per row, a
+ * right-pointing arrow when all four sit on one row. In the two-column layout the reading order is
+ * row-major, so an arrow would point at the wrong card — the STEP numbers carry the sequence there.
+ */
+.flow-step:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -22px;
+  width: 2px;
+  height: 14px;
+  transform: translateX(-50%);
+  background-image: linear-gradient(to bottom, var(--muted) 0 55%, transparent 55% 100%);
+  background-size: 2px 7px;
+  opacity: 0.6;
+}
+@media (min-width: 720px) and (max-width: 1179px) {
+  .flow-step:not(:last-child)::after {
+    display: none;
+  }
+}
+@media (min-width: 1180px) {
+  .flow-step:not(:last-child)::after {
+    top: 50%;
+    left: 100%;
+    bottom: auto;
+    width: 22px;
+    height: 2px;
+    transform: translateY(-50%);
+    background-image: linear-gradient(to right, var(--muted) 0 55%, transparent 55% 100%);
+    background-size: 7px 2px;
+  }
+  .flow-step:not(:last-child)::before {
+    content: "▸";
+    position: absolute;
+    top: 50%;
+    left: calc(100% + 23px);
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1;
+  }
+}
+
+.flow-n {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--muted);
+}
+.flow-step h3 {
+  font-family: var(--serif);
+  font-size: 19px;
+  line-height: 1.22;
+  margin: 10px 0 10px;
+}
+.flow-step p {
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: #453d31;
+  margin: 0;
+}
+.flow-step .gate-verdicts {
+  margin-top: auto;
+  padding-top: 14px;
+}
+.flow-links {
+  margin-top: 10px;
+  font-size: 12px;
+}
+.flow-links a {
+  color: var(--red);
+}
+
+/* ============================================================
+   Capability rows — one per line, so the prose gets a readable measure
+   instead of being squeezed into four narrow columns.
+   ============================================================ */
+.caps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-top: 20px;
+  border-top: 1px solid var(--line);
+}
+.cap-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px 22px;
+  padding: 20px 4px;
+  border-bottom: 1px solid var(--line);
+}
+@media (min-width: 860px) {
+  .cap-row {
+    grid-template-columns: minmax(230px, 0.9fr) minmax(0, 2fr);
+    align-items: baseline;
+    padding: 22px 6px;
+  }
+}
+.cap-row:hover {
+  background: rgba(255, 253, 247, 0.6);
+}
+.cap-row h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--serif);
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  line-height: 1.25;
+}
+.cap-row h3 i {
+  font-style: normal;
+  font-size: 17px;
+  opacity: 0.85;
+}
+.cap-row p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.75;
+  color: #453d31;
+  max-width: 68ch;
+}

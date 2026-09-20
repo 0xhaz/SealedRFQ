@@ -78,33 +78,35 @@ export default function Home() {
           Before any money moves, the award has to pass two gates — and after that, payment follows
           delivery. Every arrow below runs on <span className="arc-word">Arc</span>.
         </p>
-        <div className="story-acts gates">
-          <div className="story-act">
-            <div className="story-stamp ink">SEALED · COMMIT-REVEAL</div>
+        <div className="flow">
+          <div className="flow-step">
+            <span className="flow-n">STEP 01 · SEALED</span>
             <h3>Bids go on-chain as hashes</h3>
             <p>
               Each supplier posts a commitment and a USDC deposit. Prices stay invisible until the
-              reveal window. A supplier that never reveals <b>forfeits its deposit</b>.
+              reveal window, and a supplier that never reveals <b>forfeits its deposit</b>.
             </p>
             <div className="gate-verdicts">
               <span className="gv ok">REVEAL ✓</span>
-              <span className="gv no">NO-SHOW ✕ forfeit</span>
+              <span className="gv no">NO-SHOW ✕</span>
             </div>
           </div>
-          <div className="story-act">
-            <div className="story-stamp green">GATE 1 · AI EVALUATION</div>
+
+          <div className="flow-step">
+            <span className="flow-n">STEP 02 · GATE 1 · AI</span>
             <h3>The model scores against a published rubric</h3>
             <p>
               The rubric&apos;s hash is fixed when the RFQ opens, so it cannot be rewritten to fit a
-              favoured bid. The memo is anchored on-chain whether it recommends or rejects.
+              favoured bid. The memo is anchored whether it recommends or rejects.
             </p>
             <div className="gate-verdicts">
               <span className="gv no">REJECT ✕</span>
               <span className="gv ok">RECOMMEND →</span>
             </div>
           </div>
-          <div className="story-act blocked">
-            <div className="story-stamp red">GATE 2 · ARC POLICY</div>
+
+          <div className="flow-step is-gate">
+            <span className="flow-n">STEP 03 · GATE 2 · ARC</span>
             <h3>The contract decides if the award is allowed</h3>
             <p>
               Budget cap, minimum bidders, deposit ratio, rubric match and concentration limits are
@@ -116,24 +118,25 @@ export default function Home() {
               <span className="gv ok">AWARD →</span>
             </div>
             {FIREWALL_TX && (
-              <div className="story-links">
+              <div className="flow-links">
                 <a href={explorerTx(FIREWALL_TX)} target="_blank" rel="noreferrer">
                   Open the real reverted transaction ↗
                 </a>
               </div>
             )}
           </div>
-          <div className="story-act">
-            <div className="story-stamp ink">MILESTONES · ERC-8183</div>
+
+          <div className="flow-step">
+            <span className="flow-n">STEP 04 · MILESTONES</span>
             <h3>Payment follows delivery</h3>
             <p>
               One escrow job per milestone. The supplier submits a deliverable hash; the buyer
               accepts or rejects with a reason. If the buyer goes silent, payment{" "}
-              <b>auto-releases</b>. Retention is held back until final acceptance.
+              <b>auto-releases</b>. Retention is held until final acceptance.
             </p>
             <div className="gate-verdicts">
-              <span className="gv ok">ACCEPT ↗ paid</span>
-              <span className="gv ok">SILENCE ⏱ auto-release</span>
+              <span className="gv ok">ACCEPT ↗</span>
+              <span className="gv ok">SILENCE ⏱</span>
             </div>
           </div>
         </div>
@@ -142,49 +145,67 @@ export default function Home() {
       {/* ---- What makes it different ---- */}
       <section className="caps">
         <h2 className="section-title">What makes it different</h2>
-        <div className="caps-grid">
-          <div className="cap">
-            <h3>⛔ AI proposes, the contract disposes</h3>
+        <div className="caps-list">
+          <div className="cap-row">
+            <h3>
+              <i>⛔</i> AI proposes, the contract disposes
+            </h3>
             <p>
               Six caps live inside <span className="mono-sm">award()</span>. An AI-recommended bid
               above the published budget is <b>rejected by the contract itself</b>, and the
-              evaluator&apos;s recommendation is bound to one winner, so an awarder key cannot
-              redirect it.
+              evaluator&apos;s recommendation is bound to one winner — so an awarder key cannot
+              quietly redirect it to someone else.
             </p>
           </div>
-          <div className="cap">
-            <h3>🔒 Sealed until the reveal</h3>
+          <div className="cap-row">
+            <h3>
+              <i>🔒</i> Sealed until the reveal
+            </h3>
             <p>
-              Commit-reveal bids with USDC deposits. Losing bidders are refunded automatically; the
-              winner&apos;s deposit becomes a <b>performance stake</b>.
+              Commit-reveal bids backed by USDC deposits. In RFP mode the proposal document is
+              sealed alongside the price, so neither the number nor the method can be revised after
+              rival bids open. Losing bidders are refunded automatically; the winner&apos;s deposit
+              becomes a <b>performance stake</b>.
             </p>
           </div>
-          <div className="cap">
-            <h3>⏱ Neither side can stall the other</h3>
+          <div className="cap-row">
+            <h3>
+              <i>⏱</i> Neither side can stall the other
+            </h3>
             <p>
-              Every state has a clock: no award means deposits refund, buyer silence auto-releases
-              payment, and a missed delivery deadline ends the engagement in the buyer&apos;s favour.
+              Every state has a clock. No award means deposits refund. Buyer silence auto-releases
+              payment, so a supplier who delivered is never held hostage by someone who stops
+              answering. A missed delivery deadline ends the engagement in the buyer&apos;s favour.
             </p>
           </div>
-          <div className="cap">
-            <h3>🔑 Least-privilege keys</h3>
+          <div className="cap-row">
+            <h3>
+              <i>🔑</i> Least-privilege keys
+            </h3>
             <p>
               The evaluator scores but cannot award. The awarder awards but cannot choose. The
-              verifier releases but can never refund a deposit.
+              verifier releases payment but can never refund a deposit. Compromising one key does
+              not compromise the outcome.
             </p>
           </div>
-          <div className="cap">
-            <h3>🧾 Audit any award</h3>
+          <div className="cap-row">
+            <h3>
+              <i>🧾</i> Audit any award
+            </h3>
             <p>
               Every AI decision is anchored as a hash. Re-hash the published memo and compare it
-              with the chain — rejections are recorded exactly like approvals.
+              with the chain: an edited rationale fails the check instead of reading plausibly.
+              Rejections are recorded exactly like approvals.
             </p>
           </div>
-          <div className="cap">
-            <h3>💵 USDC end to end</h3>
+          <div className="cap-row">
+            <h3>
+              <i>💵</i> USDC end to end
+            </h3>
             <p>
               Budgets, deposits and payouts are all USDC, which is also the gas on Arc. Buyers fund
-              an RFQ in a single signature with ERC-2612 <span className="mono-sm">permit</span>.
+              an RFQ in a single signature with ERC-2612 <span className="mono-sm">permit</span>,
+              and payouts are pull-only so no recipient can block a milestone.
             </p>
           </div>
         </div>
