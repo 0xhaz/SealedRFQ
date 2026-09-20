@@ -74,11 +74,34 @@ Five contracts. `RFQRegistry` owns everything up to the award; `SealedRFQAdapter
 after it, on top of an ERC-8183 escrow (`AgenticCommerce`). `ProcurementPolicy` holds the caps and
 `AttestationLog` holds the anchored AI decisions.
 
-```
-createRFQ ──▶ commitBid ──▶ revealBid ──▶ award ──▶ milestone jobs ──▶ accept / reject / auto-release
-  budget +      deposit +     re-hash to    policy +    one ERC-8183      payment, retention held
-  stake         sealed hash   the commit    attested    job each          to final acceptance
-  escrowed                                  winner
+```mermaid
+flowchart LR
+  subgraph REG["RFQRegistry — everything up to the award"]
+    direction LR
+    A["createRFQ<br/>budget + buyer stake escrowed"]
+    B["commitBid<br/>deposit + sealed hash"]
+    C["revealBid<br/>re-hash must match the commit"]
+    D["award<br/>policy check + attested winner"]
+    A --> B --> C --> D
+  end
+
+  subgraph ADP["SealedRFQAdapter — everything after it"]
+    direction LR
+    E["milestone jobs<br/>one ERC-8183 job each"]
+    F["accept / reject / auto-release<br/>payment per milestone"]
+    G["final acceptance<br/>retention + both stakes released"]
+    E --> F --> G
+  end
+
+  D ==>|"price, stake and winner's deposit move<br/>unused budget refunded to the buyer"| E
+
+  POL["ProcurementPolicy<br/>budget cap · minimum bidders<br/>deposit ratio · concentration"]
+  ATT["AttestationLog<br/>anchored decision memo"]
+  ESC["AgenticCommerce<br/>ERC-8183 escrow"]
+
+  POL -. "award must pass" .-> D
+  ATT -. "award must cite" .-> D
+  ESC -. "holds the money" .-> E
 ```
 
 1. **Create.** Budget and buyer stake are pulled into escrow in the same transaction that opens the
