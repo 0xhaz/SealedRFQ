@@ -5624,14 +5624,18 @@ button.field-wallet {
 }
 .trust-col {
   background: var(--card);
-  border: 1px solid var(--line);
+  /* Same frame on all three: a lighter border on two of them read as a mistake rather than
+     hierarchy. The reader's column earns its emphasis from the red accent, not a different box. */
+  border: 1.5px solid var(--ink);
   border-radius: 8px;
   padding: 18px 20px 16px;
-}
-/* the column the reader is responsible for carries the weight */
-.trust-col.is-you {
-  border: 1.5px solid var(--ink);
   box-shadow: var(--shadow);
+}
+.trust-col.is-you {
+  box-shadow: 4px 4px 0 rgba(217, 45, 45, 0.22);
+}
+.trust-col.is-you .trust-note {
+  border-top-color: rgba(217, 45, 45, 0.35);
 }
 .trust-tag {
   font-family: var(--mono);
