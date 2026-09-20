@@ -125,36 +125,78 @@ export class ApiController {
   }
 
   /**
-   * Re-hash the published memo and compare it with the anchor the chain holds. Never compares two
-   * stored strings: the point is to prove the memo was not edited after the decision.
+   * Re-hash the published memo and compare it with the anchor the chain holds.
+   *
+   * Four outcomes, deliberately distinct: a rewritten memo (mismatch) is a serious finding and must
+   * not look the same as this agent simply not holding the memo. Reporting "not verified" for a
+   * decision the chain plainly recorded would cry wolf.
    */
   @Get("audit/:id")
   async audit(@Param("id") id: string) {
-    const row = db
+    const rfqId = Number(id);
+    const withMemo = db
       .select()
       .from(schema.attestations)
       .where(
-        sql`${schema.attestations.rfqId} = ${Number(id)} and ${schema.attestations.memo} is not null`,
+        sql`${schema.attestations.rfqId} = ${rfqId} and ${schema.attestations.memo} is not null`,
       )
       .get();
-    if (!row?.memo) return { verified: false, reason: "no published memo for this RFQ" };
 
-    const memo = JSON.parse(row.memo);
+    if (!withMemo?.memo) {
+      const anchored = db
+        .select()
+        .from(schema.attestations)
+        .where(sql`${schema.attestations.rfqId} = ${rfqId}`)
+        .all();
+      if (anchored.length === 0) {
+        return {
+          state: "none" as const,
+          verified: false,
+          reason: "No decision has been anchored for this RFQ yet.",
+        };
+      }
+      const rfq = db.select().from(schema.rfqs).where(eq(schema.rfqs.id, rfqId)).get();
+      const awards = anchored.filter((a) => a.kind.startsWith("AWARD"));
+      const decision =
+        awards.find((a) => a.winner && a.winner.toLowerCase() === rfq?.winner?.toLowerCase()) ??
+        awards.at(-1) ??
+        anchored[0];
+      return {
+        state: "anchored-only" as const,
+        verified: false,
+        reason:
+          "The decision is anchored on-chain, but this agent does not hold the memo behind the hash.",
+        anchoredHash: decision.payloadHash,
+        anchoredBy: decision.actor,
+        kind: decision.kind,
+        model: decision.model,
+        tx: decision.tx,
+      };
+    }
+
+    const memo = JSON.parse(withMemo.memo);
     const computed = hashCanonical(memo);
     const onChain = await this.chain.publicClient.readContract({
       ...this.chain.attestationLog,
       functionName: "getAttestation",
-      args: [BigInt(row.subjectId), computed as `0x${string}`],
+      args: [BigInt(withMemo.subjectId), computed as `0x${string}`],
     });
+    const matches = computed.toLowerCase() === withMemo.payloadHash.toLowerCase();
+    const anchoredOnChain = onChain.ts > 0n;
 
     return {
-      verified: onChain.ts > 0n && computed.toLowerCase() === row.payloadHash.toLowerCase(),
+      state: matches && anchoredOnChain ? ("verified" as const) : ("mismatch" as const),
+      verified: matches && anchoredOnChain,
+      reason: matches
+        ? undefined
+        : "The published memo does not hash to the value anchored on-chain: it has been altered since the decision.",
       computedHash: computed,
-      anchoredHash: row.payloadHash,
-      anchoredBy: onChain.actor,
+      anchoredHash: withMemo.payloadHash,
+      anchoredBy: anchoredOnChain ? onChain.actor : withMemo.actor,
       anchoredAt: Number(onChain.ts),
-      model: row.model,
-      tx: row.tx,
+      kind: withMemo.kind,
+      model: withMemo.model,
+      tx: withMemo.tx,
       memo,
     };
   }

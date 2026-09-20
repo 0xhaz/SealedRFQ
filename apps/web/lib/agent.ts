@@ -36,8 +36,11 @@ export type Evaluation = {
 };
 
 export type AuditResult = {
+  /** verified = memo matches the anchor; mismatch = altered; anchored-only = memo held elsewhere. */
+  state?: "verified" | "mismatch" | "anchored-only" | "none";
   verified: boolean;
   reason?: string;
+  kind?: string;
   computedHash?: `0x${string}`;
   anchoredHash?: `0x${string}`;
   anchoredBy?: `0x${string}`;
