@@ -27,3 +27,7 @@ apps/agent/data/
 /web/
 
 .DS_Store
+
+# next
+apps/web/.next/
+apps/web/next-env.d.ts
