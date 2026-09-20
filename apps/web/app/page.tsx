@@ -25,10 +25,13 @@ export default function Home() {
 
       <section className="hero">
         <div>
+          {/* One clause per line: leaving the breaks to the browser split "Sealed bids. AI /
+              scores." and lost the rhythm the line is built on. */}
           <h1>
-            Sealed bids. AI scores.
-            <br />
-            Arc awards. <span className="accent">Suppliers get paid.</span>
+            <span className="h1-line">Sealed bids.</span>
+            <span className="h1-line">AI scores.</span>
+            <span className="h1-line">Arc awards.</span>
+            <span className="h1-line accent">Suppliers get paid.</span>
           </h1>
           <p className="hero-sub">
             SealedRFQ is sealed-bid procurement for B2B buyers. Suppliers commit sealed bids backed
