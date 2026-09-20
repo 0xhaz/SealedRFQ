@@ -68,6 +68,77 @@ full run, including the policy firewall rejecting an AI-recommended over-budget 
 
 Run it yourself: `./script/demo.sh testnet`.
 
+## How it works
+
+Five contracts. `RFQRegistry` owns everything up to the award; `SealedRFQAdapter` owns everything
+after it, on top of an ERC-8183 escrow (`AgenticCommerce`). `ProcurementPolicy` holds the caps and
+`AttestationLog` holds the anchored AI decisions.
+
+```
+createRFQ ──▶ commitBid ──▶ revealBid ──▶ award ──▶ milestone jobs ──▶ accept / reject / auto-release
+  budget +      deposit +     re-hash to    policy +    one ERC-8183      payment, retention held
+  stake         sealed hash   the commit    attested    job each          to final acceptance
+  escrowed                                  winner
+```
+
+1. **Create.** Budget and buyer stake are pulled into escrow in the same transaction that opens the
+   RFQ, so a supplier never bids against an unfunded one.
+2. **Commit.** A bid is `keccak256(contract, chainId, rfqId, bidder, price, deliveryDays,
+   proposalHash, salt)` plus a USDC deposit. The bidder's address is *inside* the hash, so copying
+   someone else's commitment is useless — they could never reveal it.
+3. **Reveal.** The contract re-hashes the claimed values and compares. A bid that is never revealed
+   forfeits its deposit; that forfeiture is what makes a sealed bid binding rather than an option.
+4. **Award.** Checked against `ProcurementPolicy` (budget cap, minimum bidders, deposit ratio,
+   rubric match, concentration) *and* against an evaluator's recommendation anchored for that exact
+   winner. The price, the buyer stake and the winner's deposit move to the adapter; unused budget
+   returns to the buyer; the winner's deposit becomes a performance stake.
+5. **Milestones.** One ERC-8183 job per milestone. The supplier submits a deliverable hash, the
+   buyer accepts or rejects with a reason, and retention accrues until final acceptance releases it
+   along with both stakes.
+
+### How it tells a buyer from a supplier
+
+There is no registration and no account type. Identity is **positional** — it is whatever you did,
+recorded when you did it:
+
+| | Becomes | Stored as |
+|---|---|---|
+| Whoever calls `createRFQ` | the buyer | `rfq.buyer = msg.sender`, with their money escrowed in the same call |
+| Whoever calls `commitBid` | a supplier | `_bids[rfqId][msg.sender]`; the deposit is the only entry ticket |
+| Whoever wins | the supplier of record | `engagement.supplier`, fixed at award |
+
+Every later check compares `msg.sender` against those stored addresses (`NotBuyer`, `NotSupplier`).
+Nothing is granted, so roles are per RFQ, not per account: the same wallet can be a buyer on one and
+a supplier on another. A buyer cannot bid on their own RFQ (`BuyerCannotBid`).
+
+Granted roles exist only for the **agent keys**, through OpenZeppelin `AccessControl`, and they are
+deliberately narrow: `EVALUATOR` scores and anchors but cannot award, `AWARDER` awards but only the
+bidder an evaluator already recommended, `VERIFIER` signs off milestones but can never refund a
+deposit, `ARBITER` can only split escrow that is already in dispute.
+
+| Action | Who |
+|---|---|
+| `createRFQ` | anyone — becomes the buyer |
+| `commitBid`, `revealBid` | anyone — becomes a supplier |
+| `cancelRFQ`, `addInvitees` | that RFQ's buyer |
+| `award` | the buyer **or** `AWARDER`, both bound by policy and the attested recommendation |
+| `submit` | the winning supplier (ERC-8183 checks `job.provider`) |
+| `acceptMilestone`, `rejectMilestone` | the buyer **or** an attested `VERIFIER` |
+| `raiseDispute` | the supplier |
+| `resolveDispute` | `ARBITER` |
+| `settleDeposit`, `closeNoAward`, `autoRelease`, `settleExpired`, `withdraw` | **anyone** |
+
+### Why that last row is permissionless
+
+Those functions decide nothing; they enforce a clock that has already run out. `autoRelease` pays
+the supplier only if the buyer stayed silent past the acceptance window. `closeNoAward` refunds only
+after the award window closed with no award. `settleDeposit` refunds a revealed loser or forfeits an
+unrevealed bid. `withdraw` only ever pays `msg.sender` from their own credited balance.
+
+If these required permission, either party could hold the other hostage by simply doing nothing.
+Leaving them open means a stranger or a keeper bot can push the state forward and the outcome is
+identical whoever calls — the caller cannot choose *what* happens, only *when* someone stops waiting.
+
 ## Which procurement instruments this covers
 
 | | Covered | How |
