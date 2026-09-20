@@ -84,6 +84,9 @@ export class EvaluatorService {
 
       const redFlags: string[] = [];
       if (price > budget) redFlags.push(`bid ${price} exceeds the published budget ${budget}`);
+      if (rfq.requiresProposal && !b.proposalHash) {
+        redFlags.push("no proposal document bound to this bid");
+      }
       if (price * 2n < bestPrice * 2n && price * 100n < budget * 40n) {
         redFlags.push("bid is under 40% of budget: check scope understanding");
       }
@@ -118,7 +121,12 @@ export class EvaluatorService {
     const inputsHash = hashCanonical({
       budget: String(budget),
       rubric,
-      bids: revealed.map((b) => ({ bidder: b.bidder, price: b.price, days: b.deliveryDays })),
+      bids: revealed.map((b) => ({
+        bidder: b.bidder,
+        price: b.price,
+        days: b.deliveryDays,
+        proposalHash: b.proposalHash,
+      })),
     });
 
     const runnerUp =

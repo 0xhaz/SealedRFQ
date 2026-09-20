@@ -200,6 +200,7 @@ contract RFQRegistry is SealedBid {
         r.status = Status.Open;
         r.inviteOnly = p.invitees.length != 0;
         r.requiresQualification = p.requiresQualification;
+        r.requiresProposal = p.requiresProposal;
         r.bidDeadline = p.bidDeadline;
         r.revealDeadline = p.revealDeadline;
         r.awardDeadline = p.awardDeadline;

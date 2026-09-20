@@ -94,7 +94,7 @@ contract DemoLifecycle is Script {
 
         for (uint256 i; i < 3; ++i) {
             address bidder = vm.addr(supplierPk[i]);
-            bytes32 h = registry.computeCommitment(id, bidder, prices[i], days_[i], _salt(i, id));
+            bytes32 h = registry.computeCommitment(id, bidder, prices[i], days_[i], bytes32(0), _salt(i, id));
             (v, r, s) = _permit(supplierPk[i], address(registry), DEPOSIT);
             vm.startBroadcast(supplierPk[i]);
             registry.commitBidWithPermit(id, h, block.timestamp + 1 hours, v, r, s);
@@ -113,7 +113,7 @@ contract DemoLifecycle is Script {
     function _reveal(uint256 id) internal {
         for (uint256 i; i < 3; ++i) {
             vm.startBroadcast(supplierPk[i]);
-            registry.revealBid(id, prices[i], days_[i], _salt(i, id));
+            registry.revealBid(id, prices[i], days_[i], bytes32(0), _salt(i, id));
             vm.stopBroadcast();
         }
         console2.log("revealed 3 bids; award window opens at", registry.getRFQ(id).revealDeadline);

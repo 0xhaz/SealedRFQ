@@ -3,6 +3,7 @@
 import { RFQRegistryAbi, formatUsdc, parseUsdc } from "@sealedrfq/shared";
 import Link from "next/link";
 import { useState } from "react";
+import { sha256, stringToBytes } from "viem";
 import { useAccount, useConfig, useWriteContract } from "wagmi";
 import { readContract, signMessage, waitForTransactionReceipt } from "wagmi/actions";
 import { WalletChip } from "@/components/WalletChip";
@@ -18,20 +19,25 @@ import {
 } from "@/lib/bidStore";
 import { signUsdcPermit } from "@/lib/permit";
 
+const ZERO_HASH = `0x${"0".repeat(64)}` as const;
+
 type Props = {
   rfqId: number;
   phase: string;
   deposit: string; // 6-decimal units as string
   budget: string;
+  /** RFP mode: the bid must carry a proposal, not just a price. */
+  requiresProposal: boolean;
 };
 
-export function BidForm({ rfqId, phase, deposit, budget }: Props) {
+export function BidForm({ rfqId, phase, deposit, budget, requiresProposal }: Props) {
   const { address, isConnected, chainId } = useAccount();
   const config = useConfig();
   const { writeContractAsync } = useWriteContract();
 
   const [price, setPrice] = useState("");
   const [days, setDays] = useState("21");
+  const [proposal, setProposal] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -57,7 +63,17 @@ export function BidForm({ rfqId, phase, deposit, budget }: Props) {
     return saltFromSignature(signature);
   }
 
-  function commitmentFor(bidder: `0x${string}`, price: bigint, deliveryDays: number, salt: `0x${string}`) {
+  function proposalHashOf(text: string): `0x${string}` {
+    return text.trim() ? sha256(stringToBytes(text)) : ZERO_HASH;
+  }
+
+  function commitmentFor(
+    bidder: `0x${string}`,
+    price: bigint,
+    deliveryDays: number,
+    proposalHash: `0x${string}`,
+    salt: `0x${string}`,
+  ) {
     return computeCommitment({
       registry: contracts.RFQRegistry,
       chainId: chain.id,
@@ -65,6 +81,7 @@ export function BidForm({ rfqId, phase, deposit, budget }: Props) {
       bidder,
       price,
       deliveryDays,
+      proposalHash,
       salt,
     });
   }
@@ -92,9 +109,14 @@ export function BidForm({ rfqId, phase, deposit, budget }: Props) {
         throw new Error("Delivery must be a whole number of days");
       }
 
+      if (requiresProposal && !proposal.trim()) {
+        throw new Error("This RFQ is an RFP: a written proposal is required");
+      }
+      const proposalHash = proposalHashOf(proposal);
+
       setBusy("Deriving your bid secret (signature, not a transaction)…");
       const salt = await deriveSalt(address);
-      const commitHash = commitmentFor(address, priceUnits, deliveryDays, salt);
+      const commitHash = commitmentFor(address, priceUnits, deliveryDays, proposalHash, salt);
 
       // Save and hand over the reveal file before signing anything that costs money.
       const record: SavedBid = {
@@ -103,6 +125,7 @@ export function BidForm({ rfqId, phase, deposit, budget }: Props) {
         bidder: address,
         price: priceUnits.toString(),
         deliveryDays,
+        proposalHash,
         salt,
         commitHash,
         savedAt: Date.now(),
@@ -164,8 +187,13 @@ export function BidForm({ rfqId, phase, deposit, budget }: Props) {
       const candidates: SavedBid[] = [revealFile, saved].filter(Boolean) as SavedBid[];
       let match = candidates.find(
         (c) =>
-          commitmentFor(address, BigInt(c.price), c.deliveryDays, c.salt).toLowerCase() ===
-          target.toLowerCase(),
+          commitmentFor(
+            address,
+            BigInt(c.price),
+            c.deliveryDays,
+            c.proposalHash ?? ZERO_HASH,
+            c.salt,
+          ).toLowerCase() === target.toLowerCase(),
       );
 
       if (!match) {
@@ -174,8 +202,11 @@ export function BidForm({ rfqId, phase, deposit, budget }: Props) {
         if (priceUnits > 0n && deliveryDays > 0) {
           setBusy("Re-deriving your bid secret from your wallet…");
           const salt = await deriveSalt(address);
+          const proposalHash = proposal.trim()
+            ? proposalHashOf(proposal)
+            : (candidates[0]?.proposalHash ?? ZERO_HASH);
           if (
-            commitmentFor(address, priceUnits, deliveryDays, salt).toLowerCase() ===
+            commitmentFor(address, priceUnits, deliveryDays, proposalHash, salt).toLowerCase() ===
             target.toLowerCase()
           ) {
             match = {
@@ -184,6 +215,7 @@ export function BidForm({ rfqId, phase, deposit, budget }: Props) {
               bidder: address,
               price: priceUnits.toString(),
               deliveryDays,
+              proposalHash,
               salt,
               commitHash: target,
               savedAt: Date.now(),
@@ -205,7 +237,13 @@ export function BidForm({ rfqId, phase, deposit, budget }: Props) {
         abi: RFQRegistryAbi,
         address: contracts.RFQRegistry,
         functionName: "revealBid",
-        args: [BigInt(rfqId), BigInt(match.price), match.deliveryDays, match.salt],
+        args: [
+          BigInt(rfqId),
+          BigInt(match.price),
+          match.deliveryDays,
+          match.proposalHash ?? ZERO_HASH,
+          match.salt,
+        ],
       });
       setTxHash(hash);
       await waitForTransactionReceipt(config, { hash });
@@ -283,13 +321,29 @@ export function BidForm({ rfqId, phase, deposit, budget }: Props) {
             />
           </div>
 
+          {bidding && (
+            <div className="field full">
+              <label htmlFor="bid-proposal">
+                Proposal {requiresProposal ? "(required)" : "(optional)"}
+              </label>
+              <textarea
+                id="bid-proposal"
+                rows={4}
+                placeholder="Method, team, timeline — whatever the buyer asked for."
+                value={proposal}
+                onChange={(e) => setProposal(e.target.value)}
+              />
+            </div>
+          )}
+
           {bidding ? (
             <>
               <div className="full note">
-                <b>Your secret is derived from your wallet.</b> The price is hidden on-chain behind
-                a hash. The secret that unlocks it comes from a signature, so the same wallet can
-                regenerate it — and the reveal file downloads as a backup. Keep at least one: after
-                bidding closes, a bid that cannot be revealed forfeits its deposit.
+                <b>Your secret is derived from your wallet.</b> The price{requiresProposal ? " and proposal are" : " is"}{" "}
+                hidden on-chain behind a hash, so neither can be rewritten after seeing rival bids.
+                The secret that unlocks it comes from a signature, so the same wallet can regenerate
+                it — and the reveal file downloads as a backup. Keep at least one: after bidding
+                closes, a bid that cannot be revealed forfeits its deposit.
               </div>
               <div className="full">
                 <button type="button" className="btn-primary" disabled={!!busy} onClick={() => commit(false)}>

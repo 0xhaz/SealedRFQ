@@ -15,9 +15,12 @@ abstract contract SealedBid is BidDeposit {
         address bidder,
         uint128 price,
         uint32 deliveryDays,
+        bytes32 proposalHash,
         bytes32 salt
     ) public view returns (bytes32) {
-        return keccak256(abi.encode(address(this), block.chainid, rfqId, bidder, price, deliveryDays, salt));
+        return keccak256(
+            abi.encode(address(this), block.chainid, rfqId, bidder, price, deliveryDays, proposalHash, salt)
+        );
     }
 
     function commitBid(uint256 rfqId, bytes32 commitHash) external nonReentrant {
@@ -37,22 +40,28 @@ abstract contract SealedBid is BidDeposit {
     }
 
     /// @notice Reveal a committed bid. Only the bidder can reveal, only in the reveal window.
-    function revealBid(uint256 rfqId, uint128 price, uint32 deliveryDays, bytes32 salt) external {
+    /// @dev `proposalHash` is bound into the commitment, so an RFP proposal cannot be rewritten
+    ///      after seeing the competition any more than the price can.
+    function revealBid(uint256 rfqId, uint128 price, uint32 deliveryDays, bytes32 proposalHash, bytes32 salt)
+        external
+    {
         RFQ storage r = _rfq(rfqId);
         _requirePhase(r, Phase.Reveal);
         Bid storage b = _bids[rfqId][msg.sender];
         if (b.commitHash == bytes32(0)) revert NoCommitment(msg.sender);
         if (b.revealed) revert AlreadyRevealed(msg.sender);
         if (price == 0) revert ZeroPrice();
-        if (computeCommitment(rfqId, msg.sender, price, deliveryDays, salt) != b.commitHash) {
+        if (r.requiresProposal && proposalHash == bytes32(0)) revert ProposalRequired();
+        if (computeCommitment(rfqId, msg.sender, price, deliveryDays, proposalHash, salt) != b.commitHash) {
             revert CommitmentMismatch();
         }
 
         b.revealed = true;
         b.price = price;
         b.deliveryDays = deliveryDays;
+        b.proposalHash = proposalHash;
         r.revealCount++;
-        emit BidRevealed(rfqId, msg.sender, price, deliveryDays);
+        emit BidRevealed(rfqId, msg.sender, price, deliveryDays, proposalHash);
     }
 
     /// @dev Re-committing before the deadline replaces the hash without a second deposit.

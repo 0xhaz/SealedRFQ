@@ -43,6 +43,7 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
           </a>
           {rfq.inviteOnly && " · invite only"}
           {rfq.requiresQualification && " · qualified suppliers only"}
+          {rfq.requiresProposal ? " · RFP (proposal required)" : " · RFQ (price and delivery)"}
         </p>
       </section>
 
@@ -89,6 +90,7 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
                   <th>Supplier</th>
                   <th className="num">Price</th>
                   <th className="num">Delivery</th>
+                  {rfq.requiresProposal && <th>Proposal</th>}
                   <th>Deposit</th>
                 </tr>
               </thead>
@@ -113,6 +115,13 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
                       )}
                     </td>
                     <td className="num">{b.revealed && !sealed ? `${b.deliveryDays} d` : "—"}</td>
+                    {rfq.requiresProposal && (
+                      <td className="mono" style={{ fontSize: 11 }}>
+                        {b.revealed && !sealed && b.proposalHash !== `0x${"0".repeat(64)}`
+                          ? `${b.proposalHash.slice(0, 14)}…`
+                          : "—"}
+                      </td>
+                    )}
                     <td>
                       <span className="badge">{b.deposit}</span>
                     </td>
@@ -166,6 +175,8 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
             <div className="note">
               The rubric hash is stored at creation, so it cannot be rewritten to fit a favoured
               bid. The award must cite an evaluation that matches it.
+              {rfq.requiresProposal &&
+                " In RFP mode each bid also seals a proposal document, so the method cannot be revised after rival bids are open."}
             </div>
             <div className="kv">
               <span>rubricHash</span>

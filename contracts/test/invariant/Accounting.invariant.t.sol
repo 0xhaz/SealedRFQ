@@ -84,7 +84,7 @@ contract Handler is Test {
             [uint128(bound(p0, 1, 3.5e6)), uint128(bound(p1, 1, 3.5e6)), uint128(bound(p2, 1, 3.5e6))];
         for (uint256 i; i < 3; ++i) {
             bytes32 salt = bytes32(uint256(uint160(suppliers[i])));
-            bytes32 h = registry.computeCommitment(id, suppliers[i], prices[i], 7, salt);
+            bytes32 h = registry.computeCommitment(id, suppliers[i], prices[i], 7, bytes32(0), salt);
             vm.prank(suppliers[i]);
             registry.commitBid(id, h);
             bidPrice[id][suppliers[i]] = prices[i];
@@ -92,7 +92,7 @@ contract Handler is Test {
         vm.warp(p.bidDeadline);
         for (uint256 i; i < (skipLast ? 2 : 3); ++i) {
             vm.prank(suppliers[i]);
-            registry.revealBid(id, prices[i], 7, bytes32(uint256(uint160(suppliers[i]))));
+            registry.revealBid(id, prices[i], 7, bytes32(0), bytes32(uint256(uint160(suppliers[i]))));
         }
         vm.warp(p.revealDeadline);
         ghost["openToAward"]++;
@@ -102,7 +102,7 @@ contract Handler is Test {
         uint256 id = _rfq(rfqSeed);
         address s = _supplier(who);
         price = uint128(bound(price, 1, 3.5e6));
-        bytes32 h = registry.computeCommitment(id, s, price, 7, bytes32(uint256(uint160(s))));
+        bytes32 h = registry.computeCommitment(id, s, price, 7, bytes32(0), bytes32(uint256(uint160(s))));
         vm.prank(s);
         registry.commitBid(id, h);
         bidPrice[id][s] = price;
@@ -112,7 +112,7 @@ contract Handler is Test {
         uint256 id = _rfq(rfqSeed);
         address s = _supplier(who);
         vm.prank(s);
-        registry.revealBid(id, bidPrice[id][s], 7, bytes32(uint256(uint160(s))));
+        registry.revealBid(id, bidPrice[id][s], 7, bytes32(0), bytes32(uint256(uint160(s))));
     }
 
     function award(uint256 who) external {

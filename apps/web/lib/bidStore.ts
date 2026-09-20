@@ -12,6 +12,8 @@ export type SavedBid = {
   /** 6-decimal USDC units, as a string (JSON has no bigint). */
   price: string;
   deliveryDays: number;
+  /** sha256 of the proposal document in RFP mode; zero hash for a price-only RFQ. */
+  proposalHash: `0x${string}`;
   salt: `0x${string}`;
   commitHash: `0x${string}`;
   savedAt: number;
@@ -72,11 +74,12 @@ export function computeCommitment(args: {
   bidder: `0x${string}`;
   price: bigint;
   deliveryDays: number;
+  proposalHash: `0x${string}`;
   salt: `0x${string}`;
 }): `0x${string}` {
   return keccak256(
     encodeAbiParameters(
-      parseAbiParameters("address, uint256, uint256, address, uint128, uint32, bytes32"),
+      parseAbiParameters("address, uint256, uint256, address, uint128, uint32, bytes32, bytes32"),
       [
         args.registry,
         BigInt(args.chainId),
@@ -84,6 +87,7 @@ export function computeCommitment(args: {
         args.bidder,
         args.price,
         args.deliveryDays,
+        args.proposalHash,
         args.salt,
       ],
     ),

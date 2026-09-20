@@ -15,13 +15,13 @@ sqlite.exec(`
 CREATE TABLE IF NOT EXISTS rfqs (
   id INTEGER PRIMARY KEY, buyer TEXT NOT NULL, category TEXT NOT NULL DEFAULT '',
   budget TEXT NOT NULL, deposit_amount TEXT NOT NULL, buyer_stake TEXT NOT NULL,
-  rubric_hash TEXT NOT NULL, metadata_uri TEXT NOT NULL DEFAULT '',
+  rubric_hash TEXT NOT NULL, metadata_uri TEXT NOT NULL DEFAULT '', requires_proposal INTEGER DEFAULT 0,
   bid_deadline INTEGER NOT NULL, reveal_deadline INTEGER NOT NULL, award_deadline INTEGER NOT NULL,
   winner TEXT, award_price TEXT, evaluation_hash TEXT,
   created_tx TEXT NOT NULL, created_block INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS bids (
   rfq_id INTEGER NOT NULL, bidder TEXT NOT NULL, commit_hash TEXT NOT NULL,
-  price TEXT, delivery_days INTEGER, revealed INTEGER NOT NULL DEFAULT 0,
+  price TEXT, delivery_days INTEGER, proposal_hash TEXT, revealed INTEGER NOT NULL DEFAULT 0,
   committed_tx TEXT NOT NULL, revealed_tx TEXT, PRIMARY KEY (rfq_id, bidder));
 CREATE INDEX IF NOT EXISTS bids_rfq ON bids (rfq_id);
 CREATE TABLE IF NOT EXISTS attestations (

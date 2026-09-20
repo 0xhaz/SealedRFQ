@@ -37,6 +37,8 @@ export function NewRfqForm() {
   const [retentionPct, setRetentionPct] = useState("10");
   const [milestones, setMilestones] = useState("30, 30, 40");
   const [weights, setWeights] = useState({ price: "50", delivery: "30", quality: "20" });
+  /** RFQ = priced line items. RFP = proposals judged on method as well as price. */
+  const [mode, setMode] = useState<"RFQ" | "RFP">("RFQ");
 
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -79,7 +81,10 @@ export function NewRfqForm() {
         },
       };
       const rubricHash = hashCanonical(rubric);
-      const metadataHash = sha256(stringToBytes(scope));
+      // Publish the rubric with the scope: only its hash is on-chain, and the evaluator refuses to
+      // score unless the published weights hash to it. Otherwise criteria could be invented later.
+      const metadata = JSON.stringify({ scope, rubric: rubric.criteria, mode });
+      const metadataHash = sha256(stringToBytes(metadata));
 
       const now = Math.floor(Date.now() / 1000);
       const bidDeadline = BigInt(now + Number(bidMin) * 60);
@@ -103,7 +108,8 @@ export function NewRfqForm() {
         milestoneBps: bps,
         invitees: [] as `0x${string}`[],
         requiresQualification: false,
-        metadataURI: scope.slice(0, 200),
+        requiresProposal: mode === "RFP",
+        metadataURI: metadata,
       } as const;
 
       const total = budgetUnits + (budgetUnits * BigInt(stakeBps)) / 10_000n;
@@ -158,7 +164,14 @@ export function NewRfqForm() {
       </div>
       <div className="form">
         <div className="field full">
-          <label htmlFor="scope">Scope</label>
+          <label htmlFor="mode">Type</label>
+          <select id="mode" value={mode} onChange={(e) => setMode(e.target.value as "RFQ" | "RFP")}>
+            <option value="RFQ">RFQ — defined items, judged mainly on price and delivery</option>
+            <option value="RFP">RFP — suppliers propose a solution; method is judged too</option>
+          </select>
+        </div>
+        <div className="field full">
+          <label htmlFor="scope">{mode === "RFP" ? "Problem statement" : "Scope"}</label>
           <textarea id="scope" rows={3} value={scope} onChange={(e) => setScope(e.target.value)} />
         </div>
         <div className="field">
@@ -251,6 +264,11 @@ export function NewRfqForm() {
               onChange={(e) => setWeights({ ...weights, quality: e.target.value })}
             />
           </div>
+        </div>
+        <div className="full note">
+          {mode === "RFP"
+            ? "In RFP mode each bid carries a proposal document, sealed with the price: neither can be rewritten after seeing rival bids."
+            : "In RFQ mode bids are price and delivery only — the fastest path when you already know exactly what you need."}
         </div>
         <div className="full note">
           The rubric is hashed and stored when the RFQ opens, before anyone bids. An award has to

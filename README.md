@@ -48,6 +48,17 @@ including the policy firewall rejecting an AI-recommended over-budget award
 
 Run it yourself: `./script/demo.sh testnet`.
 
+## Which procurement instruments this covers
+
+| | Covered | How |
+|---|---|---|
+| **RFQ** | yes | Sealed price + delivery bids on defined items, awarded against a published rubric |
+| **RFP** | yes | `requiresProposal` RFQs seal a proposal document hash alongside the price, so the method cannot be revised after rival bids open. Milestone escrow with retention and acceptance windows is RFP machinery: nobody holds back 10% when buying laptops |
+| **RFI** | no, by design | An RFI has no price, no award and no money at stake, so every guarantee here (funded-before-open, deposit forfeiture, the policy firewall) would have to be switched off to support it. Its on-chain analogue is supplier **qualification** — `requiresQualification` plus the ERC-8004 validation registry answers "who can do this?" |
+
+Two-envelope evaluation (technical scores locked before prices open) is a roadmap item: today both
+are revealed together and weighed by the published rubric.
+
 ## Sealed bids and lost secrets
 
 A sealed bid hides its price behind `keccak256(registry, chain, rfq, bidder, price, days, salt)`.

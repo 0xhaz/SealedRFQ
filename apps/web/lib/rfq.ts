@@ -65,6 +65,7 @@ export async function getRfq(id: number) {
     status: Number(rfq.status),
     inviteOnly: rfq.inviteOnly,
     requiresQualification: rfq.requiresQualification,
+    requiresProposal: rfq.requiresProposal,
     bidDeadline: Number(rfq.bidDeadline),
     revealDeadline: Number(rfq.revealDeadline),
     awardDeadline: Number(rfq.awardDeadline),
@@ -103,6 +104,7 @@ export async function getBid(id: number, bidder: `0x${string}`) {
     commitHash: bid.commitHash,
     price: bid.price,
     deliveryDays: bid.deliveryDays,
+    proposalHash: bid.proposalHash,
     revealed: bid.revealed,
     deposit: DEPOSIT_STATES[Number(bid.deposit)] ?? "None",
   };

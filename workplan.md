@@ -46,6 +46,17 @@ x402 evaluation report (MCP tool 4) · MCP `submit_sealed_bid` (tool 3) · Q&A r
 
 ---
 
+## 1b. Instruments covered (decided 2026-09-20)
+
+**RFQ and RFP, not RFI.** A bid seals a `proposalHash` alongside price and delivery, and an RFQ can
+set `requiresProposal` to demand one — verified on testnet: a proposal swapped at reveal is rejected
+with `CommitmentMismatch`, an empty one with `ProposalRequired`.
+
+RFI stays out deliberately: with no price, award or escrow, supporting it would mean disabling the
+funded-before-open and deposit rules that everything else depends on. RFI's real analogue is supplier
+qualification (`requiresQualification` + ERC-8004), already a 🔶 item. Two-envelope RFP evaluation
+(technical sealed separately from price) is 📋 roadmap.
+
 ## 2. Doc discrepancies to fix first
 
 Each takes about five minutes. Fix them on Day 2 so the docs don't mislead later work.

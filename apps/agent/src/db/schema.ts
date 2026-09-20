@@ -15,6 +15,7 @@ export const rfqs = sqliteTable("rfqs", {
   buyerStake: text("buyer_stake").notNull(),
   rubricHash: text("rubric_hash").notNull(),
   metadataURI: text("metadata_uri").notNull().default(""),
+  requiresProposal: integer("requires_proposal", { mode: "boolean" }).default(false),
   bidDeadline: integer("bid_deadline").notNull(),
   revealDeadline: integer("reveal_deadline").notNull(),
   awardDeadline: integer("award_deadline").notNull(),
@@ -33,6 +34,8 @@ export const bids = sqliteTable(
     commitHash: text("commit_hash").notNull(),
     price: text("price"),
     deliveryDays: integer("delivery_days"),
+    /** sha256 of the proposal document (RFP mode); null for a price-only RFQ. */
+    proposalHash: text("proposal_hash"),
     revealed: integer("revealed", { mode: "boolean" }).notNull().default(false),
     committedTx: text("committed_tx").notNull(),
     revealedTx: text("revealed_tx"),

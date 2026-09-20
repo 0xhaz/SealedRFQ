@@ -56,6 +56,8 @@ interface IRFQRegistry {
         uint32 deliveryWindow; // seconds per milestone to submit
         uint32 acceptanceWindow; // seconds for the buyer to accept/reject before auto-release
         uint16[] milestoneBps; // split of the award price, sums to 10000
+        /// RFP mode: every bid must carry a proposal document hash, not just a price.
+        bool requiresProposal;
         address[] invitees; // empty = public RFQ
         bool requiresQualification;
         string metadataURI;
@@ -66,6 +68,7 @@ interface IRFQRegistry {
         Status status;
         bool inviteOnly;
         bool requiresQualification;
+        bool requiresProposal;
         uint64 bidDeadline;
         uint64 revealDeadline;
         uint64 awardDeadline;
@@ -90,6 +93,8 @@ interface IRFQRegistry {
         bytes32 commitHash;
         uint128 price;
         uint32 deliveryDays;
+        /// sha256 of the proposal document (method, team, timeline). Zero for a price-only RFQ.
+        bytes32 proposalHash;
         bool revealed;
         DepositState deposit;
     }
@@ -110,7 +115,13 @@ interface IRFQRegistry {
     event InviteesAdded(uint256 indexed rfqId, address[] invitees);
     event RFQCancelled(uint256 indexed rfqId);
     event BidCommitted(uint256 indexed rfqId, address indexed bidder, bytes32 commitHash, uint256 deposit);
-    event BidRevealed(uint256 indexed rfqId, address indexed bidder, uint256 price, uint32 deliveryDays);
+    event BidRevealed(
+        uint256 indexed rfqId,
+        address indexed bidder,
+        uint256 price,
+        uint32 deliveryDays,
+        bytes32 proposalHash
+    );
     event RFQAwarded(
         uint256 indexed rfqId,
         address indexed winner,
@@ -145,6 +156,7 @@ interface IRFQRegistry {
     error EvaluationNotAttested(bytes32 evaluationHash);
     error CannotCancel();
     error DepositNotHeld(address bidder);
+    error ProposalRequired();
     error NotInviteOnly();
 
     // ---- buyer ----
@@ -165,7 +177,9 @@ interface IRFQRegistry {
         bytes32 r,
         bytes32 s
     ) external;
-    function revealBid(uint256 rfqId, uint128 price, uint32 deliveryDays, bytes32 salt) external;
+    /// @param proposalHash sha256 of the proposal document; must be non-zero when the RFQ is in RFP mode.
+    function revealBid(uint256 rfqId, uint128 price, uint32 deliveryDays, bytes32 proposalHash, bytes32 salt)
+        external;
 
     // ---- award (buyer or AWARDER, always through ProcurementPolicy) ----
     /// @notice Award to a revealed bidder. `evaluationHash` must be an AWARD_RECOMMENDATION attested
@@ -192,6 +206,7 @@ interface IRFQRegistry {
         address bidder,
         uint128 price,
         uint32 deliveryDays,
+        bytes32 proposalHash,
         bytes32 salt
     ) external view returns (bytes32);
 }

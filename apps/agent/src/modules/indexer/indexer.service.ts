@@ -174,6 +174,7 @@ export class IndexerService implements OnModuleInit {
             revealed: true,
             price: String(a.price),
             deliveryDays: Number(a.deliveryDays),
+            proposalHash: a.proposalHash ?? null,
             revealedTx: l.transactionHash,
           })
           .where(

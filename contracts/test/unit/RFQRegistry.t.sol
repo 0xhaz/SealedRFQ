@@ -100,7 +100,7 @@ contract RFQRegistryTest is SealedRFQFixture {
         assertEq(uint8(b.deposit), uint8(IRFQRegistry.DepositState.Held));
         assertEq(registry.getRFQ(id).commitCount, 1);
         assertEq(usdc.balanceOf(s1), 100 * USDC - DEPOSIT);
-        assertEq(b.commitHash, registry.computeCommitment(id, s1, 2_700_000, 21, salt(s1)));
+        assertEq(b.commitHash, registry.computeCommitment(id, s1, 2_700_000, 21, bytes32(0), salt(s1)));
     }
 
     function test_commit_rules() public {
@@ -159,38 +159,83 @@ contract RFQRegistryTest is SealedRFQFixture {
 
         vm.prank(s1);
         vm.expectRevert(abi.encodeWithSelector(IRFQRegistry.WrongPhase.selector, IRFQRegistry.Phase.Bidding));
-        registry.revealBid(id, 2_800_000, 21, salt(s1));
+        registry.revealBid(id, 2_800_000, 21, bytes32(0), salt(s1));
 
         toReveal(id);
         vm.prank(s1);
         vm.expectRevert(IRFQRegistry.CommitmentMismatch.selector);
-        registry.revealBid(id, 2_700_000, 21, salt(s1)); // lying about the price
+        registry.revealBid(id, 2_700_000, 21, bytes32(0), salt(s1)); // lying about the price
 
         vm.prank(s2);
         vm.expectRevert(abi.encodeWithSelector(IRFQRegistry.NoCommitment.selector, s2));
-        registry.revealBid(id, 1, 1, bytes32(0));
+        registry.revealBid(id, 1, 1, bytes32(0), bytes32(0));
 
         reveal(id, s1, 2_800_000, 21);
         vm.prank(s1);
         vm.expectRevert(abi.encodeWithSelector(IRFQRegistry.AlreadyRevealed.selector, s1));
-        registry.revealBid(id, 2_800_000, 21, salt(s1));
+        registry.revealBid(id, 2_800_000, 21, bytes32(0), salt(s1));
 
         toAward(id);
         vm.prank(s1);
         vm.expectRevert(abi.encodeWithSelector(IRFQRegistry.WrongPhase.selector, IRFQRegistry.Phase.Award));
-        registry.revealBid(id, 2_800_000, 21, salt(s1));
+        registry.revealBid(id, 2_800_000, 21, bytes32(0), salt(s1));
     }
 
     function test_commitmentIsBoundToBidder() public {
         uint256 id = createRFQ();
         // s2 copies s1's commitment hash; it cannot be revealed by s2
-        bytes32 h = registry.computeCommitment(id, s1, 2_800_000, 21, salt(s1));
+        bytes32 h = registry.computeCommitment(id, s1, 2_800_000, 21, bytes32(0), salt(s1));
         vm.prank(s2);
         registry.commitBid(id, h);
         toReveal(id);
         vm.prank(s2);
         vm.expectRevert(IRFQRegistry.CommitmentMismatch.selector);
-        registry.revealBid(id, 2_800_000, 21, salt(s1));
+        registry.revealBid(id, 2_800_000, 21, bytes32(0), salt(s1));
+    }
+
+    // ───────────── RFP mode: the proposal is sealed too ─────────────
+
+    function test_proposalHash_isBoundToTheCommitment() public {
+        bytes32 proposal = sha256("proposal v1: two engineers, 3 sprints, weekly demos");
+        uint256 id = createRFQ();
+        commit(id, s1, 2_800_000, 21, proposal);
+        toReveal(id);
+
+        // Revealing a different proposal than the one committed to cannot match the hash.
+        // (sha256 is a precompile staticcall, so hash it before expectRevert, not inside the call.)
+        bytes32 rewritten = sha256("proposal v2: rewritten after seeing rivals");
+        bytes32 s1Salt = salt(s1);
+        vm.prank(s1);
+        vm.expectRevert(IRFQRegistry.CommitmentMismatch.selector);
+        registry.revealBid(id, 2_800_000, 21, rewritten, s1Salt);
+
+        reveal(id, s1, 2_800_000, 21, proposal);
+        assertEq(registry.getBid(id, s1).proposalHash, proposal);
+    }
+
+    function test_rfpMode_requiresAProposal() public {
+        IRFQRegistry.RFQParams memory p = defaultParams();
+        p.requiresProposal = true;
+        vm.prank(buyer);
+        uint256 id = registry.createRFQ(p);
+        assertTrue(registry.getRFQ(id).requiresProposal);
+
+        commit(id, s1, 2_800_000, 21, bytes32(0));
+        toReveal(id);
+        bytes32 s1Salt = salt(s1);
+        vm.prank(s1);
+        vm.expectRevert(IRFQRegistry.ProposalRequired.selector);
+        registry.revealBid(id, 2_800_000, 21, bytes32(0), s1Salt);
+    }
+
+    function test_priceOnlyRfq_needsNoProposal() public {
+        uint256 id = createRFQ(); // requiresProposal defaults to false
+        commit(id, s1, 2_800_000, 21);
+        toReveal(id);
+        reveal(id, s1, 2_800_000, 21);
+        IRFQRegistry.Bid memory b = registry.getBid(id, s1);
+        assertTrue(b.revealed);
+        assertEq(b.proposalHash, bytes32(0));
     }
 
     // ───────────── award & policy firewall ─────────────

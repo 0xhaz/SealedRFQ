@@ -121,14 +121,23 @@ abstract contract SealedRFQFixture is Test {
     }
 
     function commit(uint256 id, address bidder, uint128 price, uint32 days_) internal {
-        bytes32 h = registry.computeCommitment(id, bidder, price, days_, salt(bidder));
+        commit(id, bidder, price, days_, bytes32(0));
+    }
+
+    /// @dev `proposalHash` is zero for a price-only RFQ and the proposal document hash in RFP mode.
+    function commit(uint256 id, address bidder, uint128 price, uint32 days_, bytes32 proposalHash) internal {
+        bytes32 h = registry.computeCommitment(id, bidder, price, days_, proposalHash, salt(bidder));
         vm.prank(bidder);
         registry.commitBid(id, h);
     }
 
     function reveal(uint256 id, address bidder, uint128 price, uint32 days_) internal {
+        reveal(id, bidder, price, days_, bytes32(0));
+    }
+
+    function reveal(uint256 id, address bidder, uint128 price, uint32 days_, bytes32 proposalHash) internal {
         vm.prank(bidder);
-        registry.revealBid(id, price, days_, salt(bidder));
+        registry.revealBid(id, price, days_, proposalHash, salt(bidder));
     }
 
     function toReveal(uint256 id) internal {
