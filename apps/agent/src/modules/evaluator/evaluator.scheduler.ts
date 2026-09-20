@@ -1,9 +1,9 @@
 import { Injectable, Logger, type OnModuleInit } from "@nestjs/common";
 import { sql } from "drizzle-orm";
 import { db, schema } from "../../db/index.js";
-import { AwarderService } from "../awarder/awarder.service.js";
-import { ChainService } from "../chain/chain.service.js";
-import { EvaluatorService } from "./evaluator.service.js";
+import type { AwarderService } from "../awarder/awarder.service.js";
+import type { ChainService } from "../chain/chain.service.js";
+import type { EvaluatorService } from "./evaluator.service.js";
 
 const TICK_MS = Number(process.env.EVALUATOR_TICK_MS ?? 15_000);
 /** Awarding is the buyer's call by default; set AUTO_AWARD=true to let the awarder key act alone. */

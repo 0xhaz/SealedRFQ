@@ -3,7 +3,8 @@ import { AttestationKinds, type DecisionMemo, MEMO_SCHEMA, hashCanonical } from 
 import { eq, sql } from "drizzle-orm";
 import { type Hex, stringToHex } from "viem";
 import { db, schema } from "../../db/index.js";
-import { ChainService } from "../chain/chain.service.js";
+import type { ChainService } from "../chain/chain.service.js";
+import { loadMetadata } from "./metadata.js";
 
 export type Rubric = { price: number; delivery: number; quality: number };
 
@@ -29,16 +30,26 @@ export class EvaluatorService {
 
   constructor(private readonly chain: ChainService) {}
 
-  /** Parse the rubric published with the RFQ and verify it against the on-chain hash. */
-  rubricFor(metadataURI: string, rubricHash: string): { rubric: Rubric; verified: boolean } {
+  /**
+   * Parse the rubric published with the RFQ and verify it against the on-chain hash.
+   *
+   * The metadata may be inline JSON or a URI pointing at it; both are read the same way here. A
+   * fetch that fails is reported as unverified rather than thrown: an unreachable document is
+   * indistinguishable from a wrong one as far as scoring goes, and either way the honest answer is
+   * that the criteria could not be confirmed.
+   */
+  async rubricFor(
+    metadataURI: string,
+    rubricHash: string,
+  ): Promise<{ rubric: Rubric; verified: boolean }> {
     try {
-      const parsed = JSON.parse(metadataURI) as { rubric?: Rubric };
-      if (parsed.rubric) {
+      const parsed = (await loadMetadata(metadataURI)) as { rubric?: Rubric } | null;
+      if (parsed?.rubric) {
         const hash = hashCanonical({ schema: "sealedrfq.rubric.v1", criteria: parsed.rubric });
         return { rubric: parsed.rubric, verified: hash.toLowerCase() === rubricHash.toLowerCase() };
       }
-    } catch {
-      // metadata is free text, not JSON
+    } catch (e) {
+      this.log.warn(`could not load metadata for scoring: ${e instanceof Error ? e.message : e}`);
     }
     const hash = hashCanonical({ schema: "sealedrfq.rubric.v1", criteria: DEFAULT_RUBRIC });
     return { rubric: DEFAULT_RUBRIC, verified: hash.toLowerCase() === rubricHash.toLowerCase() };
@@ -59,7 +70,7 @@ export class EvaluatorService {
       .all();
     if (revealed.length === 0) throw new Error(`RFQ ${rfqId} has no revealed bids`);
 
-    const { rubric, verified } = this.rubricFor(rfq.metadataURI, rfq.rubricHash);
+    const { rubric, verified } = await this.rubricFor(rfq.metadataURI, rfq.rubricHash);
     const weightTotal = rubric.price + rubric.delivery + rubric.quality || 1;
     const budget = BigInt(rfq.budget);
     const bestPrice = revealed.reduce(
