@@ -57,6 +57,22 @@ funded-before-open and deposit rules that everything else depends on. RFI's real
 qualification (`requiresQualification` + ERC-8004), already a 🔶 item. Two-envelope RFP evaluation
 (technical sealed separately from price) is 📋 roadmap.
 
+## 1c. Scope against existing procurement software (decided 2026-09-20)
+
+Orchestration suites (Coupa, SAP Ariba, Tonkean) own **intake, routing and approvals**, then hand
+payment to an ERP and a bank. They have years of work and hundreds of integrations behind them, and
+matching that breadth is not what this grant scores.
+
+SealedRFQ owns the two layers underneath: **sourcing → sealed bids → award**, and **escrow →
+milestones → payment**. An orchestration tool records that an award was approved; it cannot stop one
+that breaks the published budget, and its AI's reasoning sits in a database only its operator reads.
+Both are things a contract can guarantee and a platform cannot, which is the whole pitch.
+
+**Not building:** use-case landing pages, ERP connectors, contract lifecycle, spend analytics. A
+single lifecycle that really settles money on Arc is worth more here than twenty pages describing
+flows that do not. Roadmap, in rough order of value: supplier qualification flow (the hook exists),
+PO + milestone receipt export to ERP, contract artifacts, spend reporting.
+
 ## 2. Doc discrepancies to fix first
 
 Each takes about five minutes. Fix them on Day 2 so the docs don't mislead later work.

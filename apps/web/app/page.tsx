@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { HeroRFQ } from "@/components/landing/HeroRFQ";
 import { TrustBoundary } from "@/components/landing/TrustBoundary";
+import { WhereThisFits } from "@/components/landing/WhereThisFits";
 import { chain, contracts, explorerAddress, explorerTx, isMainnet } from "@/lib/chain";
 import evidence from "@/lib/deployments/evidence-5042002.json";
 
@@ -223,6 +224,8 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      <WhereThisFits />
 
       <TrustBoundary />
 
