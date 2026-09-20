@@ -66,6 +66,8 @@ contract SeedLocal is Script {
             for (uint256 i; i < 3; ++i) {
                 // Supplier 3 never reveals anywhere: its deposit forfeits, which is worth seeing.
                 if (i == 2) continue;
+                // Re-running the stage must not retry bids already revealed on an earlier pass.
+                if (registry.getBid(id, vm.addr(supplierPk[i])).revealed) continue;
                 bytes32 proposal = rfp ? _proposal(id, i) : bytes32(0);
                 vm.startBroadcast(supplierPk[i]);
                 registry.revealBid(id, prices[i], days_[i], proposal, _salt(i, id));

@@ -60,9 +60,26 @@ async function get<T>(path: string, fallback: T): Promise<T> {
   }
 }
 
+async function post<T>(path: string): Promise<T | { error: string }> {
+  try {
+    const res = await fetch(`${BASE}${path}`, { method: "POST", signal: AbortSignal.timeout(60_000) });
+    if (!res.ok) return { error: `agent returned ${res.status}` };
+    return (await res.json()) as T;
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "agent unreachable" };
+  }
+}
+
 export const agent = {
   evaluation: (rfqId: number) => get<Evaluation>(`/rfqs/${rfqId}/evaluation`, { evaluated: false }),
   audit: (rfqId: number) =>
     get<AuditResult>(`/audit/${rfqId}`, { verified: false, reason: "agent unreachable" }),
   health: () => get<{ ok: boolean; indexedBlock: number }>("/health", { ok: false, indexedBlock: 0 }),
+  /**
+   * Ask the evaluator to score now. The scheduler does this on its own once the reveal window
+   * closes; this is for anyone who does not want to wait for the next tick.
+   */
+  evaluate: (rfqId: number) => post<{ tx?: string }>(`/rfqs/${rfqId}/evaluate`),
 };
+
+export const AGENT_URL = BASE;

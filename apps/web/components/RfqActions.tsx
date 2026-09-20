@@ -7,6 +7,7 @@ import type { Hex } from "viem";
 import { useAccount, useConfig, useWriteContract } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
 import { WalletChip } from "@/components/WalletChip";
+import { agent } from "@/lib/agent";
 import { chain, contracts, explorerTx } from "@/lib/chain";
 import { DocumentCheck } from "@/components/DocumentCheck";
 import { hashFile, hashText, ZERO_HASH } from "@/lib/docHash";
@@ -213,10 +214,33 @@ export function RfqActions({
               </div>
             )
           ) : (
-            <div className="full note">
-              No attested recommendation yet — an award cannot be sent until the evaluator has
-              anchored one, and it can only name the bidder that was recommended.
-            </div>
+            <>
+              <div className="full note">
+                No attested recommendation yet. An award cannot be sent until the evaluator has
+                anchored one, and it can only name the bidder that was recommended. The evaluator
+                scores automatically once the reveal window closes — this runs it now.
+              </div>
+              <div className="full">
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={!!busy}
+                  onClick={async () => {
+                    setError(null);
+                    setBusy("Scoring the revealed bids…");
+                    const res = await agent.evaluate(rfqId);
+                    setBusy(null);
+                    if ("error" in res) {
+                      setError(`Could not reach the evaluator: ${res.error}`);
+                    } else {
+                      router.refresh();
+                    }
+                  }}
+                >
+                  {busy ?? "Run the AI evaluation"}
+                </button>
+              </div>
+            </>
           )}
         </div>
       )}

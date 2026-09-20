@@ -62,9 +62,10 @@ export function EvaluationPanel({
           AI evaluation<span className="hint">not scored yet</span>
         </div>
         <div className="note">
-          Bids are scored once the reveal window closes. The evaluator can only score against the
-          rubric published before bidding opened, and its memo is anchored on-chain before anyone
-          can award.
+          Bids are scored once the reveal window closes — the evaluator runs on its own within a
+          few seconds of it, and the buyer can also trigger it from the actions panel. It can only
+          score against the rubric published before bidding opened, and its memo is anchored
+          on-chain before anyone can award.
         </div>
       </div>
     );

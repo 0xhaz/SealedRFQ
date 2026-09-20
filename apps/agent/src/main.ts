@@ -4,12 +4,13 @@ import { NestFactory } from "@nestjs/core";
 import { ApiController } from "./modules/api/api.controller.js";
 import { AwarderService } from "./modules/awarder/awarder.service.js";
 import { ChainService } from "./modules/chain/chain.service.js";
+import { EvaluatorScheduler } from "./modules/evaluator/evaluator.scheduler.js";
 import { EvaluatorService } from "./modules/evaluator/evaluator.service.js";
 import { IndexerService } from "./modules/indexer/indexer.service.js";
 
 @Module({
   controllers: [ApiController],
-  providers: [ChainService, IndexerService, EvaluatorService, AwarderService],
+  providers: [ChainService, IndexerService, EvaluatorService, EvaluatorScheduler, AwarderService],
 })
 export class AppModule {}
 
