@@ -17,6 +17,12 @@ import { ChainService } from "../chain/chain.service.js";
 const MAX_CHUNK = 5_000n;
 const MIN_CHUNK = 128n;
 const POLL_MS = Number(process.env.INDEXER_POLL_MS ?? 4_000);
+/**
+ * Pause between chunks while backfilling. Arc's public RPC is behind Cloudflare and returns 429
+ * under a tight loop, which also starves anything else using the same endpoint (a deploy script,
+ * the web app). Backfilling a few seconds slower is not worth rate-limiting the whole project.
+ */
+const CHUNK_PAUSE_MS = Number(process.env.INDEXER_CHUNK_PAUSE_MS ?? 250);
 
 const label = (hex: string) =>
   Buffer.from(hex.slice(2).replace(/(00)+$/, ""), "hex")
@@ -49,7 +55,12 @@ export class IndexerService implements OnModuleInit {
       try {
         await this.tick();
       } catch (e) {
-        this.log.warn(`indexer tick failed: ${e instanceof Error ? e.message : e}`);
+        if (this.isRateLimited(e)) {
+          this.log.warn("RPC rate-limited the indexer; backing off for 30s");
+          await new Promise((r) => setTimeout(r, 30_000));
+        } else {
+          this.log.warn(`indexer tick failed: ${e instanceof Error ? e.message : e}`);
+        }
       }
       await new Promise((r) => setTimeout(r, POLL_MS));
     }
@@ -75,6 +86,7 @@ export class IndexerService implements OnModuleInit {
         }
         this.setCursor(to);
         from = to + 1n;
+        if (from <= latest) await new Promise((r) => setTimeout(r, CHUNK_PAUSE_MS));
         // Creep back up so a single busy moment does not pin us at the floor forever.
         if (this.chunk < MAX_CHUNK)
           this.chunk = this.chunk * 2n > MAX_CHUNK ? MAX_CHUNK : this.chunk * 2n;
@@ -87,6 +99,12 @@ export class IndexerService implements OnModuleInit {
   private isRangeTooLarge(e: unknown) {
     const msg = e instanceof Error ? `${e.message}` : String(e);
     return /range too large|limit exceeded|too many|query timeout|-32012/i.test(msg);
+  }
+
+  /** Back off hard on 429 so the indexer never starves the rest of the project of RPC. */
+  private isRateLimited(e: unknown) {
+    const msg = e instanceof Error ? `${e.message}` : String(e);
+    return /rate limit|429|-32005/i.test(msg);
   }
 
   private cursor(): number {
@@ -145,6 +163,7 @@ export class IndexerService implements OnModuleInit {
             buyerStake: String(a.buyerStake),
             rubricHash: a.rubricHash,
             metadataURI: a.metadataURI ?? "",
+            requiresProposal: Boolean(a.requiresProposal),
             bidDeadline: Number(a.bidDeadline),
             revealDeadline: Number(a.revealDeadline),
             awardDeadline: Number(a.awardDeadline),

@@ -35,16 +35,14 @@ Keys live in `.env.testnet` / `.env.mainnet` (gitignored); see `.env.example`.
 
 | Contract | Address |
 |---|---|
-| `RFQRegistry` | [`0xC298eBa4051779cE856ADA673e65AD3B14CE287D`](https://explorer.testnet.arc.io/address/0xC298eBa4051779cE856ADA673e65AD3B14CE287D) |
-| `SealedRFQAdapter` | [`0xBBd4474DbDB09711BB3654D5Ed1B78991Ee6CE42`](https://explorer.testnet.arc.io/address/0xBBd4474DbDB09711BB3654D5Ed1B78991Ee6CE42) |
-| `AgenticCommerce` (ERC-8183) | [`0x78406DB668a3FCE7485f4fBc44fCF50Bf976fb86`](https://explorer.testnet.arc.io/address/0x78406DB668a3FCE7485f4fBc44fCF50Bf976fb86) |
-| `ProcurementPolicy` | [`0xf0A23194D61220c09cE0B43CEe2ABe949B8d65aB`](https://explorer.testnet.arc.io/address/0xf0A23194D61220c09cE0B43CEe2ABe949B8d65aB) |
-| `AttestationLog` | [`0x70D744E0caf335Fe53bd2B65CaC3bE9bDF9601A2`](https://explorer.testnet.arc.io/address/0x70D744E0caf335Fe53bd2B65CaC3bE9bDF9601A2) |
+| `RFQRegistry` | [`0x0509AD34B26Ec3D2Cac4D7d5780ED8eA5cd3695C`](https://explorer.testnet.arc.io/address/0x0509AD34B26Ec3D2Cac4D7d5780ED8eA5cd3695C) |
+| `SealedRFQAdapter` | [`0x0aBA048426a2F4E7b1A6D1A4c1074eD6f80D89DB`](https://explorer.testnet.arc.io/address/0x0aBA048426a2F4E7b1A6D1A4c1074eD6f80D89DB) |
+| `AgenticCommerce` (ERC-8183) | [`0xeF6C0445A6541263682FE08bDAf6Df53cf875BD8`](https://explorer.testnet.arc.io/address/0xeF6C0445A6541263682FE08bDAf6Df53cf875BD8) |
+| `ProcurementPolicy` | [`0xa2207aCd54aB6a410F21a711498F27fa5F426606`](https://explorer.testnet.arc.io/address/0xa2207aCd54aB6a410F21a711498F27fa5F426606) |
+| `AttestationLog` | [`0x48CFA17F69D06f3545200749F07b6810c8928287`](https://explorer.testnet.arc.io/address/0x48CFA17F69D06f3545200749F07b6810c8928287) |
 
-A full lifecycle ran on 2026-09-20: `contracts/deployments/evidence-5042002.json` has one explorer link per step,
-including the policy firewall rejecting an AI-recommended over-budget award
-([`0xa9195ed1…`](https://explorer.testnet.arc.io/tx/0xa9195ed1c622aeca7483552954d9e05e99bdbd91756af953ce9bdc7a2c1faff4),
-`AwardExceedsBudget(3400000, 3000000)`).
+`contracts/deployments/evidence-5042002.json` lists one explorer link per lifecycle step of the last
+full run, including the policy firewall rejecting an AI-recommended over-budget award.
 
 Run it yourself: `./script/demo.sh testnet`.
 

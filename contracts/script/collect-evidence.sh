@@ -40,8 +40,12 @@ label() {
   echo "  \"contracts\": $(cat "deployments/$CHAIN.json"),"
   echo "  \"steps\": ["
   first=1
-  # run-<timestamp>.json in chronological order; run-latest.json is a duplicate, skip it
+  # Only this run: broadcast/ keeps every past run, including ones against older deployments.
+  # demo.sh stamps startedAt (seconds); broadcast filenames are run-<epoch millis>.json.
+  START_MS=$(( $(jq -r '.startedAt // 0' "deployments/demo-$CHAIN.json") * 1000 ))
   for f in $(ls "$DIR"/run-[0-9]*.json | sort); do
+    ts=$(basename "$f" .json); ts=${ts#run-}
+    [ "$ts" -lt "$START_MS" ] && continue
     n=$(jq '.transactions | length' "$f")
     for i in $(seq 0 $((n - 1))); do
       fn=$(jq -r ".transactions[$i].function // \"deploy\"" "$f")

@@ -104,6 +104,8 @@ contract DemoLifecycle is Script {
         string memory k = "demo";
         vm.serializeUint(k, "rfqId", id);
         vm.serializeBytes32(k, "rubricHash", RUBRIC_HASH);
+        // Scopes the evidence pack to this run: broadcast/ accumulates every past run too.
+        vm.serializeUint(k, "startedAt", block.timestamp);
         string memory json = vm.serializeUint(k, "revealAt", p.bidDeadline);
         vm.writeJson(json, _statePath());
         console2.log("RFQ opened:", id);
@@ -138,6 +140,7 @@ contract DemoLifecycle is Script {
         string memory k = "demo";
         vm.serializeUint(k, "rfqId", id);
         vm.serializeBytes32(k, "rubricHash", RUBRIC_HASH);
+        vm.serializeUint(k, "startedAt", vm.parseJsonUint(vm.readFile(_statePath()), ".startedAt"));
         vm.serializeAddress(k, "firewallWinner", s3);
         vm.serializeString(k, "firewallMemo", rec);
         string memory json = vm.serializeBytes32(k, "firewallMemoHash", sha256(bytes(rec)));

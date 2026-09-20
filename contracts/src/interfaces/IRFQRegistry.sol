@@ -110,6 +110,7 @@ interface IRFQRegistry {
         uint64 revealDeadline,
         uint64 awardDeadline,
         bytes32 rubricHash,
+        bool requiresProposal,
         string metadataURI
     );
     event InviteesAdded(uint256 indexed rfqId, address[] invitees);

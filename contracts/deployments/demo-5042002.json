@@ -9,5 +9,6 @@
   "firewallMemoHash": "0x2c3d11705ce12e1cdcc18caa7945d5babf663f4b736ce189a51be4cc2558147c",
   "firewallWinner": "0x681ca4521cee60a0a42e958855baf66B65912Cfb",
   "rfqId": 1,
-  "rubricHash": "0x20193ace80ea3d57ffad20e0409206952a5f908ea8efc5c1a3f37d7696c9ad2e"
+  "rubricHash": "0x20193ace80ea3d57ffad20e0409206952a5f908ea8efc5c1a3f37d7696c9ad2e",
+  "startedAt": 1789887413
 }

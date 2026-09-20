@@ -1,8 +1,11 @@
 import { formatUsdc } from "@sealedrfq/shared";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { EvaluationPanel } from "@/components/EvaluationPanel";
 import { Header } from "@/components/Header";
 import { PhaseBadge } from "@/components/PhaseBadge";
+import { RfqActions } from "@/components/RfqActions";
+import { agent } from "@/lib/agent";
 import { chain, contracts, explorerAddress } from "@/lib/chain";
 import { countdown, getBid, getBidders, getEngagement, getRfq, getRfqCount } from "@/lib/rfq";
 
@@ -22,6 +25,8 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
     bidders.map(async (b) => ({ bidder: b, ...(await getBid(id, b)) })),
   );
   const engagement = await getEngagement(id);
+  // The agent supplies reasoning and the audit check; the chain above is the source of truth.
+  const [evaluation, audit] = await Promise.all([agent.evaluation(id), agent.audit(id)]);
   const sealed = rfq.phase === "Bidding";
   const sorted = [...bids].sort((a, b) =>
     a.revealed && b.revealed ? Number(a.price - b.price) : a.revealed ? -1 : 1,
@@ -195,6 +200,34 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
               <b>{rfq.milestoneBps.map((b) => `${b / 100}%`).join(" · ")}</b>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="grid">
+        <EvaluationPanel rfqId={id} evaluation={evaluation} audit={audit} />
+        <div className="right">
+          <RfqActions
+            rfqId={id}
+            phase={rfq.phase}
+            buyer={rfq.buyer}
+            recommended={evaluation.memo?.decision?.bidder ?? null}
+            evaluationHash={evaluation.payloadHash}
+            rubricHash={rfq.rubricHash}
+            engagement={
+              engagement
+                ? {
+                    status: engagement.status,
+                    supplier: engagement.supplier,
+                    currentMilestone: engagement.currentMilestone,
+                    milestoneCount: engagement.milestoneCount,
+                    currentJobId: engagement.currentJobId.toString(),
+                    submittedAt: engagement.submittedAt,
+                    acceptanceWindow: engagement.acceptanceWindow,
+                    currentJobBudget: engagement.currentJobBudget.toString(),
+                  }
+                : null
+            }
+          />
         </div>
       </div>
 

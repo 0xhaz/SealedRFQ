@@ -120,15 +120,15 @@ Build in this order. Each contract is done when it has unit tests and fuzz tests
 
 **Test suite:** 75 tests — unit + fuzz (money is conserved for any price/milestone split/retention) + 3 invariants over 128k random calls (registry books == balance, adapter never insolvent, ERC-8183 holds exactly the live budgets).
 
-**Deployed on Arc testnet (chain 5042002), 2026-09-20:**
+**Deployed on Arc testnet (chain 5042002), 2026-09-20** (redeployed twice that day: sealed proposals, then the RFP flag in `RFQCreated`)**:**
 
 | Contract | Address |
 |---|---|
-| `AgenticCommerce` | `0x78406DB668a3FCE7485f4fBc44fCF50Bf976fb86` |
-| `AttestationLog` | `0x70D744E0caf335Fe53bd2B65CaC3bE9bDF9601A2` |
-| `ProcurementPolicy` | `0xf0A23194D61220c09cE0B43CEe2ABe949B8d65aB` |
-| `SealedRFQAdapter` | `0xBBd4474DbDB09711BB3654D5Ed1B78991Ee6CE42` |
-| `RFQRegistry` | `0xC298eBa4051779cE856ADA673e65AD3B14CE287D` |
+| `AgenticCommerce` | `0xeF6C0445A6541263682FE08bDAf6Df53cf875BD8` |
+| `AttestationLog` | `0x48CFA17F69D06f3545200749F07b6810c8928287` |
+| `ProcurementPolicy` | `0xa2207aCd54aB6a410F21a711498F27fa5F426606` |
+| `SealedRFQAdapter` | `0x0aBA048426a2F4E7b1A6D1A4c1074eD6f80D89DB` |
+| `RFQRegistry` | `0x0509AD34B26Ec3D2Cac4D7d5780ED8eA5cd3695C` |
 
 Policy-firewall evidence: [`0xa9195ed1…faff4`](https://explorer.testnet.arc.io/tx/0xa9195ed1c622aeca7483552954d9e05e99bdbd91756af953ce9bdc7a2c1faff4) — award of an AI-recommended 3.40 bid reverted with `AwardExceedsBudget(3400000, 3000000)`.
 

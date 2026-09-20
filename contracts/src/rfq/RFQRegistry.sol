@@ -234,6 +234,7 @@ contract RFQRegistry is SealedBid {
             p.revealDeadline,
             p.awardDeadline,
             p.rubricHash,
+            p.requiresProposal,
             p.metadataURI
         );
         if (p.invitees.length != 0) emit InviteesAdded(rfqId, p.invitees);
