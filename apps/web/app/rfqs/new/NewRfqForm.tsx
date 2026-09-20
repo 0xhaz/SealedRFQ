@@ -1,0 +1,280 @@
+"use client";
+
+import { RFQRegistryAbi, formatUsdc, hashCanonical, parseUsdc } from "@sealedrfq/shared";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { stringToBytes, sha256, stringToHex } from "viem";
+import { useAccount, useConfig, useWriteContract } from "wagmi";
+import { waitForTransactionReceipt } from "wagmi/actions";
+import { WalletChip } from "@/components/WalletChip";
+import { chain, contracts, explorerTx } from "@/lib/chain";
+import { signUsdcPermit } from "@/lib/permit";
+
+const MIN_STAKE_BPS = 500; // ProcurementPolicy.minBuyerStakeBps on the deployed instance
+
+/** bytes32 label, e.g. "SOFTWARE" -> right-padded hex. */
+const label32 = (s: string) => stringToHex(s.slice(0, 31).toUpperCase(), { size: 32 });
+
+export function NewRfqForm() {
+  const { address, isConnected, chainId } = useAccount();
+  const config = useConfig();
+  const { writeContractAsync } = useWriteContract();
+  const router = useRouter();
+
+  const [scope, setScope] = useState(
+    "Route-optimisation SaaS integration: connect our TMS to the carrier API, migrate historical routes, and hand over documentation.",
+  );
+  const [category, setCategory] = useState("SOFTWARE");
+  const [region, setRegion] = useState("US");
+  const [budget, setBudget] = useState("3.00");
+  const [deposit, setDeposit] = useState("0.25");
+  const [stakePct, setStakePct] = useState("5");
+  const [bidMin, setBidMin] = useState("5");
+  const [revealMin, setRevealMin] = useState("5");
+  const [awardMin, setAwardMin] = useState("60");
+  const [deliveryMin, setDeliveryMin] = useState("15");
+  const [acceptMin, setAcceptMin] = useState("3");
+  const [retentionPct, setRetentionPct] = useState("10");
+  const [milestones, setMilestones] = useState("30, 30, 40");
+  const [weights, setWeights] = useState({ price: "50", delivery: "30", quality: "20" });
+
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
+
+  const stakeUnits = (() => {
+    try {
+      return (parseUsdc(budget) * BigInt(Math.round(Number(stakePct) * 100))) / 10_000n;
+    } catch {
+      return 0n;
+    }
+  })();
+
+  async function submit() {
+    setError(null);
+    if (!address) return;
+    try {
+      const budgetUnits = parseUsdc(budget);
+      const depositUnits = parseUsdc(deposit);
+      const stakeBps = Math.round(Number(stakePct) * 100);
+      const bps = milestones
+        .split(",")
+        .map((m) => Math.round(Number(m.trim()) * 100))
+        .filter((n) => Number.isFinite(n));
+
+      if (budgetUnits <= 0n || depositUnits <= 0n) throw new Error("Budget and deposit must be above zero");
+      if (stakeBps < MIN_STAKE_BPS) throw new Error(`Buyer stake must be at least ${MIN_STAKE_BPS / 100}%`);
+      if (bps.length === 0 || bps.some((b) => b <= 0)) throw new Error("Milestones must be positive percentages");
+      if (bps.reduce((a, b) => a + b, 0) !== 10_000) throw new Error("Milestone percentages must add up to 100");
+      if (Number(deliveryMin) < 5) throw new Error("Delivery window must be at least 5 minutes");
+      if (Number(acceptMin) < 1) throw new Error("Acceptance window must be at least 1 minute");
+
+      // The rubric is hashed before bids open, so it cannot be rewritten to fit a favoured bid.
+      const rubric = {
+        schema: "sealedrfq.rubric.v1",
+        criteria: {
+          price: Number(weights.price),
+          delivery: Number(weights.delivery),
+          quality: Number(weights.quality),
+        },
+      };
+      const rubricHash = hashCanonical(rubric);
+      const metadataHash = sha256(stringToBytes(scope));
+
+      const now = Math.floor(Date.now() / 1000);
+      const bidDeadline = BigInt(now + Number(bidMin) * 60);
+      const revealDeadline = bidDeadline + BigInt(Number(revealMin) * 60);
+      const awardDeadline = revealDeadline + BigInt(Number(awardMin) * 60);
+
+      const params = {
+        rubricHash,
+        metadataHash,
+        category: label32(category),
+        region: label32(region),
+        budget: budgetUnits,
+        depositAmount: depositUnits,
+        buyerStakeBps: stakeBps,
+        bidDeadline,
+        revealDeadline,
+        awardDeadline,
+        retentionBps: Math.round(Number(retentionPct) * 100),
+        deliveryWindow: Number(deliveryMin) * 60,
+        acceptanceWindow: Number(acceptMin) * 60,
+        milestoneBps: bps,
+        invitees: [] as `0x${string}`[],
+        requiresQualification: false,
+        metadataURI: scope.slice(0, 200),
+      } as const;
+
+      const total = budgetUnits + (budgetUnits * BigInt(stakeBps)) / 10_000n;
+      setBusy(`Signing a USDC permit for ${formatUsdc(total)}…`);
+      const permit = await signUsdcPermit(config, {
+        owner: address,
+        spender: contracts.RFQRegistry,
+        value: total,
+        chainId: chain.id,
+      });
+
+      setBusy("Posting the RFQ (budget and stake escrow now)…");
+      const hash = await writeContractAsync({
+        abi: RFQRegistryAbi,
+        address: contracts.RFQRegistry,
+        functionName: "createRFQWithPermit",
+        args: [params, permit.deadline, permit.v, permit.r, permit.s],
+      });
+      setTxHash(hash);
+      setBusy("Waiting for the transaction…");
+      await waitForTransactionReceipt(config, { hash });
+      setBusy(null);
+      router.push("/rfqs");
+    } catch (e) {
+      setBusy(null);
+      setError(e instanceof Error ? e.message.split("\n")[0] : String(e));
+    }
+  }
+
+  if (!isConnected || chainId !== chain.id) {
+    return (
+      <div className="panel">
+        <div className="head">{isConnected ? "Wrong network" : "Connect to post an RFQ"}</div>
+        <div className="note">
+          Posting escrows the budget plus your stake in the same transaction: suppliers never bid
+          against an unfunded RFQ.
+        </div>
+        <div style={{ padding: 14 }}>
+          <WalletChip />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="panel">
+      <div className="head">
+        Post an RFQ
+        <span className="hint">
+          escrows {formatUsdc(stakeUnits > 0n ? parseUsdc(budget || "0") + stakeUnits : 0n)} USDC
+        </span>
+      </div>
+      <div className="form">
+        <div className="field full">
+          <label htmlFor="scope">Scope</label>
+          <textarea id="scope" rows={3} value={scope} onChange={(e) => setScope(e.target.value)} />
+        </div>
+        <div className="field">
+          <label htmlFor="category">Category</label>
+          <input id="category" value={category} onChange={(e) => setCategory(e.target.value)} />
+        </div>
+        <div className="field">
+          <label htmlFor="region">Region</label>
+          <input id="region" value={region} onChange={(e) => setRegion(e.target.value)} />
+        </div>
+        <div className="field">
+          <label htmlFor="budget">Budget (USDC)</label>
+          <input id="budget" inputMode="decimal" value={budget} onChange={(e) => setBudget(e.target.value)} />
+        </div>
+        <div className="field">
+          <label htmlFor="deposit">Bid deposit (USDC)</label>
+          <input id="deposit" inputMode="decimal" value={deposit} onChange={(e) => setDeposit(e.target.value)} />
+        </div>
+        <div className="field">
+          <label htmlFor="stake">Your stake (% of budget)</label>
+          <input id="stake" inputMode="decimal" value={stakePct} onChange={(e) => setStakePct(e.target.value)} />
+        </div>
+        <div className="field">
+          <label htmlFor="retention">Retention (% per milestone)</label>
+          <input
+            id="retention"
+            inputMode="decimal"
+            value={retentionPct}
+            onChange={(e) => setRetentionPct(e.target.value)}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="bidmin">Bidding (minutes)</label>
+          <input id="bidmin" inputMode="numeric" value={bidMin} onChange={(e) => setBidMin(e.target.value)} />
+        </div>
+        <div className="field">
+          <label htmlFor="revealmin">Reveal (minutes)</label>
+          <input
+            id="revealmin"
+            inputMode="numeric"
+            value={revealMin}
+            onChange={(e) => setRevealMin(e.target.value)}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="awardmin">Award window (minutes)</label>
+          <input id="awardmin" inputMode="numeric" value={awardMin} onChange={(e) => setAwardMin(e.target.value)} />
+        </div>
+        <div className="field">
+          <label htmlFor="deliverymin">Delivery per milestone (minutes)</label>
+          <input
+            id="deliverymin"
+            inputMode="numeric"
+            value={deliveryMin}
+            onChange={(e) => setDeliveryMin(e.target.value)}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="acceptmin">Acceptance window (minutes)</label>
+          <input
+            id="acceptmin"
+            inputMode="numeric"
+            value={acceptMin}
+            onChange={(e) => setAcceptMin(e.target.value)}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="milestones">Milestones (% split)</label>
+          <input id="milestones" value={milestones} onChange={(e) => setMilestones(e.target.value)} />
+        </div>
+        <div className="field full">
+          <label htmlFor="w-price">Rubric weights — price / delivery / quality</label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              id="w-price"
+              inputMode="numeric"
+              value={weights.price}
+              onChange={(e) => setWeights({ ...weights, price: e.target.value })}
+            />
+            <input
+              aria-label="delivery weight"
+              inputMode="numeric"
+              value={weights.delivery}
+              onChange={(e) => setWeights({ ...weights, delivery: e.target.value })}
+            />
+            <input
+              aria-label="quality weight"
+              inputMode="numeric"
+              value={weights.quality}
+              onChange={(e) => setWeights({ ...weights, quality: e.target.value })}
+            />
+          </div>
+        </div>
+        <div className="full note">
+          The rubric is hashed and stored when the RFQ opens, before anyone bids. An award has to
+          cite an evaluation made against this exact rubric, so the criteria cannot be rewritten
+          afterwards to justify a favoured bid.
+        </div>
+        <div className="full">
+          <button type="button" className="btn-primary" disabled={!!busy} onClick={submit}>
+            {busy ?? "Escrow budget and open for bids"}
+          </button>
+        </div>
+      </div>
+      {error && (
+        <div className="field-err" role="alert">
+          {error}
+        </div>
+      )}
+      {txHash && (
+        <div className="note">
+          <a href={explorerTx(txHash)} target="_blank" rel="noreferrer">
+            View transaction ↗
+          </a>
+        </div>
+      )}
+    </div>
+  );
+}
