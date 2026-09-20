@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  AttestationKinds,
   type DecisionMemo,
   MEMO_SCHEMA,
+  Roles,
   bpsOf,
   canonicalJson,
   chainById,
+  decodeLabel,
   formatUsdc,
   hashMemo,
   nativeToUsdc,
@@ -109,5 +112,38 @@ describe("memo", () => {
   it("rejects memos that break the schema", () => {
     expect(() => hashMemo({ ...memo, rubricHash: "0x1234" as `0x${string}` })).toThrow();
     expect(() => hashMemo({ ...memo, schema: "other" as typeof MEMO_SCHEMA })).toThrow();
+  });
+});
+
+describe("roles and attestation kinds", () => {
+  it("matches the role ids the contracts compute", () => {
+    // Values taken from the contracts themselves (keccak256("sealedrfq.role.<ROLE>")).
+    expect(Roles.ADMIN).toBe(`0x${"0".repeat(64)}`);
+    expect(Roles.EVALUATOR).toBe(
+      "0x83e06c882d5514ecab434d2519af3f0f0570c512b59962e81bead270c7ee4514",
+    );
+    expect(Roles.AWARDER).toBe(
+      "0x8bd29e45e288a3f8936ef18f2281592b2311623c28257e4e29ea40099d45206d",
+    );
+    expect(Roles.VERIFIER).toBe(
+      "0xba0e22fcf6b75e84676378ca8121337f14c1d287f4c8a8ef96bc2b96250f88f2",
+    );
+    expect(Roles.ATTESTOR).toBe(
+      "0x9f1e01890d0de025d6f88e98530ffcdc306bc0383e1447496f728c5f89bca45d",
+    );
+    expect(Roles.ARBITER).toBe(
+      "0x32790e5e35ceea13ae16f6f0ded4329cb734abec242dcf211b791b5a3922dfeb",
+    );
+    expect(Roles.REGISTRY).toBe(
+      "0xc1835e226babe20dfcd1bdea7af7401acf3d38a0e5b461924001d811bcc0c863",
+    );
+  });
+
+  it("encodes decision kinds the way bytes32 string constants do", () => {
+    expect(AttestationKinds.BID_EVALUATION).toBe(
+      "0x4249445f4556414c554154494f4e000000000000000000000000000000000000",
+    );
+    expect(decodeLabel(AttestationKinds.AWARD_RECOMMENDATION)).toBe("AWARD_RECOMMENDATION");
+    expect(decodeLabel(AttestationKinds.MILESTONE_ACCEPT)).toBe("MILESTONE_ACCEPT");
   });
 });

@@ -1,0 +1,142 @@
+import { Controller, Get, Param, Post } from "@nestjs/common";
+import { hashCanonical } from "@sealedrfq/shared";
+import { desc, eq, sql } from "drizzle-orm";
+import { db, schema } from "../../db/index.js";
+import { AwarderService } from "../awarder/awarder.service.js";
+import { ChainService } from "../chain/chain.service.js";
+import { EvaluatorService } from "../evaluator/evaluator.service.js";
+import { IndexerService } from "../indexer/indexer.service.js";
+
+@Controller()
+export class ApiController {
+  constructor(
+    private readonly chain: ChainService,
+    private readonly indexer: IndexerService,
+    private readonly evaluator: EvaluatorService,
+    private readonly awarder: AwarderService,
+  ) {}
+
+  @Get("health")
+  health() {
+    const cursor = db.select().from(schema.cursor).where(eq(schema.cursor.id, 1)).get();
+    return { ok: true, indexedBlock: cursor?.lastBlock ?? 0 };
+  }
+
+  /** What this agent is and what it can do — which roles it actually holds keys for. */
+  @Get("meta")
+  meta() {
+    return {
+      chainId: this.chain.chainId,
+      chain: this.chain.chain.name,
+      explorer: this.chain.chain.blockExplorers.default.url,
+      contracts: this.chain.deployment,
+      llmProvider: process.env.LLM_PROVIDER ?? "mock",
+      roles: {
+        EVALUATOR: this.chain.address("EVALUATOR"),
+        AWARDER: this.chain.address("AWARDER"),
+        VERIFIER: this.chain.address("VERIFIER"),
+        ARBITER: this.chain.address("ARBITER"),
+      },
+    };
+  }
+
+  @Get("rfqs")
+  rfqs() {
+    return db.select().from(schema.rfqs).orderBy(desc(schema.rfqs.id)).all();
+  }
+
+  @Get("rfqs/:id")
+  rfq(@Param("id") id: string) {
+    const rfqId = Number(id);
+    return {
+      rfq: db.select().from(schema.rfqs).where(eq(schema.rfqs.id, rfqId)).get() ?? null,
+      bids: db.select().from(schema.bids).where(eq(schema.bids.rfqId, rfqId)).all(),
+      engagement:
+        db.select().from(schema.engagements).where(eq(schema.engagements.rfqId, rfqId)).get() ??
+        null,
+      milestones: db
+        .select()
+        .from(schema.milestones)
+        .where(eq(schema.milestones.rfqId, rfqId))
+        .all(),
+      attestations: db
+        .select()
+        .from(schema.attestations)
+        .where(eq(schema.attestations.rfqId, rfqId))
+        .all(),
+    };
+  }
+
+  /** The published memo behind an award recommendation. */
+  @Get("rfqs/:id/evaluation")
+  evaluation(@Param("id") id: string) {
+    const row = db
+      .select()
+      .from(schema.attestations)
+      .where(
+        sql`${schema.attestations.rfqId} = ${Number(id)} and ${schema.attestations.memo} is not null`,
+      )
+      .get();
+    if (!row) return { evaluated: false };
+    return {
+      evaluated: true,
+      kind: row.kind,
+      winner: row.winner,
+      payloadHash: row.payloadHash,
+      tx: row.tx,
+      memo: JSON.parse(row.memo ?? "{}"),
+    };
+  }
+
+  /**
+   * Re-hash the published memo and compare it with the anchor the chain holds. Never compares two
+   * stored strings: the point is to prove the memo was not edited after the decision.
+   */
+  @Get("audit/:id")
+  async audit(@Param("id") id: string) {
+    const row = db
+      .select()
+      .from(schema.attestations)
+      .where(
+        sql`${schema.attestations.rfqId} = ${Number(id)} and ${schema.attestations.memo} is not null`,
+      )
+      .get();
+    if (!row?.memo) return { verified: false, reason: "no published memo for this RFQ" };
+
+    const memo = JSON.parse(row.memo);
+    const computed = hashCanonical(memo);
+    const onChain = await this.chain.publicClient.readContract({
+      ...this.chain.attestationLog,
+      functionName: "getAttestation",
+      args: [BigInt(row.subjectId), computed as `0x${string}`],
+    });
+
+    return {
+      verified: onChain.ts > 0n && computed.toLowerCase() === row.payloadHash.toLowerCase(),
+      computedHash: computed,
+      anchoredHash: row.payloadHash,
+      anchoredBy: onChain.actor,
+      anchoredAt: Number(onChain.ts),
+      model: row.model,
+      tx: row.tx,
+      memo,
+    };
+  }
+
+  @Post("rfqs/:id/evaluate")
+  evaluate(@Param("id") id: string) {
+    return this.evaluator.evaluateAndAttest(Number(id));
+  }
+
+  @Post("rfqs/:id/award")
+  award(@Param("id") id: string) {
+    return this.awarder.award(Number(id));
+  }
+
+  /** Force an indexer pass (the loop also runs on a timer). */
+  @Post("reindex")
+  async reindex() {
+    await this.indexer.tick();
+    return this.health();
+  }
+}

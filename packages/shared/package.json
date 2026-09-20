@@ -18,11 +18,14 @@
   },
   "dependencies": {
     "canonicalize": "^2",
-    "viem": "^2",
     "zod": "^3"
   },
   "devDependencies": {
     "@types/node": "^22",
-    "vitest": "^2"
+    "vitest": "^2",
+    "viem": "^2"
+  },
+  "peerDependencies": {
+    "viem": "^2"
   }
 }
