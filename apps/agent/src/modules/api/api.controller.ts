@@ -6,6 +6,7 @@ import { AwarderService } from "../awarder/awarder.service.js";
 import { ChainService } from "../chain/chain.service.js";
 import { EvaluatorService } from "../evaluator/evaluator.service.js";
 import { IndexerService } from "../indexer/indexer.service.js";
+import { X402Middleware } from "../x402/x402.middleware.js";
 
 @Controller()
 export class ApiController {
@@ -14,6 +15,7 @@ export class ApiController {
     private readonly indexer: IndexerService,
     private readonly evaluator: EvaluatorService,
     private readonly awarder: AwarderService,
+    private readonly x402: X402Middleware,
   ) {}
 
   @Get("health")
@@ -31,6 +33,20 @@ export class ApiController {
       explorer: this.chain.chain.blockExplorers.default.url,
       contracts: this.chain.deployment,
       llmProvider: process.env.LLM_PROVIDER ?? "mock",
+      // Advertised so a buying agent can price the call before it makes one, rather than having to
+      // provoke a 402 to find out. Absent when the endpoint is free.
+      x402: this.x402.config
+        ? {
+            resource: "POST /rfqs/:id/evaluate",
+            price: this.x402.config.price,
+            network: this.x402.config.network,
+            payTo: this.x402.config.payTo,
+            asset: "USDC",
+            facilitator: this.x402.config.facilitatorUrl,
+            description: this.x402.config.description,
+            free: ["GET /rfqs/:id/evaluation", "GET /audit/:id"],
+          }
+        : null,
       roles: {
         EVALUATOR: this.chain.address("EVALUATOR"),
         AWARDER: this.chain.address("AWARDER"),

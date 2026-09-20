@@ -7,6 +7,7 @@
       "contracts/**",
       "**/dist/**",
       "**/.next/**",
+      "**/.turbo/**",
       "**/node_modules/**",
       "**/*.md"
     ]

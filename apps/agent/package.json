@@ -11,10 +11,13 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@circle-fin/x402-batching": "^3.5.0",
     "@nestjs/common": "^11",
     "@nestjs/core": "^11",
     "@nestjs/platform-express": "^11",
     "@sealedrfq/shared": "workspace:^",
+    "@x402/core": "^2.26.0",
+    "@x402/evm": "^2.26.0",
     "better-sqlite3": "^13.0.3",
     "drizzle-orm": "^0.45.2",
     "reflect-metadata": "^0.2.2",

@@ -139,6 +139,35 @@ If these required permission, either party could hold the other hostage by simpl
 Leaving them open means a stranger or a keeper bot can push the state forward and the outcome is
 identical whoever calls — the caller cannot choose *what* happens, only *when* someone stops waiting.
 
+## Paying the agent: x402
+
+Scoring an RFQ costs real inference, so `POST /rfqs/:id/evaluate` can be sold rather than given
+away. It speaks [x402](https://x402.org) v2 — the HTTP 402 handshake for machine payments. An unpaid
+call gets a 402 whose `PAYMENT-REQUIRED` header carries the terms; the caller signs a USDC
+authorisation and retries. Circle runs a facilitator that settles Arc on both networks, so the fee
+is USDC, paid to a USDC-settled service, on a chain where USDC is also the gas:
+
+```
+$ curl -X POST https://<agent>/rfqs/1/evaluate        # HTTP 402, body {}
+PAYMENT-REQUIRED: { "x402Version": 2,
+  "accepts": [{ "scheme": "exact", "network": "eip155:5042002",
+                "asset": "0x3600000000000000000000000000000000000000",
+                "amount": "50000", "payTo": "0x…" }] }
+```
+
+Circle's `exact` scheme signs against their `GatewayWalletBatched` contract rather than USDC's own
+EIP-3009 domain, which is what makes a five-cent price practical: payments batch instead of
+settling one transaction at a time. Settling each call on its own would cost more than the call.
+
+**Only that one route is metered.** `GET /rfqs/:id/evaluation` and `GET /audit/:id` are free and
+always will be. The argument this whole project makes is that a losing bidder can re-hash the memo
+and check it against the chain without anyone's permission; charging for that would contradict it.
+What is sold is *compute on demand* — the scheduler scores every RFQ on its own anyway.
+
+Off unless `X402_ENABLED=true`. Enabled on a chain Circle cannot settle, or without a payout
+address, the agent refuses to boot rather than quietly serving a paid endpoint for free. `GET /meta`
+advertises the price, so a buying agent can budget the call without provoking a 402 to discover it.
+
 ## Which procurement instruments this covers
 
 | | Covered | How |
