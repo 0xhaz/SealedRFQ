@@ -237,20 +237,29 @@ export default function Home() {
       </section>
 
       <footer className="foot">
-        <span>
-          Contracts on {chain.name}:{" "}
-          <a href={explorerAddress(contracts.RFQRegistry)} target="_blank" rel="noreferrer">
-            RFQRegistry
-          </a>{" "}
-          ·{" "}
-          <a href={explorerAddress(contracts.SealedRFQAdapter)} target="_blank" rel="noreferrer">
-            SealedRFQAdapter
-          </a>{" "}
-          ·{" "}
-          <a href={explorerAddress(contracts.AgenticCommerce)} target="_blank" rel="noreferrer">
-            AgenticCommerce (ERC-8183)
-          </a>
-        </span>
+        <span className="foot-label">Contracts on {chain.name}</span>
+        <nav className="page-nav">
+          {(
+            [
+              ["RFQRegistry", contracts.RFQRegistry],
+              ["SealedRFQAdapter", contracts.SealedRFQAdapter],
+              ["AgenticCommerce · ERC-8183", contracts.AgenticCommerce],
+              ["ProcurementPolicy", contracts.ProcurementPolicy],
+              ["AttestationLog", contracts.AttestationLog],
+            ] as const
+          ).map(([name, address]) => (
+            <a
+              key={name}
+              className="btn-nav ghost"
+              href={explorerAddress(address)}
+              target="_blank"
+              rel="noreferrer"
+              title={address}
+            >
+              {name} ↗
+            </a>
+          ))}
+        </nav>
       </footer>
     </div>
   );

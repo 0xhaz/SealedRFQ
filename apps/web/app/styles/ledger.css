@@ -5531,3 +5531,22 @@ button.field-wallet {
     transition: none;
   }
 }
+
+/* ---------- page footer ---------- */
+.foot {
+  margin-top: 44px;
+  padding: 24px 0 10px;
+  border-top: 2px solid var(--ink);
+}
+.foot-label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.foot .page-nav {
+  margin-top: 12px;
+  gap: 10px;
+}
