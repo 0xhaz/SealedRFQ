@@ -72,70 +72,135 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
         </div>
       </section>
 
+      {/* One grid, two independent column stacks: with separate grid rows the short left panel
+          still reserved the height of the taller right column, leaving dead space beneath it. */}
       <div className="grid">
-        <div className="panel">
-          <div className="head">
-            Sealed bids
-            <span className="hint">
-              {sealed
-                ? `${rfq.commitCount} committed — prices open at the reveal window`
-                : `${rfq.revealCount} of ${rfq.commitCount} revealed`}
-            </span>
-          </div>
-          {bids.length === 0 ? (
-            <div className="empty">
-              No bids yet.{" "}
-              <Link href={`/rfqs/${id}/bid`} className="linklike">
-                Submit a sealed bid →
-              </Link>
+        <div className="col">
+          <div className="panel">
+            <div className="head">
+              Sealed bids
+              <span className="hint">
+                {sealed
+                  ? `${rfq.commitCount} committed — prices open at the reveal window`
+                  : `${rfq.revealCount} of ${rfq.commitCount} revealed`}
+              </span>
             </div>
-          ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th>Supplier</th>
-                  <th className="num">Price</th>
-                  <th className="num">Delivery</th>
-                  {rfq.requiresProposal && <th>Proposal</th>}
-                  <th>Deposit</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sorted.map((b) => (
-                  <tr key={b.bidder}>
-                    <td className="mono">
-                      {short(b.bidder)}
-                      {b.bidder.toLowerCase() === rfq.winner.toLowerCase() && (
-                        <span className="badge p-awarded"> WON</span>
-                      )}
-                    </td>
-                    <td className="num">
-                      {sealed ? (
-                        <span className="mono" title="sealed">
-                          ███████
-                        </span>
-                      ) : b.revealed ? (
-                        `${formatUsdc(b.price)} USDC`
-                      ) : (
-                        <span className="muted">not revealed</span>
-                      )}
-                    </td>
-                    <td className="num">{b.revealed && !sealed ? `${b.deliveryDays} d` : "—"}</td>
-                    {rfq.requiresProposal && (
-                      <td className="mono" style={{ fontSize: 11 }}>
-                        {b.revealed && !sealed && b.proposalHash !== `0x${"0".repeat(64)}`
-                          ? `${b.proposalHash.slice(0, 14)}…`
-                          : "—"}
-                      </td>
-                    )}
-                    <td>
-                      <span className="badge">{b.deposit}</span>
-                    </td>
+            {bids.length === 0 ? (
+              <div className="empty">
+                No bids yet.{" "}
+                <Link href={`/rfqs/${id}/bid`} className="linklike">
+                  Submit a sealed bid →
+                </Link>
+              </div>
+            ) : (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Supplier</th>
+                    <th className="num">Price</th>
+                    <th className="num">Delivery</th>
+                    {rfq.requiresProposal && <th>Proposal</th>}
+                    <th>Deposit</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                </thead>
+                <tbody>
+                  {sorted.map((b) => (
+                    <tr key={b.bidder}>
+                      <td className="mono">
+                        {short(b.bidder)}
+                        {b.bidder.toLowerCase() === rfq.winner.toLowerCase() && (
+                          <span className="badge p-awarded"> WON</span>
+                        )}
+                      </td>
+                      <td className="num">
+                        {sealed ? (
+                          <span className="mono" title="sealed">
+                            ███████
+                          </span>
+                        ) : b.revealed ? (
+                          `${formatUsdc(b.price)} USDC`
+                        ) : (
+                          <span className="muted">not revealed</span>
+                        )}
+                      </td>
+                      <td className="num">{b.revealed && !sealed ? `${b.deliveryDays} d` : "—"}</td>
+                      {rfq.requiresProposal && (
+                        <td className="mono" style={{ fontSize: 11 }}>
+                          {b.revealed && !sealed && b.proposalHash !== `0x${"0".repeat(64)}`
+                            ? `${b.proposalHash.slice(0, 14)}…`
+                            : "—"}
+                        </td>
+                      )}
+                      <td>
+                        <span className="badge">{b.deposit}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+
+        <EvaluationPanel rfqId={id} evaluation={evaluation} audit={audit} />
+
+  {engagement && (
+    <div className="panel">
+      <div className="head">
+        Engagement
+        <span className="hint">
+          {engagement.status} · milestone {engagement.currentMilestone + 1} of{" "}
+          {engagement.milestoneCount}
+        </span>
+      </div>
+      <div className="kv">
+        <span>Supplier</span>
+        <b className="mono">{short(engagement.supplier)}</b>
+      </div>
+      <div className="kv">
+        <span>Award price</span>
+        <b>{formatUsdc(engagement.price)} USDC</b>
+      </div>
+      <div className="kv">
+        <span>Retention held</span>
+        <b>{formatUsdc(engagement.retentionHeld)} USDC</b>
+      </div>
+      <div className="kv">
+        <span>Performance stake</span>
+        <b>{formatUsdc(engagement.performanceStake)} USDC</b>
+      </div>
+      <div className="kv">
+        <span>Current escrow job</span>
+        <b className="mono">#{engagement.currentJobId.toString()}</b>
+      </div>
+      {engagement.submittedAt > 0 && engagement.deliverable && (
+        <div className="kv">
+          <span>Deliverable hash</span>
+          <b className="mono" style={{ fontSize: 11 }}>
+            {engagement.deliverable.slice(0, 26)}…
+          </b>
+        </div>
+      )}
+      {engagement.submittedAt > 0 && (
+        <div className="kv">
+          <span>Submitted</span>
+          <b>
+            {when(engagement.submittedAt)} · auto-releases in{" "}
+            {countdown(engagement.submittedAt + engagement.acceptanceWindow)}
+          </b>
+        </div>
+      )}
+      {engagement.deliverable && engagement.deliverable !== `0x${"0".repeat(64)}` && (
+        <div style={{ padding: "12px 20px 4px" }}>
+          <DocumentCheck
+            expected={engagement.deliverable}
+            label="Verify a delivered document"
+            hint="anyone can check a copy against the chain"
+          />
+        </div>
+      )}
+    </div>
+  )}
         </div>
 
         <div className="right">
@@ -201,12 +266,8 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
               <b>{rfq.milestoneBps.map((b) => `${b / 100}%`).join(" · ")}</b>
             </div>
           </div>
-        </div>
-      </div>
 
-      <div className="grid">
-        <EvaluationPanel rfqId={id} evaluation={evaluation} audit={audit} />
-        <div className="right">
+
           <RfqActions
             rfqId={id}
             phase={rfq.phase}
@@ -233,63 +294,6 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
         </div>
       </div>
 
-      {engagement && (
-        <div className="panel">
-          <div className="head">
-            Engagement
-            <span className="hint">
-              {engagement.status} · milestone {engagement.currentMilestone + 1} of{" "}
-              {engagement.milestoneCount}
-            </span>
-          </div>
-          <div className="kv">
-            <span>Supplier</span>
-            <b className="mono">{short(engagement.supplier)}</b>
-          </div>
-          <div className="kv">
-            <span>Award price</span>
-            <b>{formatUsdc(engagement.price)} USDC</b>
-          </div>
-          <div className="kv">
-            <span>Retention held</span>
-            <b>{formatUsdc(engagement.retentionHeld)} USDC</b>
-          </div>
-          <div className="kv">
-            <span>Performance stake</span>
-            <b>{formatUsdc(engagement.performanceStake)} USDC</b>
-          </div>
-          <div className="kv">
-            <span>Current escrow job</span>
-            <b className="mono">#{engagement.currentJobId.toString()}</b>
-          </div>
-          {engagement.submittedAt > 0 && engagement.deliverable && (
-            <div className="kv">
-              <span>Deliverable hash</span>
-              <b className="mono" style={{ fontSize: 11 }}>
-                {engagement.deliverable.slice(0, 26)}…
-              </b>
-            </div>
-          )}
-          {engagement.submittedAt > 0 && (
-            <div className="kv">
-              <span>Submitted</span>
-              <b>
-                {when(engagement.submittedAt)} · auto-releases in{" "}
-                {countdown(engagement.submittedAt + engagement.acceptanceWindow)}
-              </b>
-            </div>
-          )}
-          {engagement.deliverable && engagement.deliverable !== `0x${"0".repeat(64)}` && (
-            <div style={{ padding: "12px 20px 4px" }}>
-              <DocumentCheck
-                expected={engagement.deliverable}
-                label="Verify a delivered document"
-                hint="anyone can check a copy against the chain"
-              />
-            </div>
-          )}
-        </div>
-      )}
 
       <nav className="page-nav">
         <Link className="btn-nav" href="/rfqs">

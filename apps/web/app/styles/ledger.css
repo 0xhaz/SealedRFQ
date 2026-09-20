@@ -5720,3 +5720,11 @@ button.field-wallet {
 .shell > .desk-head + .stats {
   margin-top: 4px;
 }
+
+/* A column stack inside .grid — same rhythm as .right, for the wider side. */
+.grid > .col {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
