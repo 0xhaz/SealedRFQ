@@ -5397,3 +5397,67 @@ button.field-wallet {
   color: #453d31;
   max-width: 68ch;
 }
+
+/* ============================================================
+   Panel interiors
+   .kv, .note and .field-err came from the reference site's drawer, which supplied the padding
+   around them. Used directly inside a .panel they had none, so text sat against the border.
+   ============================================================ */
+.panel > .kv,
+.panel > .note,
+.panel > .memo,
+.panel > .field-err {
+  padding-left: 20px;
+  padding-right: 20px;
+}
+.panel > .kv {
+  padding-top: 11px;
+  padding-bottom: 11px;
+  align-items: baseline;
+  border-bottom: 1px solid rgba(221, 213, 197, 0.55);
+}
+.panel > .kv:last-child {
+  border-bottom: 0;
+  padding-bottom: 16px;
+}
+.panel > .note {
+  padding-top: 13px;
+  padding-bottom: 13px;
+  line-height: 1.65;
+}
+.panel > .note + .note {
+  padding-top: 0;
+}
+.panel > .note:last-child {
+  padding-bottom: 16px;
+}
+.panel > .memo {
+  margin: 16px 20px;
+  padding: 14px 16px;
+}
+.panel > .field-err {
+  padding-top: 10px;
+  padding-bottom: 14px;
+}
+/* the label column needs room for "Award window ends" without wrapping to two lines */
+.panel > .kv {
+  grid-template-columns: minmax(150px, auto) 1fr;
+}
+.panel > table {
+  margin-bottom: 4px;
+}
+
+/*
+ * Right-hand column: `margin-left: auto` shrank a panel to its content, which is why a short
+ * Actions panel rendered as a small box instead of filling the column. Stack the panels instead.
+ */
+.right {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-left: 0;
+  min-width: 0;
+}
+.right > .panel {
+  width: 100%;
+}

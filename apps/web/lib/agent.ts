@@ -10,6 +10,10 @@ const BASE = process.env.NEXT_PUBLIC_AGENT_URL ?? "http://127.0.0.1:4020";
 
 export type Evaluation = {
   evaluated: boolean;
+  /** Anchored on-chain, but this agent does not hold the memo (e.g. a script or another operator). */
+  anchoredOnly?: boolean;
+  actor?: `0x${string}`;
+  model?: string;
   kind?: string;
   winner?: `0x${string}` | null;
   payloadHash?: `0x${string}`;

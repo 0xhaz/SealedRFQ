@@ -163,6 +163,18 @@ export function RfqActions({
       </div>
 
       {/* ---- award ---- */}
+      {phase !== "Award" && !engagement && (
+        <div className="note">
+          {phase === "Bidding"
+            ? "Bidding is open: suppliers can seal a bid from the bid page. Nothing is awardable until the reveal window closes."
+            : phase === "Reveal"
+              ? "The reveal window is open. Bidders who committed must reveal now; an unrevealed bid forfeits its deposit."
+              : phase === "NoAward"
+                ? "No award was made, so the budget and the buyer stake returned and every revealed bidder can reclaim its deposit."
+                : "Nothing to do in this phase."}
+        </div>
+      )}
+
       {phase === "Award" && (
         <div className="form">
           {recommended && evaluationHash ? (
@@ -274,8 +286,33 @@ export function RfqActions({
         </div>
       )}
 
-      {engagement && engagement.status !== "Active" && (
-        <div className="note">Engagement {engagement.status.toLowerCase()}.</div>
+      {engagement && engagement.status === "Completed" && (
+        <>
+          <div className="note">
+            <b>Engagement completed.</b> Every milestone was accepted, so the retention held back
+            along the way and the supplier&apos;s performance stake were released with the final
+            one, and the buyer&apos;s stake returned.
+          </div>
+          <div className="kv">
+            <span>Milestones</span>
+            <b>
+              {engagement.milestoneCount} of {engagement.milestoneCount} accepted
+            </b>
+          </div>
+        </>
+      )}
+
+      {engagement && !["Active", "Completed"].includes(engagement.status) && (
+        <div className="note">
+          Engagement <b>{engagement.status.toLowerCase()}</b>.{" "}
+          {engagement.status === "Rejected"
+            ? "The supplier can escalate to the arbiter until the dispute window closes; after that the buyer is made whole."
+            : engagement.status === "Disputed"
+              ? "The arbiter can split the remaining escrow in one call."
+              : engagement.status === "Abandoned"
+                ? "A delivery deadline passed with nothing submitted, so the escrow and the performance stake went to the buyer."
+                : "Nothing further to do here."}
+        </div>
       )}
 
       {error && (

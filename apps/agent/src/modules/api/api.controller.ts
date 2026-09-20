@@ -67,7 +67,14 @@ export class ApiController {
     };
   }
 
-  /** The published memo behind an award recommendation. */
+  /**
+   * The published memo behind an award recommendation.
+   *
+   * A decision can be anchored on-chain without this agent holding the memo — the demo scripts
+   * attest directly, and another operator's evaluator would too. That is reported as
+   * `anchoredOnly`, not as "not scored": claiming an award had no evaluation when the chain says
+   * otherwise would be the wrong kind of wrong.
+   */
   @Get("rfqs/:id/evaluation")
   evaluation(@Param("id") id: string) {
     const row = db
@@ -77,7 +84,32 @@ export class ApiController {
         sql`${schema.attestations.rfqId} = ${Number(id)} and ${schema.attestations.memo} is not null`,
       )
       .get();
-    if (!row) return { evaluated: false };
+    if (!row) {
+      const anchored = db
+        .select()
+        .from(schema.attestations)
+        .where(sql`${schema.attestations.rfqId} = ${Number(id)}`)
+        .all();
+      if (anchored.length === 0) return { evaluated: false };
+      // An RFQ can carry several award recommendations — the firewall demo anchors one the
+      // contract then rejects. Prefer the one naming the bidder that actually won.
+      const rfq = db.select().from(schema.rfqs).where(eq(schema.rfqs.id, Number(id))).get();
+      const awards = anchored.filter((a) => a.kind.startsWith("AWARD"));
+      const decision =
+        awards.find((a) => a.winner && a.winner.toLowerCase() === rfq?.winner?.toLowerCase()) ??
+        awards.at(-1) ??
+        anchored[0];
+      return {
+        evaluated: true,
+        anchoredOnly: true,
+        kind: decision.kind,
+        winner: decision.winner,
+        payloadHash: decision.payloadHash,
+        actor: decision.actor,
+        model: decision.model,
+        tx: decision.tx,
+      };
+    }
     return {
       evaluated: true,
       kind: row.kind,

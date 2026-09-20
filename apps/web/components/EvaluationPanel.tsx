@@ -21,6 +21,40 @@ export function EvaluationPanel({
   evaluation: Evaluation;
   audit: AuditResult;
 }) {
+  if (evaluation.evaluated && evaluation.anchoredOnly) {
+    // The chain has the decision; this agent simply does not hold the memo behind it.
+    return (
+      <div className="panel">
+        <div className="head">
+          AI evaluation<span className="hint">anchored on-chain</span>
+        </div>
+        <div className="note">
+          A <b>{evaluation.kind?.replace(/_/g, " ").toLowerCase()}</b> was anchored by{" "}
+          <span className="mono">{short(evaluation.actor ?? "")}</span>
+          {evaluation.model ? ` using ${evaluation.model}` : ""}, and the award had to cite it. This
+          agent does not hold the memo behind that hash, so the reasoning cannot be shown or
+          re-hashed here — the decision was recorded by a different operator or by a script.
+        </div>
+        <div className="kv">
+          <span>Decision hash</span>
+          <b className="mono" style={{ fontSize: 11 }}>
+            {evaluation.payloadHash?.slice(0, 26)}…
+          </b>
+        </div>
+        {evaluation.tx && (
+          <div className="kv">
+            <span>Anchor tx</span>
+            <b>
+              <a href={explorerTx(evaluation.tx)} target="_blank" rel="noreferrer">
+                open ↗
+              </a>
+            </b>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   if (!evaluation.evaluated || !evaluation.memo) {
     return (
       <div className="panel">
