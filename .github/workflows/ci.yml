@@ -1,0 +1,46 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+    env:
+      FOUNDRY_PROFILE: arc
+      FOUNDRY_FUZZ_RUNS: 5000
+      ARC_TESTNET_RPC_URL: https://rpc.testnet.arc.io
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      # Arc Foundry is not on foundryup; never use foundry-toolchain (it would test against Ethereum rules).
+      - name: Install Arc Foundry
+        run: |
+          V=v0.8.0-1
+          F=arc-foundry-$V-x86_64-unknown-linux-gnu.tar.gz
+          curl -fsSL -o /tmp/$F https://github.com/circlefin/arc-foundry/releases/download/$V/$F
+          echo "e12feade22e9c276c4e10b3a9e2573e75ef9dcd652f237f9eb6408b7eb52c5f0  /tmp/$F" | sha256sum -c -
+          tar -xzf /tmp/$F -C /tmp
+          install -m 0755 /tmp/forge /usr/local/bin/arc-forge
+      - run: arc-forge fmt --check
+      - run: arc-forge build --sizes
+      - run: arc-forge test -vv
+
+  typescript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm build
+      - run: pnpm test

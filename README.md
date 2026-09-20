@@ -1,0 +1,55 @@
+# SealedRFQ on Arc
+
+Sealed-bid B2B procurement on [Arc](https://docs.arc.io): suppliers commit sealed bids with a USDC
+deposit, an AI evaluator scores them against a rubric published before bidding opened, an on-chain
+procurement policy enforces the award, and the winner is paid milestone by milestone through
+ERC-8183 escrow.
+
+> Work in progress for the Arc Microgrants program. Plan: [`workplan.md`](workplan.md).
+> Design: [`docs/architecture.md`](docs/architecture.md) · Stack: [`docs/techstack.md`](docs/techstack.md).
+
+## Layout
+
+```
+contracts/          Foundry project (Solidity 0.8.28, OpenZeppelin 5.7)
+packages/shared/    USDC 6-decimal helpers, Arc chain config, decision-memo schema + hashing
+```
+
+## Develop
+
+```bash
+pnpm install
+git submodule update --init --recursive
+
+pnpm test                    # TypeScript packages
+cd contracts && forge test   # unit tests (MockUSDC) + read-only Arc forks
+
+# Arc rules (system precompiles, blocklist): Arc Foundry v0.8.0-1, installed as arc-forge.
+# https://github.com/circlefin/arc-foundry/releases (aarch64-apple-darwin / linux builds)
+cd contracts && FOUNDRY_PROFILE=arc ARC_TESTNET_RPC_URL=https://rpc.testnet.arc.io arc-forge test
+```
+
+Keys live in `.env.testnet` / `.env.mainnet` (gitignored); see `.env.example`.
+
+## Live on Arc testnet (chain 5042002)
+
+| Contract | Address |
+|---|---|
+| `RFQRegistry` | [`0xC298eBa4051779cE856ADA673e65AD3B14CE287D`](https://explorer.testnet.arc.io/address/0xC298eBa4051779cE856ADA673e65AD3B14CE287D) |
+| `SealedRFQAdapter` | [`0xBBd4474DbDB09711BB3654D5Ed1B78991Ee6CE42`](https://explorer.testnet.arc.io/address/0xBBd4474DbDB09711BB3654D5Ed1B78991Ee6CE42) |
+| `AgenticCommerce` (ERC-8183) | [`0x78406DB668a3FCE7485f4fBc44fCF50Bf976fb86`](https://explorer.testnet.arc.io/address/0x78406DB668a3FCE7485f4fBc44fCF50Bf976fb86) |
+| `ProcurementPolicy` | [`0xf0A23194D61220c09cE0B43CEe2ABe949B8d65aB`](https://explorer.testnet.arc.io/address/0xf0A23194D61220c09cE0B43CEe2ABe949B8d65aB) |
+| `AttestationLog` | [`0x70D744E0caf335Fe53bd2B65CaC3bE9bDF9601A2`](https://explorer.testnet.arc.io/address/0x70D744E0caf335Fe53bd2B65CaC3bE9bDF9601A2) |
+
+A full lifecycle ran on 2026-09-20: `contracts/deployments/evidence-5042002.json` has one explorer link per step,
+including the policy firewall rejecting an AI-recommended over-budget award
+([`0xa9195ed1…`](https://explorer.testnet.arc.io/tx/0xa9195ed1c622aeca7483552954d9e05e99bdbd91756af953ce9bdc7a2c1faff4),
+`AwardExceedsBudget(3400000, 3000000)`).
+
+Run it yourself: `./script/demo.sh testnet`.
+
+## Arc rules this codebase follows
+
+- Settlement is the USDC ERC-20 interface at `0x3600…0000` (6 decimals). Never `msg.value`.
+- Payouts are pull-only (`withdraw()`), so a blocklisted recipient parks funds instead of bricking a flow.
+- One confirmation is final; no confirmation counters. `block.prevrandao` is never used.

@@ -1,0 +1,22 @@
+{
+  "name": "sealedrfq",
+  "private": true,
+  "packageManager": "pnpm@9.12.2",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "dev": "turbo run dev",
+    "contracts:build": "cd contracts && forge build",
+    "contracts:test": "cd contracts && forge test"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9",
+    "turbo": "^2",
+    "typescript": "^5.6"
+  }
+}

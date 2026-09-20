@@ -1,0 +1,29 @@
+# deps / build
+node_modules/
+dist/
+.next/
+.turbo/
+coverage/
+*.tsbuildinfo
+
+# foundry
+contracts/out/
+contracts/out-arc/
+contracts/cache-arc/
+contracts/cache/
+contracts/broadcast/*/31337/
+contracts/broadcast/**/dry-run/
+
+# secrets — never commit keys
+.env
+.env.*
+!.env.example
+
+# local data
+apps/agent/data/
+*.db
+
+# design reference (Faktura/Casper site) — local only, not part of the public repo
+/web/
+
+.DS_Store
