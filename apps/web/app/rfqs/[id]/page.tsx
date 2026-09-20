@@ -1,6 +1,7 @@
 import { formatUsdc } from "@sealedrfq/shared";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { DocumentCheck } from "@/components/DocumentCheck";
 import { EvaluationPanel } from "@/components/EvaluationPanel";
 import { Header } from "@/components/Header";
 import { PhaseBadge } from "@/components/PhaseBadge";
@@ -224,6 +225,7 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
                     submittedAt: engagement.submittedAt,
                     acceptanceWindow: engagement.acceptanceWindow,
                     currentJobBudget: engagement.currentJobBudget.toString(),
+                    deliverable: engagement.deliverable,
                   }
                 : null
             }
@@ -260,6 +262,14 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
             <span>Current escrow job</span>
             <b className="mono">#{engagement.currentJobId.toString()}</b>
           </div>
+          {engagement.submittedAt > 0 && engagement.deliverable && (
+            <div className="kv">
+              <span>Deliverable hash</span>
+              <b className="mono" style={{ fontSize: 11 }}>
+                {engagement.deliverable.slice(0, 26)}…
+              </b>
+            </div>
+          )}
           {engagement.submittedAt > 0 && (
             <div className="kv">
               <span>Submitted</span>
@@ -267,6 +277,15 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
                 {when(engagement.submittedAt)} · auto-releases in{" "}
                 {countdown(engagement.submittedAt + engagement.acceptanceWindow)}
               </b>
+            </div>
+          )}
+          {engagement.deliverable && engagement.deliverable !== `0x${"0".repeat(64)}` && (
+            <div style={{ padding: "12px 20px 4px" }}>
+              <DocumentCheck
+                expected={engagement.deliverable}
+                label="Verify a delivered document"
+                hint="anyone can check a copy against the chain"
+              />
             </div>
           )}
         </div>

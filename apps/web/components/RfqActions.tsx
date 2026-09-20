@@ -3,11 +3,13 @@
 import { AgenticCommerceAbi, RFQRegistryAbi, SealedRFQAdapterAbi, formatUsdc } from "@sealedrfq/shared";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { sha256, stringToBytes } from "viem";
+import type { Hex } from "viem";
 import { useAccount, useConfig, useWriteContract } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
 import { WalletChip } from "@/components/WalletChip";
 import { chain, contracts, explorerTx } from "@/lib/chain";
+import { DocumentCheck } from "@/components/DocumentCheck";
+import { hashFile, hashText, ZERO_HASH } from "@/lib/docHash";
 
 type Props = {
   rfqId: number;
@@ -26,6 +28,8 @@ type Props = {
     submittedAt: number;
     acceptanceWindow: number;
     currentJobBudget: string;
+    /** Hash of the submitted deliverable, for the buyer to check their copy against. */
+    deliverable?: string;
   } | null;
 };
 
@@ -51,6 +55,9 @@ export function RfqActions({
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
   const [deliverable, setDeliverable] = useState("");
+  // Hash the file the supplier actually delivers, not a sentence typed about it.
+  const [deliverableHash, setDeliverableHash] = useState<Hex | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
   const [reason, setReason] = useState("");
 
   const me = address?.toLowerCase();
@@ -85,13 +92,17 @@ export function RfqActions({
       }),
     );
 
+  /** The hash that goes on-chain: the file's bytes when one is attached, else the typed reference. */
+  const pendingHash = (): Hex =>
+    deliverableHash ?? (deliverable.trim() ? hashText(deliverable.trim()) : ZERO_HASH);
+
   const submitMilestone = () =>
     run("Submitting the deliverable…", () =>
       writeContractAsync({
         abi: AgenticCommerceAbi,
         address: contracts.AgenticCommerce,
         functionName: "submit",
-        args: [BigInt(engagement?.currentJobId ?? 0), sha256(stringToBytes(deliverable || "delivered")), "0x"],
+        args: [BigInt(engagement?.currentJobId ?? 0), pendingHash(), "0x"],
       }),
     );
 
@@ -101,7 +112,10 @@ export function RfqActions({
         abi: SealedRFQAdapterAbi,
         address: contracts.SealedRFQAdapter,
         functionName: "acceptMilestone",
-        args: [BigInt(rfqId), sha256(stringToBytes(reason || `accepted milestone ${(engagement?.currentMilestone ?? 0) + 1}`))],
+        args: [
+          BigInt(rfqId),
+          hashText(reason || `accepted milestone ${(engagement?.currentMilestone ?? 0) + 1}`),
+        ],
       }),
     );
 
@@ -111,7 +125,7 @@ export function RfqActions({
         abi: SealedRFQAdapterAbi,
         address: contracts.SealedRFQAdapter,
         functionName: "rejectMilestone",
-        args: [BigInt(rfqId), sha256(stringToBytes(reason))],
+        args: [BigInt(rfqId), hashText(reason)],
       }),
     );
 
@@ -151,6 +165,7 @@ export function RfqActions({
     ? engagement.submittedAt + engagement.acceptanceWindow
     : 0;
   const canAutoRelease = releasesAt > 0 && Date.now() / 1000 >= releasesAt;
+  const deliverableOnChain = engagement?.deliverable as Hex | undefined;
   const awaitingReview = Boolean(engagement?.submittedAt);
 
   return (
@@ -218,20 +233,70 @@ export function RfqActions({
           {isSupplier && !awaitingReview && (
             <>
               <div className="field full">
-                <label htmlFor="deliverable">Deliverable (hashed on-chain)</label>
+                <label htmlFor="deliverable-file">Deliverable</label>
+                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                  <label className="btn-nav" htmlFor="deliverable-file">
+                    {fileName ? "Choose a different file" : "Attach the file you are delivering"}
+                  </label>
+                  <input
+                    id="deliverable-file"
+                    type="file"
+                    style={{ display: "none" }}
+                    onChange={async (e) => {
+                      const f = e.target.files?.[0];
+                      if (!f) return;
+                      setFileName(f.name);
+                      setDeliverableHash(await hashFile(f));
+                    }}
+                  />
+                  {fileName && <span className="muted" style={{ fontSize: 11 }}>{fileName}</span>}
+                </div>
+              </div>
+              <div className="field full">
+                <label htmlFor="deliverable">Or a reference, if the work is not a file</label>
                 <input
                   id="deliverable"
                   value={deliverable}
-                  placeholder="link or description of what you delivered"
-                  onChange={(e) => setDeliverable(e.target.value)}
+                  placeholder="https://… , a commit id, a tracking number"
+                  onChange={(e) => {
+                    setDeliverable(e.target.value);
+                    setDeliverableHash(null);
+                    setFileName(null);
+                  }}
                 />
               </div>
+              <div className="full note">
+                Only the hash goes on-chain — send the file itself the way you always do. The buyer
+                can then check the copy they received against this hash and see that nothing changed
+                in transit.{" "}
+                {pendingHash() !== ZERO_HASH && (
+                  <>
+                    This submission will record{" "}
+                    <span className="mono">{pendingHash().slice(0, 18)}…</span>
+                  </>
+                )}
+              </div>
               <div className="full">
-                <button type="button" className="btn-primary" disabled={!!busy} onClick={submitMilestone}>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={!!busy || pendingHash() === ZERO_HASH}
+                  onClick={submitMilestone}
+                >
                   {busy ?? "Submit deliverable"}
                 </button>
               </div>
             </>
+          )}
+
+          {isBuyer && awaitingReview && deliverableOnChain && (
+            <div className="full">
+              <DocumentCheck
+                expected={deliverableOnChain}
+                label="Check what you received"
+                hint="compare it with the submitted hash before you accept"
+              />
+            </div>
           )}
 
           {isBuyer && awaitingReview && (
