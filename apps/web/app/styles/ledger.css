@@ -546,34 +546,28 @@ td:first-child {
   background: transparent;
   white-space: nowrap;
 }
-.badge.FUNDED,
-.badge.funded,
-.badge.APPROVED,
-.badge.approved {
-  color: var(--green);
-  background: rgba(15, 138, 95, 0.07);
-}
-.badge.SETTLED,
-.badge.settled {
+/* RFQ phase badges (replaced the reference invoice statuses) */
+.badge.p-bidding {
   color: var(--blue);
   background: rgba(36, 86, 184, 0.07);
 }
-.badge.REJECTED,
-.badge.rejected {
-  color: var(--red);
-  background: rgba(217, 45, 45, 0.07);
-}
-.badge.DEFAULTED,
-.badge.defaulted {
+.badge.p-reveal,
+.badge.p-award {
   color: var(--amber);
   background: rgba(201, 138, 27, 0.09);
 }
-.badge.LISTED,
-.badge.listed,
-.badge.underwriting,
-.badge.pending,
-.badge.error {
+.badge.p-awarded {
+  color: var(--green);
+  background: rgba(15, 138, 95, 0.07);
+}
+.badge.p-noaward {
+  color: var(--red);
+  background: rgba(217, 45, 45, 0.07);
+}
+.badge.p-cancelled,
+.badge.p-none {
   color: var(--muted);
+  background: rgba(23, 19, 13, 0.05);
 }
 
 .pool-actions {
