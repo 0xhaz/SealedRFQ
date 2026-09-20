@@ -1,0 +1,342 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
+
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {IACPHook} from "../core/IACPHook.sol";
+import {IAgenticCommerce} from "../core/IAgenticCommerce.sol";
+import {IAttestationLog} from "../interfaces/IAttestationLog.sol";
+import {ISealedRFQAdapter} from "../interfaces/ISealedRFQAdapter.sol";
+import {PullPayments} from "../lib/PullPayments.sol";
+import {AttestationKinds, Roles} from "../governance/Roles.sol";
+
+/// @title SealedRFQAdapter
+/// @notice Milestone settlement for awarded RFQs, built around an ERC-8183 AgenticCommerce instance.
+///         See ISealedRFQAdapter for the money flow. Neither party can hold the other hostage: a
+///         silent buyer is overridden by auto-release, a silent supplier by the delivery deadline,
+///         and a contested rejection goes to the ARBITER.
+/// @dev Accounting invariant: `totalHeld + totalWithdrawable == settlementToken.balanceOf(this)`
+///      (`>=` transiently if someone calls AgenticCommerce.claimRefund directly before settleExpired).
+///      Hook callbacks are not `nonReentrant`: they run inside the adapter's own calls into ACP and
+///      only record the submission.
+contract SealedRFQAdapter is ISealedRFQAdapter, IACPHook, PullPayments, AccessControl {
+    using SafeERC20 for IERC20;
+
+    uint256 internal constant BPS = 10_000;
+    uint256 internal constant MAX_MILESTONES = 10;
+
+    /// @notice `reason` recorded when a milestone releases because the buyer stayed silent.
+    bytes32 public constant AUTO_RELEASE = "AUTO_RELEASE";
+    /// @notice `reason` recorded when a delivered milestone's job expired unreviewed.
+    bytes32 public constant EXPIRED_AFTER_SUBMIT = "EXPIRED_AFTER_SUBMIT";
+
+    IAgenticCommerce public immutable acp;
+    IAttestationLog public immutable attestationLog;
+
+    mapping(uint256 rfqId => Engagement) internal _eng;
+    mapping(uint256 rfqId => uint16[]) internal _milestones;
+    mapping(uint256 jobId => uint256 rfqId) public jobToRfq;
+    uint256 public totalHeld;
+
+    constructor(IERC20 usdc, IAgenticCommerce acp_, IAttestationLog attestationLog_, address admin)
+        PullPayments(usdc)
+    {
+        if (address(acp_) == address(0) || address(attestationLog_) == address(0) || admin == address(0)) {
+            revert ZeroAddress();
+        }
+        if (acp_.paymentToken() != address(usdc)) revert InvalidTerms();
+        acp = acp_;
+        attestationLog = attestationLog_;
+        _grantRole(Roles.ADMIN, admin);
+    }
+
+    // ─────────────────────────── start ───────────────────────────
+
+    function startEngagement(uint256 rfqId, EngagementTerms calldata t)
+        external
+        onlyRole(Roles.REGISTRY)
+        nonReentrant
+    {
+        Engagement storage e = _eng[rfqId];
+        if (e.status != EngagementStatus.None) revert AlreadyStarted(rfqId);
+        _validateTerms(t);
+
+        e.buyer = t.buyer;
+        e.supplier = t.supplier;
+        e.status = EngagementStatus.Active;
+        e.milestoneCount = uint8(t.milestoneBps.length);
+        e.retentionBps = t.retentionBps;
+        e.deliveryWindow = t.deliveryWindow;
+        e.acceptanceWindow = t.acceptanceWindow;
+        e.price = t.price;
+        e.buyerStake = t.buyerStake;
+        e.performanceStake = t.performanceStake;
+        _milestones[rfqId] = t.milestoneBps;
+
+        uint256 total = uint256(t.price) + t.buyerStake + t.performanceStake;
+        _pullIn(msg.sender, total);
+        totalHeld += total;
+
+        emit EngagementStarted(rfqId, t.buyer, t.supplier, t.price, e.milestoneCount);
+        _fundCurrent(rfqId, e);
+    }
+
+    // ─────────────────────────── review ───────────────────────────
+
+    /// @notice Buyer, or a VERIFIER whose `reason` is an attested MILESTONE_ACCEPT memo.
+    function acceptMilestone(uint256 rfqId, bytes32 reason) external nonReentrant {
+        Engagement storage e = _active(rfqId);
+        _requireReviewer(rfqId, e, reason, AttestationKinds.MILESTONE_ACCEPT);
+        if (e.submittedAt == 0) revert WrongJobStatus();
+        _release(rfqId, e, reason, false);
+    }
+
+    /// @notice Buyer, or an attested VERIFIER. Refusal to pay is a recorded act: `reason` is required.
+    function rejectMilestone(uint256 rfqId, bytes32 reason) external nonReentrant {
+        Engagement storage e = _active(rfqId);
+        if (reason == bytes32(0)) revert ReasonRequired();
+        _requireReviewer(rfqId, e, reason, AttestationKinds.MILESTONE_REJECT);
+        if (e.submittedAt == 0) revert WrongJobStatus();
+
+        uint256 jobId = e.currentJobId;
+        acp.reject(jobId, reason, ""); // job budget refunds to this contract (the client)
+        totalHeld += e.currentJobBudget;
+        e.status = EngagementStatus.Rejected;
+        e.disputeDeadline = uint64(block.timestamp + e.acceptanceWindow);
+        emit MilestoneRejected(rfqId, e.currentMilestone, jobId, reason, msg.sender);
+    }
+
+    /// @notice Anyone. The buyer had `acceptanceWindow` after submission and said nothing.
+    function autoRelease(uint256 rfqId) external nonReentrant {
+        Engagement storage e = _active(rfqId);
+        if (e.submittedAt == 0) revert WrongJobStatus();
+        uint64 releasesAt = e.submittedAt + e.acceptanceWindow;
+        if (block.timestamp < releasesAt) revert AcceptanceWindowOpen(releasesAt);
+        _release(rfqId, e, AUTO_RELEASE, true);
+    }
+
+    /// @notice Anyone. Resolves a job past `expiredAt` (ERC-8183 refunds it to this contract):
+    ///         delivered work is paid anyway; missing work abandons the engagement to the buyer.
+    function settleExpired(uint256 rfqId) external nonReentrant {
+        Engagement storage e = _active(rfqId);
+        uint256 jobId = e.currentJobId;
+        IAgenticCommerce.Job memory job = acp.getJob(jobId);
+        if (
+            job.status == IAgenticCommerce.JobStatus.Funded
+                || job.status == IAgenticCommerce.JobStatus.Submitted
+        ) {
+            if (block.timestamp < job.expiredAt) revert NotExpired();
+            acp.claimRefund(jobId);
+        } else if (job.status != IAgenticCommerce.JobStatus.Expired) {
+            revert WrongJobStatus();
+        }
+        uint128 refunded = e.currentJobBudget;
+        totalHeld += refunded;
+
+        if (e.submittedAt != 0) {
+            e.currentJobBudget = 0;
+            totalHeld -= refunded;
+            _credit(e.supplier, refunded);
+            emit MilestoneAccepted(rfqId, e.currentMilestone, jobId, EXPIRED_AFTER_SUBMIT, msg.sender, true);
+            _advance(rfqId, e);
+        } else {
+            e.status = EngagementStatus.Abandoned;
+            uint256 pot = _drain(e);
+            _credit(e.buyer, pot);
+            emit EngagementAbandoned(rfqId, pot);
+        }
+    }
+
+    // ─────────────────────────── disputes ───────────────────────────
+
+    function raiseDispute(uint256 rfqId) external {
+        Engagement storage e = _get(rfqId);
+        if (e.status != EngagementStatus.Rejected) revert WrongStatus(e.status);
+        if (msg.sender != e.supplier) revert NotSupplier(msg.sender);
+        if (block.timestamp >= e.disputeDeadline) revert DisputeWindowClosed(e.disputeDeadline);
+        e.status = EngagementStatus.Disputed;
+        emit DisputeRaised(rfqId, msg.sender);
+    }
+
+    /// @notice Anyone, after an unchallenged rejection: the buyer is made whole, performance stake included.
+    function finalizeRejection(uint256 rfqId) external nonReentrant {
+        Engagement storage e = _get(rfqId);
+        if (e.status != EngagementStatus.Rejected) revert WrongStatus(e.status);
+        if (block.timestamp < e.disputeDeadline) revert DisputeWindowOpen(e.disputeDeadline);
+        e.status = EngagementStatus.Resolved;
+        uint256 pot = _drain(e);
+        _credit(e.buyer, pot);
+        emit RejectionFinalized(rfqId, pot);
+    }
+
+    /// @notice ARBITER splits everything still escrowed for the engagement in one call.
+    function resolveDispute(uint256 rfqId, uint16 supplierBps, bytes32 reason)
+        external
+        onlyRole(Roles.ARBITER)
+        nonReentrant
+    {
+        Engagement storage e = _get(rfqId);
+        if (e.status != EngagementStatus.Disputed) revert WrongStatus(e.status);
+        if (supplierBps > BPS) revert InvalidBps();
+        e.status = EngagementStatus.Resolved;
+        uint256 pot = _drain(e);
+        uint256 toSupplier = (pot * supplierBps) / BPS;
+        _credit(e.supplier, toSupplier);
+        _credit(e.buyer, pot - toSupplier);
+        emit DisputeResolved(rfqId, toSupplier, pot - toSupplier, reason);
+    }
+
+    // ─────────────────────────── ERC-8183 hook ───────────────────────────
+
+    /// @dev Blocks late submissions: the delivery deadline is the adapter's, not the job's expiry.
+    function beforeAction(uint256 jobId, bytes4 selector, bytes calldata) external view {
+        if (msg.sender != address(acp)) revert OnlyAgenticCommerce();
+        if (selector == IAgenticCommerce.submit.selector) {
+            Engagement storage e = _eng[jobToRfq[jobId]];
+            if (e.currentJobId == jobId && block.timestamp > e.deliveryDeadline) {
+                revert DeliveryWindowClosed(e.deliveryDeadline);
+            }
+        }
+    }
+
+    /// @dev Records the submission time that starts the acceptance window.
+    function afterAction(uint256 jobId, bytes4 selector, bytes calldata data) external {
+        if (msg.sender != address(acp)) revert OnlyAgenticCommerce();
+        if (selector != IAgenticCommerce.submit.selector) return;
+        uint256 rfqId = jobToRfq[jobId];
+        Engagement storage e = _eng[rfqId];
+        if (rfqId == 0 || e.currentJobId != jobId) return;
+        (, bytes32 deliverable,) = abi.decode(data, (address, bytes32, bytes));
+        e.submittedAt = uint64(block.timestamp);
+        e.deliverable = deliverable;
+        emit MilestoneSubmitted(rfqId, e.currentMilestone, jobId, deliverable);
+    }
+
+    function supportsInterface(bytes4 interfaceId) public view override returns (bool) {
+        return interfaceId == type(IACPHook).interfaceId || super.supportsInterface(interfaceId);
+    }
+
+    // ─────────────────────────── views ───────────────────────────
+
+    function getEngagement(uint256 rfqId) external view returns (Engagement memory) {
+        return _eng[rfqId];
+    }
+
+    function milestoneBps(uint256 rfqId) external view returns (uint16[] memory) {
+        return _milestones[rfqId];
+    }
+
+    // ─────────────────────────── internal ───────────────────────────
+
+    function _get(uint256 rfqId) internal view returns (Engagement storage e) {
+        e = _eng[rfqId];
+        if (e.status == EngagementStatus.None) revert NotFound(rfqId);
+    }
+
+    function _active(uint256 rfqId) internal view returns (Engagement storage e) {
+        e = _get(rfqId);
+        if (e.status != EngagementStatus.Active) revert WrongStatus(e.status);
+    }
+
+    function _requireReviewer(uint256 rfqId, Engagement storage e, bytes32 reason, bytes32 kind)
+        internal
+        view
+    {
+        if (msg.sender == e.buyer) return;
+        if (!hasRole(Roles.VERIFIER, msg.sender)) revert NotBuyerOrVerifier(msg.sender);
+        if (!attestationLog.isAttested(rfqId, reason, kind)) revert ReasonNotAttested(reason);
+    }
+
+    /// @dev Open the current milestone as a funded ERC-8183 job.
+    function _fundCurrent(uint256 rfqId, Engagement storage e) internal {
+        uint8 i = e.currentMilestone;
+        uint128 gross = i + 1 == e.milestoneCount
+            ? e.price - e.allocated
+            : uint128((uint256(e.price) * _milestones[rfqId][i]) / BPS);
+        uint128 retention = uint128((uint256(gross) * e.retentionBps) / BPS);
+        uint128 budget = gross - retention;
+
+        e.allocated += gross;
+        e.retentionHeld += retention;
+        e.currentJobBudget = budget;
+        e.submittedAt = 0;
+        e.deliverable = bytes32(0);
+        uint64 deadline = uint64(block.timestamp + e.deliveryWindow);
+        e.deliveryDeadline = deadline;
+
+        // Expiry leaves a full acceptance window after the latest possible submission, plus the
+        // same again as grace for someone to call autoRelease before a refund becomes possible.
+        uint256 expiredAt = uint256(deadline) + 2 * uint256(e.acceptanceWindow);
+        uint256 jobId =
+            acp.createJob(e.supplier, address(this), expiredAt, _description(rfqId, i), address(this));
+        jobToRfq[jobId] = rfqId;
+        e.currentJobId = jobId;
+
+        acp.setBudget(jobId, budget, "");
+        settlementToken.forceApprove(address(acp), budget);
+        acp.fund(jobId, "");
+        totalHeld -= budget;
+
+        emit MilestoneFunded(rfqId, i, jobId, budget, retention, deadline);
+    }
+
+    /// @dev Complete the current job (ACP pays the supplier) and move on.
+    function _release(uint256 rfqId, Engagement storage e, bytes32 reason, bool automatic) internal {
+        uint256 jobId = e.currentJobId;
+        acp.complete(jobId, reason, "");
+        e.currentJobBudget = 0;
+        emit MilestoneAccepted(rfqId, e.currentMilestone, jobId, reason, msg.sender, automatic);
+        _advance(rfqId, e);
+    }
+
+    function _advance(uint256 rfqId, Engagement storage e) internal {
+        if (e.currentMilestone + 1 < e.milestoneCount) {
+            e.currentMilestone++;
+            _fundCurrent(rfqId, e);
+            return;
+        }
+        // Final acceptance: retention + performance stake to the supplier, buyer stake back.
+        uint256 toSupplier = uint256(e.retentionHeld) + e.performanceStake;
+        uint256 toBuyer = e.buyerStake;
+        e.retentionHeld = 0;
+        e.performanceStake = 0;
+        e.buyerStake = 0;
+        e.status = EngagementStatus.Completed;
+        totalHeld -= toSupplier + toBuyer;
+        _credit(e.supplier, toSupplier);
+        _credit(e.buyer, toBuyer);
+        emit EngagementCompleted(rfqId, toSupplier, toBuyer);
+    }
+
+    /// @dev Everything still escrowed for the engagement (current job budget must be back here).
+    function _drain(Engagement storage e) internal returns (uint256 pot) {
+        pot = uint256(e.price - e.allocated) + e.retentionHeld + e.currentJobBudget + e.performanceStake
+            + e.buyerStake;
+        e.allocated = e.price;
+        e.retentionHeld = 0;
+        e.currentJobBudget = 0;
+        e.performanceStake = 0;
+        e.buyerStake = 0;
+        totalHeld -= pot;
+    }
+
+    function _validateTerms(EngagementTerms calldata t) internal pure {
+        if (t.buyer == address(0) || t.supplier == address(0) || t.price == 0) revert InvalidTerms();
+        if (t.retentionBps > BPS) revert InvalidBps();
+        uint256 n = t.milestoneBps.length;
+        if (n == 0 || n > MAX_MILESTONES) revert InvalidTerms();
+        uint256 sum;
+        for (uint256 i; i < n; ++i) {
+            sum += t.milestoneBps[i];
+        }
+        if (sum != BPS) revert InvalidTerms();
+    }
+
+    function _description(uint256 rfqId, uint8 index) internal pure returns (string memory) {
+        return string.concat(
+            "SealedRFQ #", Strings.toString(rfqId), " milestone ", Strings.toString(uint256(index) + 1)
+        );
+    }
+}

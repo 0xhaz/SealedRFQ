@@ -1,0 +1,49 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+solc_version = "0.8.28"
+evm_version = "prague"
+optimizer = true
+optimizer_runs = 200
+# via_ir: required by the RFQ/engagement structs (stack too deep otherwise)
+via_ir = true
+fs_permissions = [{ access = "read-write", path = "./deployments" }]
+
+[profile.default.fuzz]
+runs = 1000
+
+[profile.default.invariant]
+runs = 256
+depth = 64
+
+# Arc execution rules (system precompiles, USDC-as-gas, blocklist, EIP-7708). Needs Arc Foundry:
+#   FOUNDRY_PROFILE=arc arc-forge test
+# Forking an Arc RPC with --fork-url auto-selects Arc; forks created inside tests need this profile.
+[profile.arc]
+network = "arc"
+src = "src"
+out = "out-arc"
+cache_path = "cache-arc"
+libs = ["lib"]
+solc_version = "0.8.28"
+evm_version = "prague"
+optimizer = true
+optimizer_runs = 200
+via_ir = true
+fs_permissions = [{ access = "read-write", path = "./deployments" }]
+
+[profile.arc.fuzz]
+runs = 1000
+
+[rpc_endpoints]
+arc = "${ARC_MAINNET_RPC_URL}"
+arcTestnet = "${ARC_TESTNET_RPC_URL}"
+
+# Blockscout verification (docs.arc.io: "Build and deploy with Arc Foundry")
+[etherscan]
+arc = { key = "blockscout", chain = 5042, url = "https://explorer.arc.io/api/" }
+arcTestnet = { key = "blockscout", chain = 5042002, url = "https://explorer.testnet.arc.io/api/" }
+
+[fmt]
+line_length = 110
