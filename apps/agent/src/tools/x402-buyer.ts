@@ -15,7 +15,7 @@
  *   node dist/tools/x402-buyer.js withdraw 0.5
  */
 import { GatewayClient } from "@circle-fin/x402-batching/client";
-import type { Hex } from "viem";
+import { type Hex, formatUnits } from "viem";
 
 const CHAINS: Record<number, "arc" | "arcTestnet"> = { 5042: "arc", 5042002: "arcTestnet" };
 
@@ -66,23 +66,28 @@ async function deposit(amount: string) {
 async function pay(rfqId: string) {
   const url = `${agentUrl}/rfqs/${rfqId}/evaluate`;
 
-  // Ask first, so a failure to pay is distinguishable from the endpoint simply being free.
-  const s = await gateway.supports(url);
-  if (!s.supported) {
-    console.log(
-      `${url} is not asking for payment (x402 disabled on the agent?) — calling it plainly.`,
-    );
-    const res = await fetch(url, { method: "POST" });
-    console.log(`HTTP ${res.status}`, (await res.text()).slice(0, 400));
+  // Probe first, so a failure to pay stays distinguishable from the endpoint simply being free.
+  // Not with the SDK's supports(), which issues a bare GET: a method-scoped resource answers that
+  // with 404 and the SDK reports "does not require payment" when it plainly does. Probe with the
+  // verb the paid call will use.
+  const probe = await fetch(url, { method: "POST" });
+  if (probe.status !== 402) {
+    console.log(`${url} is not asking for payment (x402 disabled on the agent?)`);
+    console.log(`HTTP ${probe.status}`, (await probe.text()).slice(0, 400));
     return;
   }
-  console.log(`terms: ${JSON.stringify(s.requirements)}`);
+  const header = probe.headers.get("PAYMENT-REQUIRED");
+  if (header) {
+    const terms = JSON.parse(Buffer.from(header, "base64").toString());
+    console.log(`terms: ${JSON.stringify(terms.accepts?.[0] ?? terms)}`);
+  }
 
   const before = await gateway.getBalances();
   const { data, amount } = await gateway.pay(url, { method: "POST" });
   const after = await gateway.getBalances();
 
-  console.log(`\npaid ${amount} USDC`);
+  // `amount` comes back in atomic units; printing it raw reads as "paid 50000 USDC".
+  console.log(`\npaid ${formatUnits(BigInt(amount as string | number | bigint), 6)} USDC`);
   console.log(
     `gateway balance ${before.gateway.formattedAvailable} -> ${after.gateway.formattedAvailable}`,
   );
