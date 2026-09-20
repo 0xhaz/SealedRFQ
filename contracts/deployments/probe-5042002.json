@@ -1,0 +1,19 @@
+{
+  "chainId": 5042002,
+  "network": "arc-testnet",
+  "explorer": "https://explorer.testnet.arc.io",
+  "contracts": {
+    "UsdcProbe": {
+      "address": "0x2FaFaf85929fAd9d13B7DC9a18CeD09A2D5B924c",
+      "verified": true,
+      "deployTx": "0xeb1d1297eefcd18215d9bd3d4446d2ef0bde6a5f76f3893a0005fe102569bf90",
+      "note": "Day-1 hello contract, not part of the product"
+    }
+  },
+  "evidence": {
+    "probeApprove": "0x55f742fc950220956af7fd1c9b691d7f17dfdf3ad1a1c83fd2991e4642b9b847",
+    "probeDeposit": "0x4e7e029e8fd737008170de59e49f80981f3aee1df65531b9b18609cf81c11c4b",
+    "probePay": "0x55dbbbd15d32025cd9136a453db9f8bb9b6b52202a1c5b04b35a69aac97b3929",
+    "probeWithdraw": "0xbe4074a536559559d527b3c640aa327a68f1f2d2fec558274c535d48c3e4e344"
+  }
+}
