@@ -1,15 +1,22 @@
 "use client";
 
-import { RFQRegistryAbi, USDC_ADDRESS, formatUsdc, hashCanonical, parseUsdc } from "@sealedrfq/shared";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { stringToBytes, sha256, stringToHex } from "viem";
-import { erc20Abi } from "viem";
-import { useAccount, useConfig, useReadContract, useWriteContract } from "wagmi";
-import { waitForTransactionReceipt } from "wagmi/actions";
 import { WalletChip } from "@/components/WalletChip";
 import { chain, contracts, explorerTx } from "@/lib/chain";
 import { signUsdcPermit } from "@/lib/permit";
+import { describeTxError } from "@/lib/txError";
+import {
+  RFQRegistryAbi,
+  USDC_ADDRESS,
+  formatUsdc,
+  hashCanonical,
+  parseUsdc,
+} from "@sealedrfq/shared";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { sha256, stringToBytes, stringToHex } from "viem";
+import { erc20Abi } from "viem";
+import { useAccount, useConfig, useReadContract, useWriteContract } from "wagmi";
+import { getBlock, waitForTransactionReceipt } from "wagmi/actions";
 
 const MIN_STAKE_BPS = 500; // ProcurementPolicy.minBuyerStakeBps on the deployed instance
 
@@ -84,10 +91,14 @@ export function NewRfqForm() {
         .map((m) => Math.round(Number(m.trim()) * 100))
         .filter((n) => Number.isFinite(n));
 
-      if (budgetUnits <= 0n || depositUnits <= 0n) throw new Error("Budget and deposit must be above zero");
-      if (stakeBps < MIN_STAKE_BPS) throw new Error(`Buyer stake must be at least ${MIN_STAKE_BPS / 100}%`);
-      if (bps.length === 0 || bps.some((b) => b <= 0)) throw new Error("Milestones must be positive percentages");
-      if (bps.reduce((a, b) => a + b, 0) !== 10_000) throw new Error("Milestone percentages must add up to 100");
+      if (budgetUnits <= 0n || depositUnits <= 0n)
+        throw new Error("Budget and deposit must be above zero");
+      if (stakeBps < MIN_STAKE_BPS)
+        throw new Error(`Buyer stake must be at least ${MIN_STAKE_BPS / 100}%`);
+      if (bps.length === 0 || bps.some((b) => b <= 0))
+        throw new Error("Milestones must be positive percentages");
+      if (bps.reduce((a, b) => a + b, 0) !== 10_000)
+        throw new Error("Milestone percentages must add up to 100");
       if (Number(deliveryMin) < 5) throw new Error("Delivery window must be at least 5 minutes");
       if (Number(acceptMin) < 1) throw new Error("Acceptance window must be at least 1 minute");
 
@@ -106,7 +117,11 @@ export function NewRfqForm() {
       const metadata = JSON.stringify({ scope, rubric: rubric.criteria, mode });
       const metadataHash = sha256(stringToBytes(metadata));
 
-      const now = Math.floor(Date.now() / 1000);
+      // Deadlines are judged by block.timestamp, so anchor them to the chain rather than to this
+      // machine's clock: the two drift, and a local chain can be warped hours ahead. Using
+      // Date.now() there produces a "deadline" already in the chain's past — InvalidDeadlines.
+      const block = await getBlock(config, { chainId: chain.id as never });
+      const now = Number(block.timestamp);
       const bidDeadline = BigInt(now + Number(bidMin) * 60);
       const revealDeadline = bidDeadline + BigInt(Number(revealMin) * 60);
       const awardDeadline = revealDeadline + BigInt(Number(awardMin) * 60);
@@ -155,7 +170,7 @@ export function NewRfqForm() {
       router.push("/rfqs");
     } catch (e) {
       setBusy(null);
-      setError(e instanceof Error ? e.message.split("\n")[0] : String(e));
+      setError(describeTxError(e));
     }
   }
 
@@ -204,15 +219,30 @@ export function NewRfqForm() {
         </div>
         <div className="field">
           <label htmlFor="budget">Budget (USDC)</label>
-          <input id="budget" inputMode="decimal" value={budget} onChange={(e) => setBudget(e.target.value)} />
+          <input
+            id="budget"
+            inputMode="decimal"
+            value={budget}
+            onChange={(e) => setBudget(e.target.value)}
+          />
         </div>
         <div className="field">
           <label htmlFor="deposit">Bid deposit (USDC)</label>
-          <input id="deposit" inputMode="decimal" value={deposit} onChange={(e) => setDeposit(e.target.value)} />
+          <input
+            id="deposit"
+            inputMode="decimal"
+            value={deposit}
+            onChange={(e) => setDeposit(e.target.value)}
+          />
         </div>
         <div className="field">
           <label htmlFor="stake">Your stake (% of budget)</label>
-          <input id="stake" inputMode="decimal" value={stakePct} onChange={(e) => setStakePct(e.target.value)} />
+          <input
+            id="stake"
+            inputMode="decimal"
+            value={stakePct}
+            onChange={(e) => setStakePct(e.target.value)}
+          />
         </div>
         <div className="field">
           <label htmlFor="retention">Retention (% per milestone)</label>
@@ -225,7 +255,12 @@ export function NewRfqForm() {
         </div>
         <div className="field">
           <label htmlFor="bidmin">Bidding (minutes)</label>
-          <input id="bidmin" inputMode="numeric" value={bidMin} onChange={(e) => setBidMin(e.target.value)} />
+          <input
+            id="bidmin"
+            inputMode="numeric"
+            value={bidMin}
+            onChange={(e) => setBidMin(e.target.value)}
+          />
         </div>
         <div className="field">
           <label htmlFor="revealmin">Reveal (minutes)</label>
@@ -238,7 +273,12 @@ export function NewRfqForm() {
         </div>
         <div className="field">
           <label htmlFor="awardmin">Award window (minutes)</label>
-          <input id="awardmin" inputMode="numeric" value={awardMin} onChange={(e) => setAwardMin(e.target.value)} />
+          <input
+            id="awardmin"
+            inputMode="numeric"
+            value={awardMin}
+            onChange={(e) => setAwardMin(e.target.value)}
+          />
         </div>
         <div className="field">
           <label htmlFor="deliverymin">Delivery per milestone (minutes)</label>
@@ -266,7 +306,11 @@ export function NewRfqForm() {
         </div>
         <div className="field">
           <label htmlFor="milestones">Milestones (% split)</label>
-          <input id="milestones" value={milestones} onChange={(e) => setMilestones(e.target.value)} />
+          <input
+            id="milestones"
+            value={milestones}
+            onChange={(e) => setMilestones(e.target.value)}
+          />
         </div>
         <div className="field full">
           <label htmlFor="w-price">Rubric weights — price / delivery / quality</label>

@@ -1,16 +1,22 @@
 "use client";
 
-import { AgenticCommerceAbi, RFQRegistryAbi, SealedRFQAdapterAbi, formatUsdc } from "@sealedrfq/shared";
+import { DocumentCheck } from "@/components/DocumentCheck";
+import { WalletChip } from "@/components/WalletChip";
+import { agent } from "@/lib/agent";
+import { chain, contracts, explorerTx } from "@/lib/chain";
+import { ZERO_HASH, hashFile, hashText } from "@/lib/docHash";
+import { describeTxError } from "@/lib/txError";
+import {
+  AgenticCommerceAbi,
+  RFQRegistryAbi,
+  SealedRFQAdapterAbi,
+  formatUsdc,
+} from "@sealedrfq/shared";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Hex } from "viem";
 import { useAccount, useConfig, useWriteContract } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
-import { WalletChip } from "@/components/WalletChip";
-import { agent } from "@/lib/agent";
-import { chain, contracts, explorerTx } from "@/lib/chain";
-import { DocumentCheck } from "@/components/DocumentCheck";
-import { hashFile, hashText, ZERO_HASH } from "@/lib/docHash";
 
 type Props = {
   rfqId: number;
@@ -79,7 +85,7 @@ export function RfqActions({
     } catch (e) {
       setBusy(null);
       // Typed contract errors are the useful part; viem puts them on the first line.
-      setError(e instanceof Error ? e.message.split("\n")[0] : String(e));
+      setError(describeTxError(e));
     }
   }
 
@@ -89,7 +95,12 @@ export function RfqActions({
         abi: RFQRegistryAbi,
         address: contracts.RFQRegistry,
         functionName: "award",
-        args: [BigInt(rfqId), recommended as `0x${string}`, evaluationHash as `0x${string}`, rubricHash],
+        args: [
+          BigInt(rfqId),
+          recommended as `0x${string}`,
+          evaluationHash as `0x${string}`,
+          rubricHash,
+        ],
       }),
     );
 
@@ -197,9 +208,10 @@ export function RfqActions({
             isBuyer ? (
               <>
                 <div className="full note">
-                  The evaluator recommends <span className="mono">{recommended.slice(0, 10)}…</span>.
-                  Awarding moves the price, your stake and the winner&apos;s deposit into milestone
-                  escrow. The contract re-checks every policy rule and rejects the award if one fails.
+                  The evaluator recommends <span className="mono">{recommended.slice(0, 10)}…</span>
+                  . Awarding moves the price, your stake and the winner&apos;s deposit into
+                  milestone escrow. The contract re-checks every policy rule and rejects the award
+                  if one fails.
                 </div>
                 <div className="full">
                   <button type="button" className="btn-primary" disabled={!!busy} onClick={award}>
@@ -273,7 +285,11 @@ export function RfqActions({
                       setDeliverableHash(await hashFile(f));
                     }}
                   />
-                  {fileName && <span className="muted" style={{ fontSize: 11 }}>{fileName}</span>}
+                  {fileName && (
+                    <span className="muted" style={{ fontSize: 11 }}>
+                      {fileName}
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="field full">
@@ -326,8 +342,8 @@ export function RfqActions({
           {isBuyer && awaitingReview && (
             <>
               <div className="full note warn">
-                <b>Accepting pays this milestone and cannot be undone.</b> A matching hash proves the
-                file is the one submitted — it does not mean the work meets the specification.
+                <b>Accepting pays this milestone and cannot be undone.</b> A matching hash proves
+                the file is the one submitted — it does not mean the work meets the specification.
                 Inspect the goods, the report or the code before you accept: after the acceptance
                 window closes, payment releases whether or not anyone looked.
               </div>

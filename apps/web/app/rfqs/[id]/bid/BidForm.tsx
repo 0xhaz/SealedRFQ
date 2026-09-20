@@ -1,5 +1,18 @@
 "use client";
 
+import { WalletChip } from "@/components/WalletChip";
+import {
+  type SavedBid,
+  computeCommitment,
+  downloadBid,
+  loadBid,
+  saltFromSignature,
+  saltMessage,
+  saveBid,
+} from "@/lib/bidStore";
+import { chain, contracts, explorerTx } from "@/lib/chain";
+import { signUsdcPermit } from "@/lib/permit";
+import { describeTxError } from "@/lib/txError";
 import { RFQRegistryAbi, USDC_ADDRESS, formatUsdc, parseUsdc } from "@sealedrfq/shared";
 import Link from "next/link";
 import { useState } from "react";
@@ -7,18 +20,6 @@ import { sha256, stringToBytes } from "viem";
 import { erc20Abi } from "viem";
 import { useAccount, useConfig, useReadContract, useWriteContract } from "wagmi";
 import { readContract, signMessage, waitForTransactionReceipt } from "wagmi/actions";
-import { WalletChip } from "@/components/WalletChip";
-import { chain, contracts, explorerTx } from "@/lib/chain";
-import {
-  computeCommitment,
-  downloadBid,
-  loadBid,
-  saltFromSignature,
-  saltMessage,
-  saveBid,
-  type SavedBid,
-} from "@/lib/bidStore";
-import { signUsdcPermit } from "@/lib/permit";
 
 const ZERO_HASH = `0x${"0".repeat(64)}` as const;
 
@@ -63,7 +64,7 @@ export function BidForm({ rfqId, phase, deposit, budget, requiresProposal }: Pro
   const revealing = phase === "Reveal";
   const fail = (e: unknown) => {
     setBusy(null);
-    setError(e instanceof Error ? e.message.split("\n")[0] : String(e));
+    setError(describeTxError(e));
   };
 
   /** Salt = signature over a bid-scoped message, so the wallet alone can regenerate it later. */
@@ -208,7 +209,11 @@ export function BidForm({ rfqId, phase, deposit, budget, requiresProposal }: Pro
       );
 
       if (!match) {
-        const priceUnits = price ? parseUsdc(price) : candidates[0] ? BigInt(candidates[0].price) : 0n;
+        const priceUnits = price
+          ? parseUsdc(price)
+          : candidates[0]
+            ? BigInt(candidates[0].price)
+            : 0n;
         const deliveryDays = Number(days) || candidates[0]?.deliveryDays || 0;
         if (priceUnits > 0n && deliveryDays > 0) {
           setBusy("Re-deriving your bid secret from your wallet…");
@@ -350,11 +355,12 @@ export function BidForm({ rfqId, phase, deposit, budget, requiresProposal }: Pro
           {bidding ? (
             <>
               <div className="full note">
-                <b>Your secret is derived from your wallet.</b> The price{requiresProposal ? " and proposal are" : " is"}{" "}
-                hidden on-chain behind a hash, so neither can be rewritten after seeing rival bids.
-                The secret that unlocks it comes from a signature, so the same wallet can regenerate
-                it — and the reveal file downloads as a backup. Keep at least one: after bidding
-                closes, a bid that cannot be revealed forfeits its deposit.
+                <b>Your secret is derived from your wallet.</b> The price
+                {requiresProposal ? " and proposal are" : " is"} hidden on-chain behind a hash, so
+                neither can be rewritten after seeing rival bids. The secret that unlocks it comes
+                from a signature, so the same wallet can regenerate it — and the reveal file
+                downloads as a backup. Keep at least one: after bidding closes, a bid that cannot be
+                revealed forfeits its deposit.
               </div>
               {shortBy > 0n && (
                 <div className="full note warn">
