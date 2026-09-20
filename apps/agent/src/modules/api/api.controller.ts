@@ -93,7 +93,11 @@ export class ApiController {
       if (anchored.length === 0) return { evaluated: false };
       // An RFQ can carry several award recommendations — the firewall demo anchors one the
       // contract then rejects. Prefer the one naming the bidder that actually won.
-      const rfq = db.select().from(schema.rfqs).where(eq(schema.rfqs.id, Number(id))).get();
+      const rfq = db
+        .select()
+        .from(schema.rfqs)
+        .where(eq(schema.rfqs.id, Number(id)))
+        .get();
       const awards = anchored.filter((a) => a.kind.startsWith("AWARD"));
       const decision =
         awards.find((a) => a.winner && a.winner.toLowerCase() === rfq?.winner?.toLowerCase()) ??
