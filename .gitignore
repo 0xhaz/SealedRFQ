@@ -31,3 +31,5 @@ apps/agent/data/
 # next
 apps/web/.next/
 apps/web/next-env.d.ts
+.local/
+apps/web/lib/deployments/local.json

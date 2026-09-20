@@ -1,5 +1,16 @@
 import { arcMainnet, arcTest } from "@sealedrfq/shared";
+import { defineChain } from "viem";
+import localDeployment from "./deployments/local.json";
 import testnetDeployment from "./deployments/5042002.json";
+
+/** `arc-anvil --network arc`: Arc rules and the USDC precompile on a throwaway chain. */
+export const arcLocal = defineChain({
+  ...arcTest,
+  id: 31337,
+  name: "Arc Local",
+  rpcUrls: { default: { http: [process.env.NEXT_PUBLIC_ARC_RPC_URL ?? "http://127.0.0.1:8545"] } },
+  blockExplorers: { default: { name: "local", url: "http://127.0.0.1:8545" } },
+});
 
 /**
  * Which Arc network this build talks to, and where the contracts live on it.
@@ -7,7 +18,9 @@ import testnetDeployment from "./deployments/5042002.json";
  */
 export const CHAIN_ID = Number(process.env.NEXT_PUBLIC_ARC_CHAIN_ID ?? 5042002);
 
-export const chain = CHAIN_ID === arcMainnet.id ? arcMainnet : arcTest;
+export const chain =
+  CHAIN_ID === arcMainnet.id ? arcMainnet : CHAIN_ID === arcLocal.id ? arcLocal : arcTest;
+export const isLocal = CHAIN_ID === arcLocal.id;
 
 type Deployment = {
   chainId: number;
@@ -21,8 +34,8 @@ type Deployment = {
   RFQRegistry: `0x${string}`;
 };
 
-// Only the testnet deployment exists today; the mainnet file lands on day 18.
-export const contracts = testnetDeployment as Deployment;
+// The mainnet file lands on day 18; local is written by tools/local.sh.
+export const contracts = (isLocal ? localDeployment : testnetDeployment) as Deployment;
 
 export const explorerTx = (hash: string) => `${chain.blockExplorers.default.url}/tx/${hash}`;
 export const explorerAddress = (address: string) =>

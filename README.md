@@ -15,6 +15,28 @@ contracts/          Foundry project (Solidity 0.8.28, OpenZeppelin 5.7)
 packages/shared/    USDC 6-decimal helpers, Arc chain config, decision-memo schema + hashing
 ```
 
+## Run it locally (no testnet funds)
+
+`arc-anvil` gives a throwaway chain with Arc's rules, the USDC precompile and prefunded accounts, so
+the whole stack runs offline — and its clock can be pushed forward instead of waiting out bidding,
+reveal and acceptance windows.
+
+```bash
+pnpm local            # chain + contracts + seeded RFQs + agent + web on localhost:3000
+pnpm local:demo       # the full lifecycle end to end in ~90s, warping past every window
+pnpm local:warp 5m    # skip a window while clicking through the UI yourself
+pnpm local:status
+pnpm local:down
+```
+
+`pnpm local` prints the MetaMask settings (chain 31337) and the account keys to import. Each starts
+with 1,000,000 USDC. The seeded RFQs deliberately sit in different phases — one sealed, one in
+reveal as an RFP, one price-only — and supplier 3 never reveals anywhere, so deposit forfeiture is
+visible too.
+
+> Account #9 is skipped throughout: it is the USDC proxy admin on a local Arc chain, and the proxy
+> refuses calls from its own admin.
+
 ## Develop
 
 ```bash

@@ -11,7 +11,8 @@ set -euo pipefail
 
 NET=${1:-testnet}
 cd "$(dirname "$0")/.."
-ENV_FILE=../.env.${NET/local/testnet}
+# local runs on anvil dev keys written by tools/local.sh, not the testnet keys
+ENV_FILE=../.env.${NET}
 set -a
 # shellcheck disable=SC1090
 source "$ENV_FILE"
@@ -46,11 +47,20 @@ stage() {
 
 chain_now() { $CAST block latest -f timestamp --rpc-url "$RPC_URL"; }
 
+# A local chain has no reason to make anyone wait: push its clock instead of sleeping.
+local_warp() {
+  [ "$NET" = "local" ] || return 1
+  $CAST rpc evm_increaseTime "${1:-60}" --rpc-url "$RPC_URL" >/dev/null 2>&1 || return 1
+  $CAST rpc evm_mine --rpc-url "$RPC_URL" >/dev/null 2>&1
+  echo "   (local) chain clock +${1:-60}s"
+}
+
 # Poll until `cast call` of the given signature/args succeeds (i.e. the action is allowed on-chain).
 wait_until_callable() {
   local sig=$1 target=$2
   shift 2
   until $CAST call "$target" "$sig" "$@" --from "$ADMIN" --rpc-url "$RPC_URL" >/dev/null 2>&1; do
+    local_warp 120 && continue
     echo "   … waiting for chain time (now $(chain_now))"
     sleep 5
   done
@@ -61,6 +71,7 @@ wait_for_phase() {
   until [ "$($CAST call "$REGISTRY" "phase(uint256)(uint8)" "$RFQ" --rpc-url "$RPC_URL")" = "$want" ]; do
     now=$($CAST call "$REGISTRY" "phase(uint256)(uint8)" "$RFQ" --rpc-url "$RPC_URL")
     if [ "$now" -gt "$want" ]; then echo "   phase $now already past $want - window missed"; exit 1; fi
+    local_warp 70 && continue
     echo "   … waiting for phase $want (chain time $(chain_now))"
     sleep 5
   done

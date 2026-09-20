@@ -17,4 +17,6 @@ library ArcUsdc {
 
     uint256 internal constant CHAIN_ID_MAINNET = 5042;
     uint256 internal constant CHAIN_ID_TESTNET = 5042002;
+    /// @dev `arc-anvil --network arc`: Arc rules and the USDC precompile, on a throwaway chain.
+    uint256 internal constant CHAIN_ID_LOCAL = 31337;
 }

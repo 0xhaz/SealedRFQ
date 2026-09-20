@@ -24,8 +24,9 @@ import {SealedRFQAdapter} from "../src/rfq/SealedRFQAdapter.sol";
 contract Deploy is Script {
     function run() external {
         require(
-            block.chainid == ArcUsdc.CHAIN_ID_MAINNET || block.chainid == ArcUsdc.CHAIN_ID_TESTNET,
-            "Deploy: not an Arc network"
+            block.chainid == ArcUsdc.CHAIN_ID_MAINNET || block.chainid == ArcUsdc.CHAIN_ID_TESTNET
+                || block.chainid == ArcUsdc.CHAIN_ID_LOCAL,
+            "Deploy: not an Arc network (use arc-anvil --network arc for local)"
         );
         uint256 pk = vm.envUint("ADMIN_PK");
         address admin = vm.addr(pk);

@@ -12,7 +12,12 @@
     "format": "biome format --write .",
     "dev": "turbo run dev",
     "contracts:build": "cd contracts && forge build",
-    "contracts:test": "cd contracts && forge test"
+    "contracts:test": "cd contracts && forge test",
+    "local": "tools/local.sh up",
+    "local:demo": "tools/local.sh demo",
+    "local:warp": "tools/local.sh warp",
+    "local:status": "tools/local.sh status",
+    "local:down": "tools/local.sh down"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9",

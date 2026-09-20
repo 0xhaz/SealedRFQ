@@ -1,4 +1,5 @@
 import { arcMainnet, arcTest } from "@sealedrfq/shared";
+import { arcLocal } from "./chain";
 import { http, createConfig } from "wagmi";
 import { injected } from "wagmi/connectors";
 
@@ -8,11 +9,12 @@ import { injected } from "wagmi/connectors";
  * the settlement asset, so wallets may warn about the symbol: expected on Arc, not an error.
  */
 export const wagmiConfig = createConfig({
-  chains: [arcTest, arcMainnet],
+  chains: [arcTest, arcMainnet, arcLocal],
   connectors: [injected()],
   transports: {
     [arcTest.id]: http(arcTest.rpcUrls.default.http[0]),
     [arcMainnet.id]: http(arcMainnet.rpcUrls.default.http[0]),
+    [arcLocal.id]: http(arcLocal.rpcUrls.default.http[0]),
   },
   ssr: true,
 });
