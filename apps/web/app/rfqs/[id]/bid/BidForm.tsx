@@ -1,18 +1,18 @@
 "use client";
 
-import { RFQRegistryAbi } from "@sealedrfq/shared";
-import { formatUsdc, parseUsdc } from "@sealedrfq/shared";
+import { RFQRegistryAbi, formatUsdc, parseUsdc } from "@sealedrfq/shared";
 import Link from "next/link";
 import { useState } from "react";
 import { useAccount, useConfig, useWriteContract } from "wagmi";
-import { waitForTransactionReceipt } from "wagmi/actions";
+import { readContract, signMessage, waitForTransactionReceipt } from "wagmi/actions";
 import { WalletChip } from "@/components/WalletChip";
 import { chain, contracts, explorerTx } from "@/lib/chain";
 import {
   computeCommitment,
   downloadBid,
   loadBid,
-  randomSalt,
+  saltFromSignature,
+  saltMessage,
   saveBid,
   type SavedBid,
 } from "@/lib/bidStore";
@@ -34,6 +34,7 @@ export function BidForm({ rfqId, phase, deposit, budget }: Props) {
   const [days, setDays] = useState("21");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
   const [saved, setSaved] = useState<SavedBid | null>(
     address ? loadBid(chain.id, rfqId, address) : null,
@@ -43,9 +44,45 @@ export function BidForm({ rfqId, phase, deposit, budget }: Props) {
   const wrongChain = isConnected && chainId !== chain.id;
   const bidding = phase === "Bidding";
   const revealing = phase === "Reveal";
+  const fail = (e: unknown) => {
+    setBusy(null);
+    setError(e instanceof Error ? e.message.split("\n")[0] : String(e));
+  };
 
-  async function commit() {
+  /** Salt = signature over a bid-scoped message, so the wallet alone can regenerate it later. */
+  async function deriveSalt(bidder: `0x${string}`) {
+    const signature = await signMessage(config, {
+      message: saltMessage({ registry: contracts.RFQRegistry, chainId: chain.id, rfqId, bidder }),
+    });
+    return saltFromSignature(signature);
+  }
+
+  function commitmentFor(bidder: `0x${string}`, price: bigint, deliveryDays: number, salt: `0x${string}`) {
+    return computeCommitment({
+      registry: contracts.RFQRegistry,
+      chainId: chain.id,
+      rfqId,
+      bidder,
+      price,
+      deliveryDays,
+      salt,
+    });
+  }
+
+  async function onChainCommitment(bidder: `0x${string}`) {
+    const bid = await readContract(config, {
+      abi: RFQRegistryAbi,
+      address: contracts.RFQRegistry,
+      functionName: "getBid",
+      args: [BigInt(rfqId), bidder],
+      chainId: chain.id as never,
+    });
+    return bid.commitHash;
+  }
+
+  async function commit(reseal = false) {
     setError(null);
+    setNotice(null);
     if (!address) return;
     try {
       const priceUnits = parseUsdc(price);
@@ -55,18 +92,11 @@ export function BidForm({ rfqId, phase, deposit, budget }: Props) {
         throw new Error("Delivery must be a whole number of days");
       }
 
-      const salt = randomSalt();
-      const commitHash = computeCommitment({
-        registry: contracts.RFQRegistry,
-        chainId: chain.id,
-        rfqId,
-        bidder: address,
-        price: priceUnits,
-        deliveryDays,
-        salt,
-      });
+      setBusy("Deriving your bid secret (signature, not a transaction)…");
+      const salt = await deriveSalt(address);
+      const commitHash = commitmentFor(address, priceUnits, deliveryDays, salt);
 
-      // Save and hand over the reveal file BEFORE signing: losing the salt forfeits the deposit.
+      // Save and hand over the reveal file before signing anything that costs money.
       const record: SavedBid = {
         chainId: chain.id,
         rfqId,
@@ -81,52 +111,108 @@ export function BidForm({ rfqId, phase, deposit, budget }: Props) {
       downloadBid(record);
       setSaved(record);
 
-      setBusy("Signing the USDC permit for the deposit…");
-      const permit = await signUsdcPermit(config, {
-        owner: address,
-        spender: contracts.RFQRegistry,
-        value: BigInt(deposit),
-        chainId: chain.id,
-      });
+      let args: readonly [bigint, `0x${string}`] | null = null;
+      if (reseal) {
+        // Re-sealing reuses the deposit already held: commitBid replaces the stored hash.
+        setBusy("Re-sealing the bid…");
+        args = [BigInt(rfqId), commitHash];
+      } else {
+        setBusy("Signing the USDC permit for the deposit…");
+      }
 
-      setBusy("Sending the sealed bid…");
-      const hash = await writeContractAsync({
-        abi: RFQRegistryAbi,
-        address: contracts.RFQRegistry,
-        functionName: "commitBidWithPermit",
-        args: [BigInt(rfqId), commitHash, permit.deadline, permit.v, permit.r, permit.s],
-      });
+      const hash = args
+        ? await writeContractAsync({
+            abi: RFQRegistryAbi,
+            address: contracts.RFQRegistry,
+            functionName: "commitBid",
+            args,
+          })
+        : await (async () => {
+            const permit = await signUsdcPermit(config, {
+              owner: address,
+              spender: contracts.RFQRegistry,
+              value: BigInt(deposit),
+              chainId: chain.id,
+            });
+            setBusy("Sending the sealed bid…");
+            return writeContractAsync({
+              abi: RFQRegistryAbi,
+              address: contracts.RFQRegistry,
+              functionName: "commitBidWithPermit",
+              args: [BigInt(rfqId), commitHash, permit.deadline, permit.v, permit.r, permit.s],
+            });
+          })();
+
       setTxHash(hash);
       setBusy("Waiting for the transaction…");
       await waitForTransactionReceipt(config, { hash });
       setBusy(null);
+      setNotice(reseal ? "Bid re-sealed with a fresh secret. No extra deposit was taken." : null);
     } catch (e) {
-      setBusy(null);
-      setError(e instanceof Error ? e.message.split("\n")[0] : String(e));
+      fail(e);
     }
   }
 
+  /** Try the saved bid, then an uploaded file, then re-derive from the wallet. */
   async function reveal() {
     setError(null);
-    const bid = revealFile ?? saved;
-    if (!bid || !address) {
-      setError("No saved bid found. Load the reveal file you downloaded when you bid.");
-      return;
-    }
+    setNotice(null);
+    if (!address) return;
     try {
+      setBusy("Checking your bid against the chain…");
+      const target = await onChainCommitment(address);
+      const candidates: SavedBid[] = [revealFile, saved].filter(Boolean) as SavedBid[];
+      let match = candidates.find(
+        (c) =>
+          commitmentFor(address, BigInt(c.price), c.deliveryDays, c.salt).toLowerCase() ===
+          target.toLowerCase(),
+      );
+
+      if (!match) {
+        const priceUnits = price ? parseUsdc(price) : candidates[0] ? BigInt(candidates[0].price) : 0n;
+        const deliveryDays = Number(days) || candidates[0]?.deliveryDays || 0;
+        if (priceUnits > 0n && deliveryDays > 0) {
+          setBusy("Re-deriving your bid secret from your wallet…");
+          const salt = await deriveSalt(address);
+          if (
+            commitmentFor(address, priceUnits, deliveryDays, salt).toLowerCase() ===
+            target.toLowerCase()
+          ) {
+            match = {
+              chainId: chain.id,
+              rfqId,
+              bidder: address,
+              price: priceUnits.toString(),
+              deliveryDays,
+              salt,
+              commitHash: target,
+              savedAt: Date.now(),
+            };
+            saveBid(match);
+            setSaved(match);
+          }
+        }
+      }
+
+      if (!match) {
+        throw new Error(
+          "Could not reproduce your sealed bid. Load the reveal file, or enter the exact price and delivery days you bid and try again.",
+        );
+      }
+
       setBusy("Revealing the bid…");
       const hash = await writeContractAsync({
         abi: RFQRegistryAbi,
         address: contracts.RFQRegistry,
         functionName: "revealBid",
-        args: [BigInt(rfqId), BigInt(bid.price), bid.deliveryDays, bid.salt],
+        args: [BigInt(rfqId), BigInt(match.price), match.deliveryDays, match.salt],
       });
       setTxHash(hash);
       await waitForTransactionReceipt(config, { hash });
       setBusy(null);
+      setNotice("Bid revealed.");
     } catch (e) {
-      setBusy(null);
-      setError(e instanceof Error ? e.message.split("\n")[0] : String(e));
+      fail(e);
     }
   }
 
@@ -142,8 +228,8 @@ export function BidForm({ rfqId, phase, deposit, budget }: Props) {
       <div className="panel">
         <div className="head">Connect to bid</div>
         <div className="note">
-          Bidding posts a {formatUsdc(BigInt(deposit))} USDC deposit. It is refunded when you
-          reveal and do not win, and forfeited if you never reveal.
+          Bidding posts a {formatUsdc(BigInt(deposit))} USDC deposit. It is refunded when you reveal
+          and do not win, and forfeited if you never reveal.
         </div>
         <div style={{ padding: 14 }}>
           <WalletChip />
@@ -173,10 +259,12 @@ export function BidForm({ rfqId, phase, deposit, budget }: Props) {
         </span>
       </div>
 
-      {bidding && (
+      {(bidding || revealing) && (
         <div className="form">
           <div className="field">
-            <label htmlFor="bid-price">Your price (USDC)</label>
+            <label htmlFor="bid-price">
+              {revealing ? "Price you bid (USDC)" : "Your price (USDC)"}
+            </label>
             <input
               id="bid-price"
               inputMode="decimal"
@@ -194,54 +282,63 @@ export function BidForm({ rfqId, phase, deposit, budget }: Props) {
               onChange={(e) => setDays(e.target.value)}
             />
           </div>
-          <div className="full note">
-            <b>Keep the reveal file.</b> Your price is hidden on-chain behind a hash. Revealing
-            needs the exact secret from this bid, so the file downloads automatically and a copy is
-            kept in this browser. Without it you cannot reveal, and an unrevealed bid forfeits its
-            deposit.
-          </div>
-          <div className="full">
-            <button type="button" className="btn-primary" disabled={!!busy} onClick={commit}>
-              {busy ?? "Seal and submit bid"}
-            </button>
-          </div>
-        </div>
-      )}
 
-      {revealing && (
-        <div className="form">
-          <div className="full note">
-            {saved ? (
-              <>
-                Found your sealed bid in this browser: <b>{formatUsdc(BigInt(saved.price))} USDC</b>{" "}
-                over {saved.deliveryDays} days. Reveal it before the window closes or the deposit is
-                forfeited.
-              </>
-            ) : (
-              <>No saved bid in this browser. Load the reveal file you downloaded when you bid.</>
-            )}
-          </div>
-          {!saved && (
-            <div className="field full">
-              <label htmlFor="reveal-file">Reveal file</label>
-              <input
-                id="reveal-file"
-                type="file"
-                accept="application/json"
-                onChange={(e) => e.target.files?.[0] && onRevealFile(e.target.files[0])}
-              />
-            </div>
+          {bidding ? (
+            <>
+              <div className="full note">
+                <b>Your secret is derived from your wallet.</b> The price is hidden on-chain behind
+                a hash. The secret that unlocks it comes from a signature, so the same wallet can
+                regenerate it — and the reveal file downloads as a backup. Keep at least one: after
+                bidding closes, a bid that cannot be revealed forfeits its deposit.
+              </div>
+              <div className="full">
+                <button type="button" className="btn-primary" disabled={!!busy} onClick={() => commit(false)}>
+                  {busy ?? "Seal and submit bid"}
+                </button>
+                {saved && (
+                  <button
+                    type="button"
+                    className="btn-outline"
+                    disabled={!!busy}
+                    onClick={() => commit(true)}
+                    title="Replaces the stored hash with a fresh secret; the deposit you already posted is reused"
+                  >
+                    Lost your file? Re-seal (no new deposit)
+                  </button>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="full note">
+                {saved ? (
+                  <>
+                    Found your sealed bid in this browser:{" "}
+                    <b>{formatUsdc(BigInt(saved.price))} USDC</b> over {saved.deliveryDays} days.
+                  </>
+                ) : (
+                  <>
+                    No saved bid in this browser. Load the reveal file, or type the price and
+                    delivery days you bid — the secret is re-derived from your wallet.
+                  </>
+                )}
+              </div>
+              <div className="field full">
+                <label htmlFor="reveal-file">Reveal file (optional)</label>
+                <input
+                  id="reveal-file"
+                  type="file"
+                  accept="application/json"
+                  onChange={(e) => e.target.files?.[0] && onRevealFile(e.target.files[0])}
+                />
+              </div>
+              <div className="full">
+                <button type="button" className="btn-primary" disabled={!!busy} onClick={reveal}>
+                  {busy ?? "Reveal bid"}
+                </button>
+              </div>
+            </>
           )}
-          <div className="full">
-            <button
-              type="button"
-              className="btn-primary"
-              disabled={!!busy || (!saved && !revealFile)}
-              onClick={reveal}
-            >
-              {busy ?? "Reveal bid"}
-            </button>
-          </div>
         </div>
       )}
 
@@ -259,6 +356,8 @@ export function BidForm({ rfqId, phase, deposit, budget }: Props) {
           </button>
         </div>
       )}
+
+      {notice && <div className="note">{notice}</div>}
 
       {error && (
         <div className="field-err" role="alert">

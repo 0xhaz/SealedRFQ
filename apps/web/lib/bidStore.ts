@@ -26,6 +26,44 @@ export function randomSalt(): `0x${string}` {
   return `0x${[...bytes].map((b) => b.toString(16).padStart(2, "0")).join("")}`;
 }
 
+/**
+ * The message whose signature becomes the salt. It is scoped to one bid (chain, registry, RFQ,
+ * bidder) so signing it elsewhere cannot reveal another bid's salt, and it is plain English
+ * because the bidder sees it in the wallet.
+ */
+export function saltMessage(args: {
+  registry: `0x${string}`;
+  chainId: number;
+  rfqId: number;
+  bidder: `0x${string}`;
+}) {
+  return [
+    "SealedRFQ — derive the secret for one sealed bid.",
+    "",
+    "Signing this does not move funds. It regenerates the secret that hides your bid price,",
+    "so you can reveal later even if you lose the downloaded file.",
+    "",
+    `chain: ${args.chainId}`,
+    `registry: ${args.registry}`,
+    `rfq: ${args.rfqId}`,
+    `bidder: ${args.bidder}`,
+    "version: sealedrfq.salt.v1",
+  ].join("\n");
+}
+
+/**
+ * Salt derived from a wallet signature rather than random bytes, so a bidder who loses both the
+ * file and this browser can re-derive it from the same wallet.
+ *
+ * Wallets that follow RFC 6979 (MetaMask, Ledger and most others) sign deterministically, so the
+ * same message always yields the same salt. That is not guaranteed by the spec, so the caller
+ * must still keep the downloaded file: before revealing we re-derive and check the result against
+ * the commitment recorded on-chain, and fall back to the file when it does not match.
+ */
+export function saltFromSignature(signature: `0x${string}`): `0x${string}` {
+  return keccak256(signature);
+}
+
 /** Same preimage as RFQRegistry.computeCommitment: binds contract, chain, RFQ and bidder. */
 export function computeCommitment(args: {
   registry: `0x${string}`;

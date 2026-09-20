@@ -270,7 +270,8 @@ Predict-then-verify prompts (replace `PREDICTIONS`):
 - Row drawer: scope · rubric weights + `rubricHash` · bids (sealed rows are masked until reveal) · evaluation memo with the score ring and red flags · policy firewall rows · milestone timeline · attestation hashes · tx links
 - Forms (replace `SubmitPanel`):
   - **Post RFQ:** title, scope, category, budget, milestones, deposit, windows, rubric weights, optional invite list.
-  - **Submit sealed bid:** price, delivery days. The salt is generated in the browser, stored locally and offered as a **downloadable reveal file**. Warn clearly: *"lose this and you cannot reveal; your deposit will be forfeited."*
+  - **Submit sealed bid:** price, delivery days. The salt is **derived from a wallet signature** over a bid-scoped message (RFC 6979 signing is deterministic, so the same wallet regenerates it anywhere), *and* stored locally, *and* offered as a downloadable reveal file. Reveal tries saved copy → uploaded file → wallet re-derivation, checking each against the on-chain commitment before spending gas. During bidding a lost secret can also be replaced by re-committing, which takes no second deposit.
+    **No protocol-level recovery, deliberately:** a "lost my salt" refund would let a bidder decline to reveal whenever it suited them, turning every sealed bid into a free option. Verified on testnet 2026-09-20: salt discarded, regenerated from the wallet alone, reveal succeeded (RFQ 3).
 
 **Footer / continuation.** A "worth taking further" line: Malaysia ePerolehan and SME procurement, and award-backed supplier financing.
 

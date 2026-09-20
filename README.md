@@ -48,6 +48,18 @@ including the policy firewall rejecting an AI-recommended over-budget award
 
 Run it yourself: `./script/demo.sh testnet`.
 
+## Sealed bids and lost secrets
+
+A sealed bid hides its price behind `keccak256(registry, chain, rfq, bidder, price, days, salt)`.
+Revealing needs that exact salt, and an unrevealed bid forfeits its deposit — that forfeiture is what
+makes a commitment binding, so there is no contract-level "I lost it" refund: it would let a bidder
+decline to reveal whenever the reveal looked unprofitable.
+
+Recovery therefore lives in the client. The salt is derived from a wallet signature over a
+bid-scoped message, so the same wallet regenerates it on any device; it is also cached locally and
+downloaded as a reveal file. During bidding, a bidder can simply re-commit with a fresh secret,
+which takes no second deposit.
+
 ## Arc rules this codebase follows
 
 - Settlement is the USDC ERC-20 interface at `0x3600…0000` (6 decimals). Never `msg.value`.
