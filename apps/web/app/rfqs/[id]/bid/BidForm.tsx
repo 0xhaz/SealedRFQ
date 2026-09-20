@@ -1,10 +1,11 @@
 "use client";
 
-import { RFQRegistryAbi, formatUsdc, parseUsdc } from "@sealedrfq/shared";
+import { RFQRegistryAbi, USDC_ADDRESS, formatUsdc, parseUsdc } from "@sealedrfq/shared";
 import Link from "next/link";
 import { useState } from "react";
 import { sha256, stringToBytes } from "viem";
-import { useAccount, useConfig, useWriteContract } from "wagmi";
+import { erc20Abi } from "viem";
+import { useAccount, useConfig, useReadContract, useWriteContract } from "wagmi";
 import { readContract, signMessage, waitForTransactionReceipt } from "wagmi/actions";
 import { WalletChip } from "@/components/WalletChip";
 import { chain, contracts, explorerTx } from "@/lib/chain";
@@ -46,6 +47,16 @@ export function BidForm({ rfqId, phase, deposit, budget, requiresProposal }: Pro
     address ? loadBid(chain.id, rfqId, address) : null,
   );
   const [revealFile, setRevealFile] = useState<SavedBid | null>(null);
+
+  const { data: balance } = useReadContract({
+    abi: erc20Abi,
+    address: USDC_ADDRESS,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    query: { enabled: Boolean(address), refetchInterval: 10_000 },
+  });
+  // Arc pays gas in USDC, so a deposit you cannot cover shows up as an unpriceable fee.
+  const shortBy = balance !== undefined ? BigInt(deposit) - balance : 0n;
 
   const wrongChain = isConnected && chainId !== chain.id;
   const bidding = phase === "Bidding";
@@ -345,8 +356,20 @@ export function BidForm({ rfqId, phase, deposit, budget, requiresProposal }: Pro
                 it — and the reveal file downloads as a backup. Keep at least one: after bidding
                 closes, a bid that cannot be revealed forfeits its deposit.
               </div>
+              {shortBy > 0n && (
+                <div className="full note warn">
+                  <b>Not enough USDC.</b> This bid posts a {formatUsdc(BigInt(deposit))} deposit and
+                  this account holds {formatUsdc(balance ?? 0n)}. Gas is USDC on Arc as well, so an
+                  empty account cannot even estimate a fee.
+                </div>
+              )}
               <div className="full">
-                <button type="button" className="btn-primary" disabled={!!busy} onClick={() => commit(false)}>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={!!busy || shortBy > 0n}
+                  onClick={() => commit(false)}
+                >
                   {busy ?? "Seal and submit bid"}
                 </button>
                 {saved && (

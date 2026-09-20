@@ -3,6 +3,8 @@
 # and a clock you can fast-forward instead of waiting out bidding and acceptance windows.
 #
 #   tools/local.sh up        start the chain, deploy, seed, run the agent and the web app
+#   tools/local.sh fund 0x…  give an address USDC (gas and settlement are the same token on Arc)
+#   tools/local.sh keys      print the funded development keys
 #   tools/local.sh warp 5m   move the chain clock forward (s/m/h/d suffixes)
 #   tools/local.sh demo      run the full lifecycle end to end, warping past every window
 #   tools/local.sh status    what is running and what is on-chain
@@ -133,7 +135,11 @@ Connect MetaMask to this chain:
   Chain ID      31337
   Currency      USDC
 
-Import an account (each starts with 1,000,000 USDC):
+Already using your own MetaMask account? Fund it — Arc pays gas in USDC, so an unfunded
+account cannot even estimate a fee:
+  tools/local.sh fund <your address>
+
+Or import one of these (each starts with 1,000,000 USDC):
   buyer      $BUYER_PK
   supplier1  $SUPPLIER_1_PK
   supplier2  $SUPPLIER_2_PK
@@ -148,6 +154,34 @@ demo() {
   set -a; . "$ENV_FILE"; set +a
   (cd "$ROOT/contracts" && NET=local RPC_URL="$RPC" BID_SECS=60 REVEAL_SECS=60 AWARD_SECS=3600 \
     DELIVERY_SECS=900 ACCEPT_SECS=120 ./script/demo.sh local)
+}
+
+# Top up any address on the local chain. Arc's gas token *is* USDC, so an account with a zero
+# balance cannot even estimate a fee: the wallet shows "Network fee unavailable" rather than
+# "insufficient funds", which is a confusing way to learn you are using an unfunded account.
+fund() {
+  local who=${1:-} amount=${2:-1000}
+  if [ -z "$who" ]; then
+    echo "usage: tools/local.sh fund <address> [usdc, default 1000]" >&2
+    exit 1
+  fi
+  # Native balance is 18 decimals and the ERC-20 view shows the same balance at 6.
+  local wei
+  wei=$(cast to-wei "$amount" ether)
+  cast rpc anvil_setBalance "$who" "$(cast to-hex "$wei")" --rpc-url "$RPC" >/dev/null
+  echo "   $who now holds $(cast call 0x3600000000000000000000000000000000000000 \
+    'balanceOf(address)(uint256)' "$who" --rpc-url "$RPC" | awk '{print $1/1000000}') USDC"
+}
+
+keys() {
+  set -a; . "$ENV_FILE"; set +a
+  echo "Import any of these into MetaMask (local chain only, each holds 1,000,000 USDC):"
+  printf "  %-11s %s\n" buyer "$BUYER_PK"
+  printf "  %-11s %s\n" supplier1 "$SUPPLIER_1_PK"
+  printf "  %-11s %s\n" supplier2 "$SUPPLIER_2_PK"
+  printf "  %-11s %s\n" supplier3 "$SUPPLIER_3_PK"
+  echo
+  echo "Or keep your own account and fund it:  tools/local.sh fund <your address>"
 }
 
 status() {
@@ -170,9 +204,11 @@ down() {
 
 case "${1:-up}" in
   up) up ;;
+  fund) fund "${2:-}" "${3:-1000}" ;;
+  keys) keys ;;
   warp) warp "${2:-60}" ;;
   demo) demo ;;
   status) status ;;
   down) down ;;
-  *) echo "usage: tools/local.sh [up|warp <5m>|demo|status|down]" >&2; exit 1 ;;
+  *) echo "usage: tools/local.sh [up|fund <address>|keys|warp <5m>|demo|status|down]" >&2; exit 1 ;;
 esac

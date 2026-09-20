@@ -1,10 +1,11 @@
 "use client";
 
-import { RFQRegistryAbi, formatUsdc, hashCanonical, parseUsdc } from "@sealedrfq/shared";
+import { RFQRegistryAbi, USDC_ADDRESS, formatUsdc, hashCanonical, parseUsdc } from "@sealedrfq/shared";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { stringToBytes, sha256, stringToHex } from "viem";
-import { useAccount, useConfig, useWriteContract } from "wagmi";
+import { erc20Abi } from "viem";
+import { useAccount, useConfig, useReadContract, useWriteContract } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
 import { WalletChip } from "@/components/WalletChip";
 import { chain, contracts, explorerTx } from "@/lib/chain";
@@ -44,6 +45,16 @@ export function NewRfqForm() {
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
 
+  // Gas and settlement are the same token on Arc, so an unfunded account cannot even estimate a
+  // fee: the wallet reports "network fee unavailable" rather than "not enough USDC".
+  const { data: balance } = useReadContract({
+    abi: erc20Abi,
+    address: USDC_ADDRESS,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    query: { enabled: Boolean(address), refetchInterval: 10_000 },
+  });
+
   const stakeUnits = (() => {
     try {
       return (parseUsdc(budget) * BigInt(Math.round(Number(stakePct) * 100))) / 10_000n;
@@ -51,6 +62,15 @@ export function NewRfqForm() {
       return 0n;
     }
   })();
+
+  const totalNeeded = (() => {
+    try {
+      return parseUsdc(budget || "0") + stakeUnits;
+    } catch {
+      return 0n;
+    }
+  })();
+  const shortBy = balance !== undefined && totalNeeded > 0n ? totalNeeded - balance : 0n;
 
   async function submit() {
     setError(null);
@@ -286,8 +306,21 @@ export function NewRfqForm() {
           cite an evaluation made against this exact rubric, so the criteria cannot be rewritten
           afterwards to justify a favoured bid.
         </div>
+        {shortBy > 0n && (
+          <div className="full note warn">
+            <b>Not enough USDC.</b> Posting this RFQ escrows {formatUsdc(totalNeeded)} (budget plus
+            your stake) and this account holds {formatUsdc(balance ?? 0n)} — {formatUsdc(shortBy)}{" "}
+            short. On Arc the gas is USDC too, so an empty account cannot even estimate a fee, which
+            is why a wallet may say the network fee is unavailable rather than saying you are short.
+          </div>
+        )}
         <div className="full">
-          <button type="button" className="btn-primary" disabled={!!busy} onClick={submit}>
+          <button
+            type="button"
+            className="btn-primary"
+            disabled={!!busy || shortBy > 0n}
+            onClick={submit}
+          >
             {busy ?? "Escrow budget and open for bids"}
           </button>
         </div>
