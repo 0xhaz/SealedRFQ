@@ -1,7 +1,7 @@
-import { hashCanonical } from "@sealedrfq/shared";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { hashCanonical } from "@sealedrfq/shared";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 // The db module reads DATABASE_URL when it is first imported, so point it at a scratch file first.
@@ -113,7 +113,9 @@ describe("evaluator scoring", () => {
 
   it("refuses to score when the published rubric does not hash to the on-chain value", async () => {
     // A buyer (or a compromised host) swapping the weights after bids are visible must not work.
-    seedRfq(4, { metadataURI: JSON.stringify({ rubric: { price: 10, delivery: 10, quality: 80 } }) });
+    seedRfq(4, {
+      metadataURI: JSON.stringify({ rubric: { price: 10, delivery: 10, quality: 80 } }),
+    });
     seedBid(4, S1, "2800000", 21);
     seedBid(4, S2, "2900000", 14);
     const { memo, rubricVerified } = await evaluator.evaluate(4);
