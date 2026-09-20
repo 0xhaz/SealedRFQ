@@ -301,6 +301,12 @@ export function RfqActions({
 
           {isBuyer && awaitingReview && (
             <>
+              <div className="full note warn">
+                <b>Accepting pays this milestone and cannot be undone.</b> A matching hash proves the
+                file is the one submitted — it does not mean the work meets the specification.
+                Inspect the goods, the report or the code before you accept: after the acceptance
+                window closes, payment releases whether or not anyone looked.
+              </div>
               <div className="field full">
                 <label htmlFor="reason">Reason (hashed; required to reject)</label>
                 <input

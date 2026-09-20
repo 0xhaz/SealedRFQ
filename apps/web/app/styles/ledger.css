@@ -5604,3 +5604,103 @@ button.field-wallet {
   border-color: var(--red);
   background: rgba(217, 45, 45, 0.07);
 }
+
+/* ---------- trust boundary ---------- */
+.trust {
+  margin-top: 54px;
+}
+.trust-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-top: 22px;
+}
+@media (min-width: 900px) {
+  .trust-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+.trust-col {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 18px 20px 16px;
+}
+/* the column the reader is responsible for carries the weight */
+.trust-col.is-you {
+  border: 1.5px solid var(--ink);
+  box-shadow: var(--shadow);
+}
+.trust-tag {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+.trust-col.is-you .trust-tag {
+  color: var(--red);
+}
+.trust-col ul {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.trust-col li {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: #453d31;
+}
+.trust-note {
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.trust-foot {
+  margin-top: 16px;
+  padding: 16px 18px;
+  border-left: 3px solid var(--ink);
+  background: rgba(255, 253, 247, 0.75);
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: #453d31;
+}
+
+/* ---------- inline cautions ---------- */
+.note.warn {
+  color: #6b3a10;
+  background: rgba(201, 138, 27, 0.09);
+  border-left: 3px solid var(--amber);
+}
+.panel > .note.warn {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+.form .note.warn {
+  padding: 12px 14px;
+  border-radius: 4px;
+}
+.field-hint {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.field-hint.warn {
+  color: #8a5a12;
+}
+
+.foot-warn {
+  margin-bottom: 18px;
+  padding: 13px 16px;
+  border-left: 3px solid var(--amber);
+  background: rgba(201, 138, 27, 0.08);
+  font-size: 13px;
+  line-height: 1.65;
+  color: #6b3a10;
+  max-width: 78ch;
+}

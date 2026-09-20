@@ -37,6 +37,9 @@ type Deployment = {
 // The mainnet file lands on day 18; local is written by tools/local.sh.
 export const contracts = (isLocal ? localDeployment : testnetDeployment) as Deployment;
 
+/** Mainnet moves real money and Arc settlement is forward-only: no undo, no chargeback. */
+export const isMainnet = CHAIN_ID === arcMainnet.id;
+
 export const explorerTx = (hash: string) => `${chain.blockExplorers.default.url}/tx/${hash}`;
 export const explorerAddress = (address: string) =>
   `${chain.blockExplorers.default.url}/address/${address}`;

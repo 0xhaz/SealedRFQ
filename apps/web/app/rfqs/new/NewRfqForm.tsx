@@ -237,6 +237,12 @@ export function NewRfqForm() {
             value={acceptMin}
             onChange={(e) => setAcceptMin(e.target.value)}
           />
+          {Number(acceptMin) < 60 && (
+            <span className="field-hint warn">
+              Payment auto-releases after this long. Fine for a demo; for real work give yourself
+              time to inspect — hours for a document, days for anything physical.
+            </span>
+          )}
         </div>
         <div className="field">
           <label htmlFor="milestones">Milestones (% split)</label>
@@ -269,6 +275,11 @@ export function NewRfqForm() {
           {mode === "RFP"
             ? "In RFP mode each bid carries a proposal document, sealed with the price: neither can be rewritten after seeing rival bids."
             : "In RFQ mode bids are price and delivery only — the fastest path when you already know exactly what you need."}
+        </div>
+        <div className="full note warn">
+          <b>What this contract does not check:</b> whether delivered goods, materials or work meet
+          your specification. It settles money against rules and hashes. Inspection stays yours —
+          retention, the supplier&apos;s stake and your right to reject are what give it teeth.
         </div>
         <div className="full note">
           The rubric is hashed and stored when the RFQ opens, before anyone bids. An award has to

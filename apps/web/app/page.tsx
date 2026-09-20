@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { HeroRFQ } from "@/components/landing/HeroRFQ";
-import { chain, contracts, explorerAddress, explorerTx } from "@/lib/chain";
+import { TrustBoundary } from "@/components/landing/TrustBoundary";
+import { chain, contracts, explorerAddress, explorerTx, isMainnet } from "@/lib/chain";
 import evidence from "@/lib/deployments/evidence-5042002.json";
 
 const FIREWALL_TX = evidence.steps.find((s) => s.status === "0x0")?.tx ?? "";
@@ -17,8 +18,17 @@ export default function Home() {
             <i /> LIVE · {chain.name.toUpperCase()}
           </span>
           <span className="ds-text">
-            Every RFQ, sealed bid and payout on this site is a <b>real Arc transaction</b>, settled
-            in USDC.
+            {isMainnet ? (
+              <>
+                Every RFQ, sealed bid and payout here spends <b>real USDC</b> on Arc mainnet.
+                Settlement is forward-only: there is no undo and no chargeback.
+              </>
+            ) : (
+              <>
+                Every RFQ, sealed bid and payout on this site is a <b>real Arc transaction</b>,
+                settled in USDC.
+              </>
+            )}
           </span>
         </div>
       </div>
@@ -214,6 +224,8 @@ export default function Home() {
         </div>
       </section>
 
+      <TrustBoundary />
+
       {/* ---- Evidence ---- */}
       <section className="runit">
         <div className="runit-card">
@@ -237,6 +249,11 @@ export default function Home() {
       </section>
 
       <footer className="foot">
+        <div className="foot-warn">
+          <b>Unaudited software.</b> These contracts have not been through a security audit. They
+          hold escrow, so treat the amounts you commit as amounts you could lose, and read the code
+          before trusting it with anything that matters.
+        </div>
         <span className="foot-label">Contracts on {chain.name}</span>
         <nav className="page-nav">
           {(
