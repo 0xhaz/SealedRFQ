@@ -2,6 +2,7 @@
 
 import { WalletChip } from "@/components/WalletChip";
 import { chain, contracts, explorerTx } from "@/lib/chain";
+import { MAX_INVITEES, parseInvitees } from "@/lib/invitees";
 import { signUsdcPermit } from "@/lib/permit";
 import { describeTxError } from "@/lib/txError";
 import {
@@ -47,6 +48,21 @@ export function NewRfqForm() {
   const [weights, setWeights] = useState({ price: "50", delivery: "30", quality: "20" });
   /** RFQ = priced line items. RFP = proposals judged on method as well as price. */
   const [mode, setMode] = useState<"RFQ" | "RFP">("RFQ");
+  /**
+   * Who may bid. Separate from the bids being sealed, which is not optional here: visibility
+   * controls who is let in, sealing controls what they can see once they are.
+   */
+  const [visibility, setVisibility] = useState<"public" | "invited">("public");
+  const [inviteeText, setInviteeText] = useState("");
+
+  const {
+    addresses: invitees,
+    invalid: invalidInvitees,
+    tooMany: tooManyInvitees,
+  } = parseInvitees(inviteeText);
+  const inviteesUnusable =
+    visibility === "invited" &&
+    (invitees.length === 0 || invalidInvitees.length > 0 || tooManyInvitees);
 
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -114,7 +130,7 @@ export function NewRfqForm() {
       const rubricHash = hashCanonical(rubric);
       // Publish the rubric with the scope: only its hash is on-chain, and the evaluator refuses to
       // score unless the published weights hash to it. Otherwise criteria could be invented later.
-      const metadata = JSON.stringify({ scope, rubric: rubric.criteria, mode });
+      const metadata = JSON.stringify({ scope, rubric: rubric.criteria, mode, visibility });
       const metadataHash = sha256(stringToBytes(metadata));
 
       // Deadlines are judged by block.timestamp, so anchor them to the chain rather than to this
@@ -141,7 +157,7 @@ export function NewRfqForm() {
         deliveryWindow: Number(deliveryMin) * 60,
         acceptanceWindow: Number(acceptMin) * 60,
         milestoneBps: bps,
-        invitees: [] as `0x${string}`[],
+        invitees: visibility === "invited" ? invitees : ([] as `0x${string}`[]),
         requiresQualification: false,
         requiresProposal: mode === "RFP",
         metadataURI: metadata,
@@ -205,6 +221,43 @@ export function NewRfqForm() {
             <option value="RFP">RFP — suppliers propose a solution; method is judged too</option>
           </select>
         </div>
+        <div className="field full">
+          <label htmlFor="visibility">Visibility</label>
+          <select
+            id="visibility"
+            value={visibility}
+            onChange={(e) => setVisibility(e.target.value as "public" | "invited")}
+          >
+            <option value="public">Open — any supplier may bid</option>
+            <option value="invited">Invited — only listed suppliers may bid</option>
+          </select>
+          <span className="hint">
+            Bids stay sealed either way. This decides who is let in, not what they can see.
+          </span>
+        </div>
+        {visibility === "invited" && (
+          <div className="field full">
+            <label htmlFor="invitees">Invited suppliers</label>
+            <textarea
+              id="invitees"
+              rows={3}
+              placeholder="0xabc… one per line, or pasted comma-separated"
+              value={inviteeText}
+              onChange={(e) => setInviteeText(e.target.value)}
+            />
+            <span className="hint">
+              {invalidInvitees.length > 0
+                ? `Not an address: ${invalidInvitees.slice(0, 3).join(", ")}${
+                    invalidInvitees.length > 3 ? ` and ${invalidInvitees.length - 3} more` : ""
+                  }`
+                : tooManyInvitees
+                  ? `${invitees.length} addresses — the contract accepts at most ${MAX_INVITEES}.`
+                  : invitees.length === 0
+                    ? "Add at least one address, or switch back to open bidding."
+                    : `${invitees.length} supplier${invitees.length === 1 ? "" : "s"} invited. The list is on-chain and public: it names who was asked, not what they bid.`}
+            </span>
+          </div>
+        )}
         <div className="field full">
           <label htmlFor="scope">{mode === "RFP" ? "Problem statement" : "Scope"}</label>
           <textarea id="scope" rows={3} value={scope} onChange={(e) => setScope(e.target.value)} />
@@ -362,7 +415,7 @@ export function NewRfqForm() {
           <button
             type="button"
             className="btn-primary"
-            disabled={!!busy || shortBy > 0n}
+            disabled={!!busy || shortBy > 0n || inviteesUnusable}
             onClick={submit}
           >
             {busy ?? "Escrow budget and open for bids"}

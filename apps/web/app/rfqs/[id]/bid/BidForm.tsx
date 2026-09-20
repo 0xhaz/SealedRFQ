@@ -59,6 +59,17 @@ export function BidForm({ rfqId, phase, deposit, budget, requiresProposal }: Pro
   // Arc pays gas in USDC, so a deposit you cannot cover shows up as an unpriceable fee.
   const shortBy = balance !== undefined ? BigInt(deposit) - balance : 0n;
 
+  // On an invited tender the contract rejects a stranger's commit. Ask before letting them sign:
+  // the revert is recoverable but it still costs gas to discover. Returns true for open RFQs.
+  const { data: invited } = useReadContract({
+    abi: RFQRegistryAbi,
+    address: contracts.RFQRegistry,
+    functionName: "isInvited",
+    args: address ? [BigInt(rfqId), address] : undefined,
+    query: { enabled: Boolean(address) },
+  });
+  const notInvited = invited === false;
+
   const wrongChain = isConnected && chainId !== chain.id;
   const bidding = phase === "Bidding";
   const revealing = phase === "Reveal";
@@ -362,6 +373,13 @@ export function BidForm({ rfqId, phase, deposit, budget, requiresProposal }: Pro
                 downloads as a backup. Keep at least one: after bidding closes, a bid that cannot be
                 revealed forfeits its deposit.
               </div>
+              {notInvited && (
+                <div className="full note warn">
+                  <b>This tender is invite-only.</b> The buyer listed the suppliers who may bid and
+                  this address is not among them, so the contract would reject the bid. Ask the
+                  buyer to add you — they can invite more suppliers while bidding is still open.
+                </div>
+              )}
               {shortBy > 0n && (
                 <div className="full note warn">
                   <b>Not enough USDC.</b> This bid posts a {formatUsdc(BigInt(deposit))} deposit and
@@ -373,7 +391,7 @@ export function BidForm({ rfqId, phase, deposit, budget, requiresProposal }: Pro
                 <button
                   type="button"
                   className="btn-primary"
-                  disabled={!!busy || shortBy > 0n}
+                  disabled={!!busy || shortBy > 0n || notInvited}
                   onClick={() => commit(false)}
                 >
                   {busy ?? "Seal and submit bid"}
