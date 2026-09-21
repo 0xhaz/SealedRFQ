@@ -48,8 +48,11 @@ WORKDIR /app/apps/agent
 
 # SQLite must live on a mounted volume. A container filesystem is thrown away on every deploy, and
 # losing the database means re-indexing from the deployment's startBlock on each restart.
+#
+# Declared only as a path, not with VOLUME: Railway rejects that instruction outright ("docker
+# VOLUME ... is not supported, use Railway Volumes") and expects the mount to be configured on the
+# service. Docker's own `-v /data` works the same either way, so nothing is lost by leaving it out.
 ENV DATABASE_URL=file:/data/agent.db
-VOLUME /data
 
 EXPOSE 4020
 # A platform that injects PORT wins; 4020 is only the default.

@@ -181,9 +181,11 @@ NEXT_PUBLIC_AGENT_URL=https://<your-agent>.up.railway.app
 **Agent → Railway.** `railway.json` points at `apps/agent/Dockerfile`, which is built from the
 repository root. Two things are easy to get wrong:
 
-- **Mount a volume at `/data`.** The index lives in SQLite, and a container filesystem is discarded
-  on every deploy — without a volume the agent re-indexes from the deployment's `startBlock` each
-  time it restarts. `DATABASE_URL` already defaults to `file:/data/agent.db`.
+- **Add a Railway Volume mounted at `/data`**, on the service, before the first deploy. The index
+  lives in SQLite, and a container filesystem is discarded on every deploy — without a volume the
+  agent re-indexes from the deployment's `startBlock` each time it restarts. `DATABASE_URL` already
+  defaults to `file:/data/agent.db`. The Dockerfile deliberately does not declare `VOLUME`: Railway
+  rejects that instruction and expects the mount to be configured on the service instead.
 - **Set `AGENT_API_TOKEN` and `CORS_ORIGIN`.** `NEXT_PUBLIC_AGENT_URL` is compiled into the browser
   bundle, so the agent is called directly from the user's browser and is public by construction.
 
