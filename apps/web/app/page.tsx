@@ -1,10 +1,10 @@
-import Link from "next/link";
 import { Header } from "@/components/Header";
 import { HeroRFQ } from "@/components/landing/HeroRFQ";
 import { TrustBoundary } from "@/components/landing/TrustBoundary";
 import { WhereThisFits } from "@/components/landing/WhereThisFits";
 import { chain, contracts, explorerAddress, explorerTx, isMainnet } from "@/lib/chain";
 import evidence from "@/lib/deployments/evidence-5042002.json";
+import Link from "next/link";
 
 const FIREWALL_TX = evidence.steps.find((s) => s.status === "0x0")?.tx ?? "";
 
@@ -111,7 +111,10 @@ export default function Home() {
             <h3>The model scores against a published rubric</h3>
             <p>
               The rubric&apos;s hash is fixed when the RFQ opens, so it cannot be rewritten to fit a
-              favoured bid. The memo is anchored whether it recommends or rejects.
+              favoured bid — and so are the buyer&apos;s terms and requirements. Revealed bids are
+              screened against them automatically; a requirement no bid can prove, like a
+              certification, is reported as <b>still needing a human</b> rather than quietly passed.
+              The memo is anchored whether it recommends or rejects.
             </p>
             <div className="gate-verdicts">
               <span className="gv no">REJECT ✕</span>
@@ -210,6 +213,19 @@ export default function Home() {
               Every AI decision is anchored as a hash. Re-hash the published memo and compare it
               with the chain: an edited rationale fails the check instead of reading plausibly.
               Rejections are recorded exactly like approvals.
+            </p>
+          </div>
+          <div className="cap-row">
+            <h3>
+              <i>🤖</i> The agent sells its work over x402
+            </h3>
+            <p>
+              Scoring an RFQ costs real inference, so it is sold rather than given away. An unpaid
+              call returns <span className="mono-sm">HTTP 402</span> with the terms, the caller
+              signs a USDC authorisation, and Circle&apos;s facilitator settles it on Arc — no API
+              key, no account, no invoice. Reading a memo back and checking it against the chain
+              stays <b>free, permanently</b>: a losing bidder must never have to pay to find out why
+              they lost.
             </p>
           </div>
           <div className="cap-row">
