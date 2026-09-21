@@ -139,6 +139,42 @@ describe("evaluator scoring", () => {
     );
   });
 
+  it("screens revealed bids against the buyer's stated requirements", async () => {
+    // Requirements ride in the metadata whose hash was fixed before bidding, so the bar cannot have
+    // moved since. S1 is too slow; S2 meets it.
+    seedRfq(8, {
+      metadataURI: JSON.stringify({
+        scope: "test",
+        rubric: RUBRIC,
+        mode: "RFQ",
+        requirements: { maxDeliveryDays: 20, attestations: ["ISO 9001"] },
+      }),
+    });
+    seedBid(8, S1, "2800000", 30);
+    seedBid(8, S2, "2900000", 14);
+    const { memo } = await evaluator.evaluate(8);
+
+    const slow = memo.scores.find((x: { bidder: string }) => x.bidder === S1);
+    const ok = memo.scores.find((x: { bidder: string }) => x.bidder === S2);
+    expect(slow.redFlags.join(" ")).toMatch(/slower than the required 20/);
+    expect(ok.redFlags.join(" ")).not.toMatch(/slower/);
+
+    // A stated requirement is never reported as satisfied — it is handed to a person.
+    for (const score of memo.scores) {
+      expect(score.unverified.join(" ")).toMatch(/ISO 9001/);
+      expect(score.unverified.join(" ")).toMatch(/not provable/);
+    }
+  });
+
+  it("leaves the memo unchanged when the buyer set no requirements", async () => {
+    seedRfq(9);
+    seedBid(9, S1, "2800000", 21);
+    seedBid(9, S2, "2900000", 14);
+    const { memo } = await evaluator.evaluate(9);
+    // Absent, not an empty array: the field only appears when there is something to say.
+    expect(memo.scores[0].unverified).toBeUndefined();
+  });
+
   it("flags a supplier with no completed history rather than silently trusting it", async () => {
     seedRfq(6);
     seedBid(6, S1, "2800000", 21);

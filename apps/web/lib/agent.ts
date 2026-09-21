@@ -31,6 +31,8 @@ export type Evaluation = {
       criteria: Record<string, number>;
       totalBps: number;
       redFlags: string[];
+      /** Buyer requirements a bid cannot prove; present only when the buyer stated some. */
+      unverified?: string[];
     }[];
   };
 };

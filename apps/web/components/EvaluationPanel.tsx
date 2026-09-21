@@ -1,7 +1,7 @@
-import { formatUsdc } from "@sealedrfq/shared";
-import Link from "next/link";
 import type { AuditResult, Evaluation } from "@/lib/agent";
 import { explorerTx } from "@/lib/chain";
+import { formatUsdc } from "@sealedrfq/shared";
+import Link from "next/link";
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 
@@ -62,10 +62,10 @@ export function EvaluationPanel({
           AI evaluation<span className="hint">not scored yet</span>
         </div>
         <div className="note">
-          Bids are scored once the reveal window closes — the evaluator runs on its own within a
-          few seconds of it, and the buyer can also trigger it from the actions panel. It can only
-          score against the rubric published before bidding opened, and its memo is anchored
-          on-chain before anyone can award.
+          Bids are scored once the reveal window closes — the evaluator runs on its own within a few
+          seconds of it, and the buyer can also trigger it from the actions panel. It can only score
+          against the rubric published before bidding opened, and its memo is anchored on-chain
+          before anyone can award.
         </div>
       </div>
     );
@@ -97,7 +97,8 @@ export function EvaluationPanel({
           </>
         ) : (
           <>
-            <b>Unverified.</b> {audit.reason ?? "The published memo does not match the on-chain anchor."}
+            <b>Unverified.</b>{" "}
+            {audit.reason ?? "The published memo does not match the on-chain anchor."}
           </>
         )}
       </div>
@@ -127,7 +128,8 @@ export function EvaluationPanel({
                 <b>{(s.totalBps / 100).toFixed(1)}</b>
                 <span className="muted">
                   {" "}
-                  ({Object.entries(s.criteria)
+                  (
+                  {Object.entries(s.criteria)
                     .map(([k, v]) => `${k[0]}${Math.round(v)}`)
                     .join(" ")}
                   )
@@ -135,6 +137,11 @@ export function EvaluationPanel({
               </td>
               <td className="muted" style={{ fontSize: 11 }}>
                 {s.redFlags.length ? s.redFlags.join("; ") : "—"}
+                {s.unverified?.length ? (
+                  <div style={{ marginTop: 4 }}>
+                    <b>Needs a human:</b> {s.unverified.join("; ")}
+                  </div>
+                ) : null}
               </td>
             </tr>
           ))}

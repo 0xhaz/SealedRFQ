@@ -1,5 +1,11 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { AttestationKinds, type DecisionMemo, MEMO_SCHEMA, hashCanonical } from "@sealedrfq/shared";
+import {
+  AttestationKinds,
+  type DecisionMemo,
+  MEMO_SCHEMA,
+  checkRequirements,
+  hashCanonical,
+} from "@sealedrfq/shared";
 import { eq, sql } from "drizzle-orm";
 import { type Hex, stringToHex } from "viem";
 import { db, schema } from "../../db/index.js";
@@ -41,18 +47,28 @@ export class EvaluatorService {
   async rubricFor(
     metadataURI: string,
     rubricHash: string,
-  ): Promise<{ rubric: Rubric; verified: boolean }> {
+  ): Promise<{ rubric: Rubric; verified: boolean; published: unknown }> {
+    let published: unknown = null;
     try {
-      const parsed = (await loadMetadata(metadataURI)) as { rubric?: Rubric } | null;
+      published = await loadMetadata(metadataURI);
+      const parsed = published as { rubric?: Rubric } | null;
       if (parsed?.rubric) {
         const hash = hashCanonical({ schema: "sealedrfq.rubric.v1", criteria: parsed.rubric });
-        return { rubric: parsed.rubric, verified: hash.toLowerCase() === rubricHash.toLowerCase() };
+        return {
+          rubric: parsed.rubric,
+          verified: hash.toLowerCase() === rubricHash.toLowerCase(),
+          published,
+        };
       }
     } catch (e) {
       this.log.warn(`could not load metadata for scoring: ${e instanceof Error ? e.message : e}`);
     }
     const hash = hashCanonical({ schema: "sealedrfq.rubric.v1", criteria: DEFAULT_RUBRIC });
-    return { rubric: DEFAULT_RUBRIC, verified: hash.toLowerCase() === rubricHash.toLowerCase() };
+    return {
+      rubric: DEFAULT_RUBRIC,
+      verified: hash.toLowerCase() === rubricHash.toLowerCase(),
+      published,
+    };
   }
 
   /**
@@ -70,7 +86,7 @@ export class EvaluatorService {
       .all();
     if (revealed.length === 0) throw new Error(`RFQ ${rfqId} has no revealed bids`);
 
-    const { rubric, verified } = await this.rubricFor(rfq.metadataURI, rfq.rubricHash);
+    const { rubric, verified, published } = await this.rubricFor(rfq.metadataURI, rfq.rubricHash);
     const weightTotal = rubric.price + rubric.delivery + rubric.quality || 1;
     const budget = BigInt(rfq.budget);
     const bestPrice = revealed.reduce(
@@ -103,6 +119,15 @@ export class EvaluatorService {
       }
       if (completed === 0) redFlags.push("no completed engagements on this deployment");
 
+      // Buyer requirements, screened at reveal. They live in the metadata document whose hash was
+      // fixed before bidding, so the bar cannot have moved since. Checkable ones become red flags;
+      // stated-but-unprovable ones are reported as needing a person rather than quietly passed.
+      const { failed, unverified } = checkRequirements(
+        { deliveryDays: days, completed },
+        (published as { requirements?: unknown } | null)?.requirements,
+      );
+      redFlags.push(...failed);
+
       const totalBps = Math.round(
         ((priceScore * rubric.price +
           deliveryScore * rubric.delivery +
@@ -121,6 +146,7 @@ export class EvaluatorService {
         },
         totalBps: Math.max(0, Math.min(10_000, totalBps)),
         redFlags,
+        ...(unverified.length ? { unverified } : {}),
       };
     });
 

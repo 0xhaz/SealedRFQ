@@ -37,6 +37,12 @@ export const BidScore = z.object({
   /** Weighted total, 0–100 (two-decimal precision as an integer of basis points: 0–10000). */
   totalBps: z.number().int().min(0).max(10_000),
   redFlags: z.array(z.string()),
+  /**
+   * Requirements the buyer stated that a bid cannot prove — a certification, a warranty length.
+   * Optional so memos anchored before this existed still re-hash to their recorded value; absent
+   * is not the same as "nothing left to check by hand".
+   */
+  unverified: z.array(z.string()).optional(),
 });
 export type BidScore = z.infer<typeof BidScore>;
 

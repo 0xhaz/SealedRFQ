@@ -66,6 +66,10 @@ export function NewRfqForm() {
   const [termsSummary, setTermsSummary] = useState("");
   const [termsUri, setTermsUri] = useState("");
   const [termsFile, setTermsFile] = useState<{ name: string; sha256: `0x${string}` } | null>(null);
+  /** Screened by the evaluator at reveal. Checkable ones become red flags; the rest need a person. */
+  const [maxDeliveryDays, setMaxDeliveryDays] = useState("");
+  const [minHistory, setMinHistory] = useState("");
+  const [attestations, setAttestations] = useState("");
 
   const {
     addresses: invitees,
@@ -172,12 +176,22 @@ export function NewRfqForm() {
               ...(termsFile ? { name: termsFile.name, sha256: termsFile.sha256 } : {}),
             }
           : undefined;
+      const attestationList = attestations
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean);
+      const requirements = {
+        ...(Number(maxDeliveryDays) > 0 ? { maxDeliveryDays: Number(maxDeliveryDays) } : {}),
+        ...(Number(minHistory) > 0 ? { minCompletedEngagements: Number(minHistory) } : {}),
+        ...(attestationList.length ? { attestations: attestationList } : {}),
+      };
       const metadata = JSON.stringify({
         scope,
         rubric: rubric.criteria,
         mode,
         visibility,
         ...(terms ? { terms } : {}),
+        ...(Object.keys(requirements).length ? { requirements } : {}),
       });
       const metadataHash = sha256(stringToBytes(metadata));
 
@@ -510,6 +524,43 @@ export function NewRfqForm() {
             {termsFile
               ? `${termsFile.name} — ${termsFile.sha256.slice(0, 14)}…`
               : "The file stays with you. Only its hash is published, so a supplier can prove the copy they received is the one you set before bidding opened."}
+          </span>
+        </div>
+        <div className="field">
+          <label htmlFor="maxDeliveryDays">Required delivery (days, optional)</label>
+          <input
+            id="maxDeliveryDays"
+            inputMode="numeric"
+            placeholder="e.g. 30"
+            value={maxDeliveryDays}
+            onChange={(e) => setMaxDeliveryDays(e.target.value)}
+          />
+          <span className="hint">A slower bid is flagged automatically when it is revealed.</span>
+        </div>
+        <div className="field">
+          <label htmlFor="minHistory">Minimum completed jobs here (optional)</label>
+          <input
+            id="minHistory"
+            inputMode="numeric"
+            placeholder="e.g. 1"
+            value={minHistory}
+            onChange={(e) => setMinHistory(e.target.value)}
+          />
+          <span className="hint">Counted from this deployment&apos;s own record, not a claim.</span>
+        </div>
+        <div className="field full">
+          <label htmlFor="attestations">Other requirements (one per line, optional)</label>
+          <textarea
+            id="attestations"
+            rows={2}
+            placeholder={"ISO 9001 certification\n24-month warranty\nNet 30 payment terms"}
+            value={attestations}
+            onChange={(e) => setAttestations(e.target.value)}
+          />
+          <span className="hint">
+            These are published with the RFQ and listed against every bid as still needing a human
+            check. Nothing here is ever marked satisfied automatically — a bid cannot prove a
+            certificate.
           </span>
         </div>
         <div className="full note warn">
