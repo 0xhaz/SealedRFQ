@@ -6,7 +6,32 @@
  * recommendation and the audit check, so if it is down the dApp still works — it just cannot show
  * the memo.
  */
-const BASE = process.env.NEXT_PUBLIC_AGENT_URL ?? "http://127.0.0.1:4020";
+/**
+ * Where the agent lives.
+ *
+ * `??` only falls back on null or undefined, so a variable set to an empty string — which is what a
+ * blank field in a hosting dashboard produces — left this as "" and every call went to the site's
+ * own origin. The deployment answered 404 for each one, and because the read path swallows failures
+ * the whole thing looked like an agent that had simply never indexed anything. Blank now counts as
+ * unset, and anything that is not an absolute http(s) URL is rejected rather than quietly joined to
+ * a relative path.
+ */
+function resolveBase(): { url: string; misconfigured: boolean } {
+  const raw = process.env.NEXT_PUBLIC_AGENT_URL?.trim();
+  if (!raw) {
+    // No value at all is normal in local development and wrong anywhere else.
+    return { url: "http://127.0.0.1:4020", misconfigured: false };
+  }
+  if (!/^https?:\/\//i.test(raw)) return { url: "", misconfigured: true };
+  return { url: raw.replace(/\/+$/, ""), misconfigured: false };
+}
+
+const { url: BASE, misconfigured: AGENT_MISCONFIGURED } = resolveBase();
+
+/** Human-readable reason the agent cannot be reached, or null when it is configured sanely. */
+export const agentConfigError = AGENT_MISCONFIGURED
+  ? "NEXT_PUBLIC_AGENT_URL is not an absolute http(s) URL, so the agent cannot be reached."
+  : null;
 
 export type Evaluation = {
   evaluated: boolean;
@@ -66,12 +91,27 @@ async function get<T>(path: string, fallback: T): Promise<T> {
 }
 
 async function post<T>(path: string): Promise<T | { error: string }> {
+  if (agentConfigError) return { error: agentConfigError };
   try {
     const res = await fetch(`${BASE}${path}`, {
       method: "POST",
       signal: AbortSignal.timeout(60_000),
     });
-    if (!res.ok) return { error: `agent returned ${res.status}` };
+    // 402 is the x402 paywall, not a fault: the evaluation endpoint is sold, and a browser has no
+    // way to sign a USDC authorisation. Say what actually happens next rather than a bare status.
+    if (res.status === 402) {
+      return {
+        error:
+          "this evaluation is a paid endpoint. The evaluator scores every RFQ on its own once the reveal window closes, so no action is needed — or pay for it now with the x402 buyer tool.",
+      };
+    }
+    if (res.status === 404) {
+      return {
+        error:
+          "the agent URL is not pointing at the agent (404). Check NEXT_PUBLIC_AGENT_URL on the deployment.",
+      };
+    }
+    return { error: `agent returned ${res.status}` };
     return (await res.json()) as T;
   } catch (e) {
     return { error: e instanceof Error ? e.message : "agent unreachable" };
