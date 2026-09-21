@@ -114,7 +114,6 @@ export async function getBid(id: number, bidder: `0x${string}`) {
 /** Arc's RPC rejects eth_getLogs spans wider than ~5k blocks (measured 2026-09-20). */
 const LOG_CHUNK = 5_000n;
 /** Arc produces roughly 11 blocks a second, so a day is ~1M blocks: never scan from genesis. */
-const BLOCKS_PER_SECOND = 11n;
 /** Give up after this many chunks (~200k blocks, about 5 hours of Arc) rather than hammer the RPC. */
 const MAX_CHUNKS = 40;
 
@@ -125,14 +124,19 @@ const MAX_CHUNKS = 40;
  *
  * This is a stopgap for the read path; apps/agent's indexer keeps the full history in SQLite.
  */
-export async function getBidders(id: number, opts?: { until?: number; expected?: number }) {
+export async function getBidders(id: number, opts?: { expected?: number }) {
   const latest = await publicClient.getBlock({ blockTag: "latest" });
   const deployBlock = BigInt(contracts.startBlock ?? 0);
-  const endTs = BigInt(opts?.until ?? Number(latest.timestamp));
-  // Blocks are ~uniform on Arc, so estimate the block at a timestamp rather than binary-searching.
-  const drift = latest.timestamp > endTs ? (latest.timestamp - endTs) * BLOCKS_PER_SECOND : 0n;
-  let to = drift >= latest.number ? latest.number : latest.number - drift;
-  if (to > latest.number) to = latest.number;
+  // Start at the head and walk back. This used to estimate the block at the bidding deadline from
+  // an assumed block rate, which was wrong by about six times — Arc produces roughly 1.8 blocks a
+  // second, not 11 — so the scan began *behind* the commits it was looking for and, only ever
+  // walking backwards, could never reach them. Every bid on a live RFQ silently vanished from the
+  // page while the contract's own counter still said three.
+  //
+  // An estimate cannot fail safe here: too far back and the events are unreachable. The head
+  // always can, and `expected` still stops the scan as soon as the contract's commitCount is
+  // satisfied, which on a recent RFQ is the first chunk.
+  let to = latest.number;
 
   const seen = new Set<`0x${string}`>();
   for (let i = 0; i < MAX_CHUNKS && to >= deployBlock; i++) {

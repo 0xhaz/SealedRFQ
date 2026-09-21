@@ -1,6 +1,3 @@
-import { formatUsdc } from "@sealedrfq/shared";
-import Link from "next/link";
-import { notFound } from "next/navigation";
 import { DocumentCheck } from "@/components/DocumentCheck";
 import { EvaluationPanel } from "@/components/EvaluationPanel";
 import { Header } from "@/components/Header";
@@ -9,6 +6,9 @@ import { RfqActions } from "@/components/RfqActions";
 import { agent } from "@/lib/agent";
 import { chain, contracts, explorerAddress } from "@/lib/chain";
 import { countdown, getBid, getBidders, getEngagement, getRfq, getRfqCount } from "@/lib/rfq";
+import { formatUsdc } from "@sealedrfq/shared";
+import Link from "next/link";
+import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -20,8 +20,8 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
   if (!Number.isInteger(id) || id < 1 || id > (await getRfqCount())) notFound();
 
   const rfq = await getRfq(id);
-  // Scan back from the bidding deadline and stop once every committed bid is found.
-  const bidders = await getBidders(id, { until: rfq.bidDeadline, expected: rfq.commitCount });
+  // Scan back from the chain head and stop once every committed bid is found.
+  const bidders = await getBidders(id, { expected: rfq.commitCount });
   const bids = await Promise.all(
     bidders.map(async (b) => ({ bidder: b, ...(await getBid(id, b)) })),
   );
@@ -141,66 +141,65 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
             )}
           </div>
 
+          <EvaluationPanel rfqId={id} evaluation={evaluation} audit={audit} />
 
-        <EvaluationPanel rfqId={id} evaluation={evaluation} audit={audit} />
-
-  {engagement && (
-    <div className="panel">
-      <div className="head">
-        Engagement
-        <span className="hint">
-          {engagement.status} · milestone {engagement.currentMilestone + 1} of{" "}
-          {engagement.milestoneCount}
-        </span>
-      </div>
-      <div className="kv">
-        <span>Supplier</span>
-        <b className="mono">{short(engagement.supplier)}</b>
-      </div>
-      <div className="kv">
-        <span>Award price</span>
-        <b>{formatUsdc(engagement.price)} USDC</b>
-      </div>
-      <div className="kv">
-        <span>Retention held</span>
-        <b>{formatUsdc(engagement.retentionHeld)} USDC</b>
-      </div>
-      <div className="kv">
-        <span>Performance stake</span>
-        <b>{formatUsdc(engagement.performanceStake)} USDC</b>
-      </div>
-      <div className="kv">
-        <span>Current escrow job</span>
-        <b className="mono">#{engagement.currentJobId.toString()}</b>
-      </div>
-      {engagement.submittedAt > 0 && engagement.deliverable && (
-        <div className="kv">
-          <span>Deliverable hash</span>
-          <b className="mono" style={{ fontSize: 11 }}>
-            {engagement.deliverable.slice(0, 26)}…
-          </b>
-        </div>
-      )}
-      {engagement.submittedAt > 0 && (
-        <div className="kv">
-          <span>Submitted</span>
-          <b>
-            {when(engagement.submittedAt)} · auto-releases in{" "}
-            {countdown(engagement.submittedAt + engagement.acceptanceWindow)}
-          </b>
-        </div>
-      )}
-      {engagement.deliverable && engagement.deliverable !== `0x${"0".repeat(64)}` && (
-        <div style={{ padding: "12px 20px 4px" }}>
-          <DocumentCheck
-            expected={engagement.deliverable}
-            label="Verify a delivered document"
-            hint="anyone can check a copy against the chain"
-          />
-        </div>
-      )}
-    </div>
-  )}
+          {engagement && (
+            <div className="panel">
+              <div className="head">
+                Engagement
+                <span className="hint">
+                  {engagement.status} · milestone {engagement.currentMilestone + 1} of{" "}
+                  {engagement.milestoneCount}
+                </span>
+              </div>
+              <div className="kv">
+                <span>Supplier</span>
+                <b className="mono">{short(engagement.supplier)}</b>
+              </div>
+              <div className="kv">
+                <span>Award price</span>
+                <b>{formatUsdc(engagement.price)} USDC</b>
+              </div>
+              <div className="kv">
+                <span>Retention held</span>
+                <b>{formatUsdc(engagement.retentionHeld)} USDC</b>
+              </div>
+              <div className="kv">
+                <span>Performance stake</span>
+                <b>{formatUsdc(engagement.performanceStake)} USDC</b>
+              </div>
+              <div className="kv">
+                <span>Current escrow job</span>
+                <b className="mono">#{engagement.currentJobId.toString()}</b>
+              </div>
+              {engagement.submittedAt > 0 && engagement.deliverable && (
+                <div className="kv">
+                  <span>Deliverable hash</span>
+                  <b className="mono" style={{ fontSize: 11 }}>
+                    {engagement.deliverable.slice(0, 26)}…
+                  </b>
+                </div>
+              )}
+              {engagement.submittedAt > 0 && (
+                <div className="kv">
+                  <span>Submitted</span>
+                  <b>
+                    {when(engagement.submittedAt)} · auto-releases in{" "}
+                    {countdown(engagement.submittedAt + engagement.acceptanceWindow)}
+                  </b>
+                </div>
+              )}
+              {engagement.deliverable && engagement.deliverable !== `0x${"0".repeat(64)}` && (
+                <div style={{ padding: "12px 20px 4px" }}>
+                  <DocumentCheck
+                    expected={engagement.deliverable}
+                    label="Verify a delivered document"
+                    hint="anyone can check a copy against the chain"
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="right">
@@ -267,7 +266,6 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
             </div>
           </div>
 
-
           <RfqActions
             rfqId={id}
             phase={rfq.phase}
@@ -293,7 +291,6 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
           />
         </div>
       </div>
-
 
       <nav className="page-nav">
         <Link className="btn-nav" href="/rfqs">
