@@ -1,8 +1,10 @@
-import Link from "next/link";
-import { notFound } from "next/navigation";
 import { Header } from "@/components/Header";
 import { PhaseBadge } from "@/components/PhaseBadge";
+import { TermsPanel } from "@/components/TermsPanel";
+import { agent } from "@/lib/agent";
 import { countdown, getRfq, getRfqCount } from "@/lib/rfq";
+import Link from "next/link";
+import { notFound } from "next/navigation";
 import { BidForm } from "./BidForm";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +13,8 @@ export default async function BidPage({ params }: { params: Promise<{ id: string
   const id = Number((await params).id);
   if (!Number.isInteger(id) || id < 1 || id > (await getRfqCount())) notFound();
   const rfq = await getRfq(id);
+  // The document lives off-chain; TermsPanel re-hashes it against the chain rather than trusting it.
+  const indexed = await agent.rfq(id);
 
   return (
     <div className="shell">
@@ -31,6 +35,10 @@ export default async function BidPage({ params }: { params: Promise<{ id: string
       </section>
 
       <div className="grid">
+        <TermsPanel
+          metadataURI={"rfq" in indexed ? indexed.rfq?.metadataURI : null}
+          metadataHash={rfq.metadataHash}
+        />
         <BidForm
           rfqId={id}
           phase={rfq.phase}

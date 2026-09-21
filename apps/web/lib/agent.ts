@@ -52,7 +52,10 @@ export type AuditResult = {
 
 async function get<T>(path: string, fallback: T): Promise<T> {
   try {
-    const res = await fetch(`${BASE}${path}`, { cache: "no-store", signal: AbortSignal.timeout(4000) });
+    const res = await fetch(`${BASE}${path}`, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(4000),
+    });
     if (!res.ok) return fallback;
     return (await res.json()) as T;
   } catch {
@@ -62,7 +65,10 @@ async function get<T>(path: string, fallback: T): Promise<T> {
 
 async function post<T>(path: string): Promise<T | { error: string }> {
   try {
-    const res = await fetch(`${BASE}${path}`, { method: "POST", signal: AbortSignal.timeout(60_000) });
+    const res = await fetch(`${BASE}${path}`, {
+      method: "POST",
+      signal: AbortSignal.timeout(60_000),
+    });
     if (!res.ok) return { error: `agent returned ${res.status}` };
     return (await res.json()) as T;
   } catch (e) {
@@ -70,11 +76,18 @@ async function post<T>(path: string): Promise<T | { error: string }> {
   }
 }
 
+export type IndexedRfq = {
+  rfq?: { metadataURI?: string } | null;
+};
+
 export const agent = {
+  /** The indexed row, for the published metadata document the chain only stores a hash of. */
+  rfq: (rfqId: number) => get<IndexedRfq>(`/rfqs/${rfqId}`, { rfq: null }),
   evaluation: (rfqId: number) => get<Evaluation>(`/rfqs/${rfqId}/evaluation`, { evaluated: false }),
   audit: (rfqId: number) =>
     get<AuditResult>(`/audit/${rfqId}`, { verified: false, reason: "agent unreachable" }),
-  health: () => get<{ ok: boolean; indexedBlock: number }>("/health", { ok: false, indexedBlock: 0 }),
+  health: () =>
+    get<{ ok: boolean; indexedBlock: number }>("/health", { ok: false, indexedBlock: 0 }),
   /**
    * Ask the evaluator to score now. The scheduler does this on its own once the reveal window
    * closes; this is for anyone who does not want to wait for the next tick.

@@ -2,6 +2,8 @@
 
 import { WalletChip } from "@/components/WalletChip";
 import { chain, contracts, explorerTx } from "@/lib/chain";
+import { type Deadlines, PRESETS, applyPreset, checkDeadlines, toUnix } from "@/lib/deadlines";
+import { hashFile } from "@/lib/docHash";
 import { MAX_INVITEES, parseInvitees } from "@/lib/invitees";
 import { signUsdcPermit } from "@/lib/permit";
 import { describeTxError } from "@/lib/txError";
@@ -13,7 +15,7 @@ import {
   parseUsdc,
 } from "@sealedrfq/shared";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { sha256, stringToBytes, stringToHex } from "viem";
 import { erc20Abi } from "viem";
 import { useAccount, useConfig, useReadContract, useWriteContract } from "wagmi";
@@ -38,9 +40,12 @@ export function NewRfqForm() {
   const [budget, setBudget] = useState("3.00");
   const [deposit, setDeposit] = useState("0.25");
   const [stakePct, setStakePct] = useState("5");
-  const [bidMin, setBidMin] = useState("5");
-  const [revealMin, setRevealMin] = useState("5");
-  const [awardMin, setAwardMin] = useState("60");
+  const [deadlines, setDeadlines] = useState<Deadlines>({ bid: "", reveal: "", award: "" });
+  /**
+   * chain time minus this device's clock, in seconds. Deadlines are judged by block.timestamp, so
+   * the dates offered and validated here are measured from the chain rather than from the browser.
+   */
+  const [skew, setSkew] = useState<number | null>(null);
   const [deliveryMin, setDeliveryMin] = useState("15");
   const [acceptMin, setAcceptMin] = useState("3");
   const [retentionPct, setRetentionPct] = useState("10");
@@ -54,6 +59,13 @@ export function NewRfqForm() {
    */
   const [visibility, setVisibility] = useState<"public" | "invited">("public");
   const [inviteeText, setInviteeText] = useState("");
+  /**
+   * Buyer's terms. Hashed into the metadata document, whose own hash is fixed on-chain when the RFQ
+   * opens — so the terms cannot be revised once bidding has started, and every bidder can prove it.
+   */
+  const [termsSummary, setTermsSummary] = useState("");
+  const [termsUri, setTermsUri] = useState("");
+  const [termsFile, setTermsFile] = useState<{ name: string; sha256: `0x${string}` } | null>(null);
 
   const {
     addresses: invitees,
@@ -63,6 +75,28 @@ export function NewRfqForm() {
   const inviteesUnusable =
     visibility === "invited" &&
     (invitees.length === 0 || invalidInvitees.length > 0 || tooManyInvitees);
+
+  // Measured once: a second round-trip per keystroke would be silly, and clocks do not drift that
+  // fast. The transaction itself is still built from a freshly read block.
+  useEffect(() => {
+    let live = true;
+    getBlock(config, { chainId: chain.id as never })
+      .then((b) => {
+        if (!live) return;
+        const delta = Number(b.timestamp) - Math.floor(Date.now() / 1000);
+        setSkew(delta);
+        setDeadlines((d) =>
+          d.bid ? d : applyPreset(PRESETS[1].offsets, Math.floor(Date.now() / 1000) + delta),
+        );
+      })
+      .catch(() => setSkew(0));
+    return () => {
+      live = false;
+    };
+  }, [config]);
+
+  const chainNow = Math.floor(Date.now() / 1000) + (skew ?? 0);
+  const deadlineError = skew === null ? null : checkDeadlines(deadlines, chainNow);
 
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -130,7 +164,21 @@ export function NewRfqForm() {
       const rubricHash = hashCanonical(rubric);
       // Publish the rubric with the scope: only its hash is on-chain, and the evaluator refuses to
       // score unless the published weights hash to it. Otherwise criteria could be invented later.
-      const metadata = JSON.stringify({ scope, rubric: rubric.criteria, mode, visibility });
+      const terms =
+        termsSummary.trim() || termsUri.trim() || termsFile
+          ? {
+              ...(termsSummary.trim() ? { summary: termsSummary.trim() } : {}),
+              ...(termsUri.trim() ? { uri: termsUri.trim() } : {}),
+              ...(termsFile ? { name: termsFile.name, sha256: termsFile.sha256 } : {}),
+            }
+          : undefined;
+      const metadata = JSON.stringify({
+        scope,
+        rubric: rubric.criteria,
+        mode,
+        visibility,
+        ...(terms ? { terms } : {}),
+      });
       const metadataHash = sha256(stringToBytes(metadata));
 
       // Deadlines are judged by block.timestamp, so anchor them to the chain rather than to this
@@ -138,9 +186,11 @@ export function NewRfqForm() {
       // Date.now() there produces a "deadline" already in the chain's past — InvalidDeadlines.
       const block = await getBlock(config, { chainId: chain.id as never });
       const now = Number(block.timestamp);
-      const bidDeadline = BigInt(now + Number(bidMin) * 60);
-      const revealDeadline = bidDeadline + BigInt(Number(revealMin) * 60);
-      const awardDeadline = revealDeadline + BigInt(Number(awardMin) * 60);
+      const fresh = checkDeadlines(deadlines, now);
+      if (fresh) throw new Error(fresh);
+      const bidDeadline = BigInt(toUnix(deadlines.bid) as number);
+      const revealDeadline = BigInt(toUnix(deadlines.reveal) as number);
+      const awardDeadline = BigInt(toUnix(deadlines.award) as number);
 
       const params = {
         rubricHash,
@@ -306,33 +356,67 @@ export function NewRfqForm() {
             onChange={(e) => setRetentionPct(e.target.value)}
           />
         </div>
+        <div className="field full">
+          <label htmlFor="bidAt">Timetable</label>
+          <div className="presets">
+            {PRESETS.map((preset) => (
+              <button
+                key={preset.label}
+                type="button"
+                className="btn-outline"
+                title={preset.hint}
+                onClick={() => setDeadlines(applyPreset(preset.offsets, chainNow))}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="field">
-          <label htmlFor="bidmin">Bidding (minutes)</label>
+          <label htmlFor="bidAt">Bidding closes</label>
           <input
-            id="bidmin"
-            inputMode="numeric"
-            value={bidMin}
-            onChange={(e) => setBidMin(e.target.value)}
+            id="bidAt"
+            type="datetime-local"
+            value={deadlines.bid}
+            onChange={(e) => setDeadlines({ ...deadlines, bid: e.target.value })}
           />
         </div>
         <div className="field">
-          <label htmlFor="revealmin">Reveal (minutes)</label>
+          <label htmlFor="revealAt">Revealing closes</label>
           <input
-            id="revealmin"
-            inputMode="numeric"
-            value={revealMin}
-            onChange={(e) => setRevealMin(e.target.value)}
+            id="revealAt"
+            type="datetime-local"
+            value={deadlines.reveal}
+            onChange={(e) => setDeadlines({ ...deadlines, reveal: e.target.value })}
           />
         </div>
         <div className="field">
-          <label htmlFor="awardmin">Award window (minutes)</label>
+          <label htmlFor="awardAt">Award deadline</label>
           <input
-            id="awardmin"
-            inputMode="numeric"
-            value={awardMin}
-            onChange={(e) => setAwardMin(e.target.value)}
+            id="awardAt"
+            type="datetime-local"
+            value={deadlines.award}
+            onChange={(e) => setDeadlines({ ...deadlines, award: e.target.value })}
           />
         </div>
+        {deadlineError && (
+          <div className="full note warn">
+            <b>Timetable:</b> {deadlineError}
+          </div>
+        )}
+        {skew !== null && Math.abs(skew) > 90 && (
+          <div className="full note warn">
+            <b>
+              This device&apos;s clock is{" "}
+              {Math.abs(skew) > 3600
+                ? `${Math.round(Math.abs(skew) / 3600)}h`
+                : `${Math.round(Math.abs(skew) / 60)} min`}{" "}
+              {skew > 0 ? "behind" : "ahead of"} the network.
+            </b>{" "}
+            The dates above are measured from chain time, not from this machine, because that is
+            what the contract judges deadlines against.
+          </div>
+        )}
         <div className="field">
           <label htmlFor="deliverymin">Delivery per milestone (minutes)</label>
           <input
@@ -393,6 +477,41 @@ export function NewRfqForm() {
             ? "In RFP mode each bid carries a proposal document, sealed with the price: neither can be rewritten after seeing rival bids."
             : "In RFQ mode bids are price and delivery only — the fastest path when you already know exactly what you need."}
         </div>
+        <div className="field full">
+          <label htmlFor="termsSummary">Terms and conditions (optional)</label>
+          <textarea
+            id="termsSummary"
+            rows={2}
+            placeholder="Payment terms, warranty, liability, confidentiality — or a summary pointing at the attached document."
+            value={termsSummary}
+            onChange={(e) => setTermsSummary(e.target.value)}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="termsUri">Terms document link</label>
+          <input
+            id="termsUri"
+            placeholder="https://…"
+            value={termsUri}
+            onChange={(e) => setTermsUri(e.target.value)}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="termsFile">Terms document (hashed, not uploaded)</label>
+          <input
+            id="termsFile"
+            type="file"
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              setTermsFile(f ? { name: f.name, sha256: await hashFile(f) } : null);
+            }}
+          />
+          <span className="hint">
+            {termsFile
+              ? `${termsFile.name} — ${termsFile.sha256.slice(0, 14)}…`
+              : "The file stays with you. Only its hash is published, so a supplier can prove the copy they received is the one you set before bidding opened."}
+          </span>
+        </div>
         <div className="full note warn">
           <b>What this contract does not check:</b> whether delivered goods, materials or work meet
           your specification. It settles money against rules and hashes. Inspection stays yours —
@@ -415,7 +534,7 @@ export function NewRfqForm() {
           <button
             type="button"
             className="btn-primary"
-            disabled={!!busy || shortBy > 0n || inviteesUnusable}
+            disabled={!!busy || shortBy > 0n || inviteesUnusable || !!deadlineError}
             onClick={submit}
           >
             {busy ?? "Escrow budget and open for bids"}

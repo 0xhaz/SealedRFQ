@@ -1293,6 +1293,14 @@ td:first-child {
   align-items: center;
   padding: 12px 18px 0;
 }
+/* Inside a form field the surrounding label already supplies the spacing. */
+.field .presets {
+  padding: 0;
+}
+.field .presets .btn-outline {
+  padding: 6px 12px;
+  font-size: 12px;
+}
 .presets-label {
   font-family: var(--mono);
   font-size: 11px;
