@@ -23,24 +23,15 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true
+      "recommended": true,
+      "style": {
+        "useImportType": "off"
+      }
     }
   },
   "javascript": {
     "parser": {
       "unsafeParameterDecoratorsEnabled": true
     }
-  },
-  "overrides": [
-    {
-      "include": ["apps/agent/**"],
-      "linter": {
-        "rules": {
-          "style": {
-            "useImportType": "off"
-          }
-        }
-      }
-    }
-  ]
+  }
 }

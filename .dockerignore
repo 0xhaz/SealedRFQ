@@ -1,0 +1,20 @@
+# Keep the build context small and secrets out of it.
+.env
+.env.*
+!.env.example
+.git
+.local
+node_modules
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+contracts/out
+contracts/cache
+contracts/cache-arc
+contracts/broadcast
+contracts/lib
+apps/web
+web
+*.db
+*.db-*

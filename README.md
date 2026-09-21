@@ -162,6 +162,50 @@ If these required permission, either party could hold the other hostage by simpl
 Leaving them open means a stranger or a keeper bot can push the state forward and the outcome is
 identical whoever calls — the caller cannot choose *what* happens, only *when* someone stops waiting.
 
+## Deploying
+
+Two services. The web app is a static-ish Next.js front end that talks to the chain from the user's
+own wallet; the agent is a long-running process that indexes, scores and attests.
+
+**Web → Vercel.** Set the project's Root Directory to `apps/web` and turn on "Include source files
+outside of the Root Directory", because the build reaches up to the workspace for
+`@sealedrfq/shared`. `apps/web/vercel.json` already carries the install and build commands. Three
+variables, all public by design:
+
+```
+NEXT_PUBLIC_ARC_CHAIN_ID=5042002
+NEXT_PUBLIC_ARC_RPC_URL=https://rpc.blockdaemon.testnet.arc.network
+NEXT_PUBLIC_AGENT_URL=https://<your-agent>.up.railway.app
+```
+
+**Agent → Railway.** `railway.json` points at `apps/agent/Dockerfile`, which is built from the
+repository root. Two things are easy to get wrong:
+
+- **Mount a volume at `/data`.** The index lives in SQLite, and a container filesystem is discarded
+  on every deploy — without a volume the agent re-indexes from the deployment's `startBlock` each
+  time it restarts. `DATABASE_URL` already defaults to `file:/data/agent.db`.
+- **Set `AGENT_API_TOKEN` and `CORS_ORIGIN`.** `NEXT_PUBLIC_AGENT_URL` is compiled into the browser
+  bundle, so the agent is called directly from the user's browser and is public by construction.
+
+```
+ARC_CHAIN_ID=5042002
+ARC_RPC_URL=https://rpc.blockdaemon.testnet.arc.network
+CORS_ORIGIN=https://<your-app>.vercel.app
+AGENT_API_TOKEN=<openssl rand -hex 32>
+EVALUATOR_PK=…   AWARDER_PK=…   VERIFIER_PK=…   ARBITER_PK=…
+X402_ENABLED=true  X402_PAY_TO=…  X402_PRICE=0.05
+```
+
+`POST /rfqs/:id/award` and `POST /reindex` are **disabled until `AGENT_API_TOKEN` is set**, rather
+than open until it is. The first makes the service broadcast a transaction signed by the awarder
+key; the second is a free way to exhaust the RPC budget. The on-chain policy still prevents an
+award the evaluator never recommended, so neither is a route to the escrow — but choosing *when* a
+buyer's award lands is not a stranger's choice to make.
+
+The role keys are hot on the host. That is the honest cost of an agent that acts on its own, and it
+is why the keys are split per role: a leaked evaluator key can score and attest but cannot award or
+move escrow.
+
 ## Paying the agent: x402
 
 Scoring an RFQ costs real inference, so `POST /rfqs/:id/evaluate` can be sold rather than given

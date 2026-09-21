@@ -1,7 +1,8 @@
-import { Controller, Get, Param, Post } from "@nestjs/common";
+import { Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
 import { hashCanonical } from "@sealedrfq/shared";
 import { desc, eq, sql } from "drizzle-orm";
 import { db, schema } from "../../db/index.js";
+import { TokenGuard } from "../auth/token.guard.js";
 import { AwarderService } from "../awarder/awarder.service.js";
 import { ChainService } from "../chain/chain.service.js";
 import { EvaluatorService } from "../evaluator/evaluator.service.js";
@@ -222,13 +223,16 @@ export class ApiController {
     return this.evaluator.evaluateAndAttest(Number(id));
   }
 
+  /** Spends the AWARDER key, so it is token-gated and disabled until one is configured. */
   @Post("rfqs/:id/award")
+  @UseGuards(TokenGuard)
   award(@Param("id") id: string) {
     return this.awarder.award(Number(id));
   }
 
-  /** Force an indexer pass (the loop also runs on a timer). */
+  /** Force an indexer pass (the loop also runs on a timer). Token-gated: it costs RPC budget. */
   @Post("reindex")
+  @UseGuards(TokenGuard)
   async reindex() {
     await this.indexer.tick();
     return this.health();

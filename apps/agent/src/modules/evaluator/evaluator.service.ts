@@ -3,7 +3,7 @@ import { AttestationKinds, type DecisionMemo, MEMO_SCHEMA, hashCanonical } from 
 import { eq, sql } from "drizzle-orm";
 import { type Hex, stringToHex } from "viem";
 import { db, schema } from "../../db/index.js";
-import type { ChainService } from "../chain/chain.service.js";
+import { ChainService } from "../chain/chain.service.js";
 import { loadMetadata } from "./metadata.js";
 
 export type Rubric = { price: number; delivery: number; quality: number };
