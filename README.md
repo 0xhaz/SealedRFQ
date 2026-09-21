@@ -178,11 +178,14 @@ NEXT_PUBLIC_ARC_RPC_URL=https://rpc.blockdaemon.testnet.arc.network
 NEXT_PUBLIC_AGENT_URL=https://<your-agent>.up.railway.app
 ```
 
-**Agent → Railway.** `railway.json` points at `apps/agent/Dockerfile`, which is built from the
-repository root, and states the start command because Railway otherwise infers `pnpm start` from
-package.json — pnpm belongs to the builder stage and is deliberately absent from the runtime image.
-If a deploy still fails with "The executable `pnpm` could not be found", clear any Custom Start
-Command left on the service under Settings → Deploy. Two more things are easy to get wrong:
+**Agent → Railway.** The `Dockerfile` is at the repository root rather than under `apps/agent`,
+because that is where Railway reliably picks it over its own Railpack autodetection — left in the
+app directory it was ignored, and Railpack tried to build the whole pnpm monorepo and failed on a
+workspace package the build context excludes. `railway.json` also states the start command, since
+Railway otherwise infers `pnpm start` and pnpm is a builder-stage tool deliberately absent from the
+runtime image. If a deploy still fails that way, clear any Custom Start Command on the service under
+Settings → Deploy, and check Settings → Build says Dockerfile. Two more things are easy to get
+wrong:
 
 - **Add a Railway Volume mounted at `/data`**, on the service, before the first deploy. The index
   lives in SQLite, and a container filesystem is discarded on every deploy — without a volume the

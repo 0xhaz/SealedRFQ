@@ -1,10 +1,11 @@
 # Agent service image (Railway, Fly, or anything that runs a container).
 #
-# Built from the repository root, not from this directory: the agent imports @sealedrfq/shared
-# through the pnpm workspace, and it reads contracts/deployments/<chainId>.json for the addresses,
-# so neither the lockfile nor those files can be left outside the context.
+# At the repository root on purpose. The agent imports @sealedrfq/shared through the pnpm workspace
+# and reads contracts/deployments/<chainId>.json, so the context has to be the whole repo — and
+# Railway only reliably picks a Dockerfile over its own Railpack autodetection when it sits here.
+# Left under apps/agent it was ignored, and Railpack tried to build the monorepo itself.
 #
-#   docker build -f apps/agent/Dockerfile -t sealedrfq-agent .
+#   docker build -t sealedrfq-agent .
 #
 # better-sqlite3 is a native module, so it is compiled in the builder and the runner uses the same
 # base image — a different Node minor between the two stages would make it refuse to load.
