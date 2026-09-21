@@ -1,6 +1,7 @@
-import Link from "next/link";
+import { FormNav } from "@/components/FormNav";
 import { Header } from "@/components/Header";
 import { chain } from "@/lib/chain";
+import Link from "next/link";
 import { NewRfqForm } from "./NewRfqForm";
 
 export default function NewRfq() {
@@ -18,9 +19,22 @@ export default function NewRfq() {
       <div className="grid">
         <NewRfqForm />
         <div className="right">
+          <FormNav
+            sections={[
+              { id: "details", label: "Details" },
+              { id: "money", label: "Budget and stakes" },
+              { id: "timetable", label: "Timetable" },
+              { id: "scoring", label: "Scoring rubric" },
+              { id: "quote", label: "What to quote" },
+              { id: "terms", label: "Terms and conditions" },
+              { id: "requirements", label: "Requirements" },
+              { id: "review", label: "Before you post" },
+            ]}
+          />
           <div className="panel">
             <div className="head">
-              What you are committing to<span className="hint">both sides have skin in the game</span>
+              What you are committing to
+              <span className="hint">both sides have skin in the game</span>
             </div>
             <div className="note">
               <b>Budget.</b> Escrowed now. Whatever the award does not use is returned to you as

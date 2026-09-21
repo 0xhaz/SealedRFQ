@@ -282,340 +282,398 @@ export function NewRfqForm() {
           escrows {formatUsdc(stakeUnits > 0n ? parseUsdc(budget || "0") + stakeUnits : 0n)} USDC
         </span>
       </div>
-      <div className="form">
-        <div className="field full">
-          <label htmlFor="mode">Type</label>
-          <select id="mode" value={mode} onChange={(e) => setMode(e.target.value as "RFQ" | "RFP")}>
-            <option value="RFQ">RFQ — defined items, judged mainly on price and delivery</option>
-            <option value="RFP">RFP — suppliers propose a solution; method is judged too</option>
-          </select>
-        </div>
-        <div className="field full">
-          <label htmlFor="visibility">Visibility</label>
-          <select
-            id="visibility"
-            value={visibility}
-            onChange={(e) => setVisibility(e.target.value as "public" | "invited")}
-          >
-            <option value="public">Open — any supplier may bid</option>
-            <option value="invited">Invited — only listed suppliers may bid</option>
-          </select>
-          <span className="hint">
-            Bids stay sealed either way. This decides who is let in, not what they can see.
-          </span>
-        </div>
-        {visibility === "invited" && (
+      <section id="details" className="form-section">
+        <h4>Details</h4>
+        <div className="form">
           <div className="field full">
-            <label htmlFor="invitees">Invited suppliers</label>
+            <label htmlFor="mode">Type</label>
+            <select
+              id="mode"
+              value={mode}
+              onChange={(e) => setMode(e.target.value as "RFQ" | "RFP")}
+            >
+              <option value="RFQ">RFQ — defined items, judged mainly on price and delivery</option>
+              <option value="RFP">RFP — suppliers propose a solution; method is judged too</option>
+            </select>
+          </div>
+          <div className="field full">
+            <label htmlFor="visibility">Visibility</label>
+            <select
+              id="visibility"
+              value={visibility}
+              onChange={(e) => setVisibility(e.target.value as "public" | "invited")}
+            >
+              <option value="public">Open — any supplier may bid</option>
+              <option value="invited">Invited — only listed suppliers may bid</option>
+            </select>
+            <span className="hint">
+              Bids stay sealed either way. This decides who is let in, not what they can see.
+            </span>
+          </div>
+          {visibility === "invited" && (
+            <div className="field full">
+              <label htmlFor="invitees">Invited suppliers</label>
+              <textarea
+                id="invitees"
+                rows={3}
+                placeholder="0xabc… one per line, or pasted comma-separated"
+                value={inviteeText}
+                onChange={(e) => setInviteeText(e.target.value)}
+              />
+              <span className="hint">
+                {invalidInvitees.length > 0
+                  ? `Not an address: ${invalidInvitees.slice(0, 3).join(", ")}${
+                      invalidInvitees.length > 3 ? ` and ${invalidInvitees.length - 3} more` : ""
+                    }`
+                  : tooManyInvitees
+                    ? `${invitees.length} addresses — the contract accepts at most ${MAX_INVITEES}.`
+                    : invitees.length === 0
+                      ? "Add at least one address, or switch back to open bidding."
+                      : `${invitees.length} supplier${invitees.length === 1 ? "" : "s"} invited. The list is on-chain and public: it names who was asked, not what they bid.`}
+              </span>
+            </div>
+          )}
+          <div className="field full">
+            <label htmlFor="scope">{mode === "RFP" ? "Problem statement" : "Scope"}</label>
             <textarea
-              id="invitees"
+              id="scope"
               rows={3}
-              placeholder="0xabc… one per line, or pasted comma-separated"
-              value={inviteeText}
-              onChange={(e) => setInviteeText(e.target.value)}
+              value={scope}
+              onChange={(e) => setScope(e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="category">Category</label>
+            <input id="category" value={category} onChange={(e) => setCategory(e.target.value)} />
+          </div>
+          <div className="field">
+            <label htmlFor="region">Region</label>
+            <input id="region" value={region} onChange={(e) => setRegion(e.target.value)} />
+          </div>
+        </div>
+      </section>
+
+      <section id="money" className="form-section">
+        <h4>Budget and stakes</h4>
+        <div className="form">
+          <div className="field">
+            <label htmlFor="budget">Budget (USDC)</label>
+            <input
+              id="budget"
+              inputMode="decimal"
+              value={budget}
+              onChange={(e) => setBudget(e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="deposit">Bid deposit (USDC)</label>
+            <input
+              id="deposit"
+              inputMode="decimal"
+              value={deposit}
+              onChange={(e) => setDeposit(e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="stake">Your stake (% of budget)</label>
+            <input
+              id="stake"
+              inputMode="decimal"
+              value={stakePct}
+              onChange={(e) => setStakePct(e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="retention">Retention (% per milestone)</label>
+            <input
+              id="retention"
+              inputMode="decimal"
+              value={retentionPct}
+              onChange={(e) => setRetentionPct(e.target.value)}
+            />
+          </div>
+        </div>
+      </section>
+
+      <section id="timetable" className="form-section">
+        <h4>Timetable</h4>
+        <div className="form">
+          <div className="field full">
+            <label htmlFor="bidAt">Timetable</label>
+            <div className="presets">
+              {PRESETS.map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  className="btn-outline"
+                  title={preset.hint}
+                  onClick={() => setDeadlines(applyPreset(preset.offsets, chainNow))}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="field">
+            <label htmlFor="bidAt">Bidding closes</label>
+            <input
+              id="bidAt"
+              type="datetime-local"
+              value={deadlines.bid}
+              onChange={(e) => setDeadlines({ ...deadlines, bid: e.target.value })}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="revealAt">Revealing closes</label>
+            <input
+              id="revealAt"
+              type="datetime-local"
+              value={deadlines.reveal}
+              onChange={(e) => setDeadlines({ ...deadlines, reveal: e.target.value })}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="awardAt">Award deadline</label>
+            <input
+              id="awardAt"
+              type="datetime-local"
+              value={deadlines.award}
+              onChange={(e) => setDeadlines({ ...deadlines, award: e.target.value })}
+            />
+          </div>
+          {deadlineError && (
+            <div className="full note warn">
+              <b>Timetable:</b> {deadlineError}
+            </div>
+          )}
+          {skew !== null && Math.abs(skew) > 90 && (
+            <div className="full note warn">
+              <b>
+                This device&apos;s clock is{" "}
+                {Math.abs(skew) > 3600
+                  ? `${Math.round(Math.abs(skew) / 3600)}h`
+                  : `${Math.round(Math.abs(skew) / 60)} min`}{" "}
+                {skew > 0 ? "behind" : "ahead of"} the network.
+              </b>{" "}
+              The dates above are measured from chain time, not from this machine, because that is
+              what the contract judges deadlines against.
+            </div>
+          )}
+          <div className="field">
+            <label htmlFor="deliverymin">Delivery per milestone (minutes)</label>
+            <input
+              id="deliverymin"
+              inputMode="numeric"
+              value={deliveryMin}
+              onChange={(e) => setDeliveryMin(e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="acceptmin">Acceptance window (minutes)</label>
+            <input
+              id="acceptmin"
+              inputMode="numeric"
+              value={acceptMin}
+              onChange={(e) => setAcceptMin(e.target.value)}
+            />
+            {Number(acceptMin) < 60 && (
+              <span className="field-hint warn">
+                Payment auto-releases after this long. Fine for a demo; for real work give yourself
+                time to inspect — hours for a document, days for anything physical.
+              </span>
+            )}
+          </div>
+          <div className="field">
+            <label htmlFor="milestones">Milestones (% split)</label>
+            <input
+              id="milestones"
+              value={milestones}
+              onChange={(e) => setMilestones(e.target.value)}
+            />
+          </div>
+        </div>
+      </section>
+
+      <section id="scoring" className="form-section">
+        <h4>Scoring rubric</h4>
+        <div className="form">
+          <div className="field full">
+            <label htmlFor="w-price">Rubric weights — price / delivery / quality</label>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                id="w-price"
+                inputMode="numeric"
+                value={weights.price}
+                onChange={(e) => setWeights({ ...weights, price: e.target.value })}
+              />
+              <input
+                aria-label="delivery weight"
+                inputMode="numeric"
+                value={weights.delivery}
+                onChange={(e) => setWeights({ ...weights, delivery: e.target.value })}
+              />
+              <input
+                aria-label="quality weight"
+                inputMode="numeric"
+                value={weights.quality}
+                onChange={(e) => setWeights({ ...weights, quality: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="full note">
+            {mode === "RFP"
+              ? "In RFP mode each bid carries a proposal document, sealed with the price: neither can be rewritten after seeing rival bids."
+              : "In RFQ mode bids are price and delivery only — the fastest path when you already know exactly what you need."}
+          </div>
+        </div>
+      </section>
+
+      <section id="quote" className="form-section">
+        <h4>What to quote</h4>
+        <div className="form">
+          <div className="field full">
+            <label htmlFor="lineItems">Line items (optional)</label>
+            <textarea
+              id="lineItems"
+              rows={4}
+              placeholder={
+                "2D barcode scanner, USB-C | 500 | ea\nCleaning tablets | 20 | box\nInstall and commission on site"
+              }
+              value={lineItemText}
+              onChange={(e) => setLineItemText(e.target.value)}
             />
             <span className="hint">
-              {invalidInvitees.length > 0
-                ? `Not an address: ${invalidInvitees.slice(0, 3).join(", ")}${
-                    invalidInvitees.length > 3 ? ` and ${invalidInvitees.length - 3} more` : ""
-                  }`
-                : tooManyInvitees
-                  ? `${invitees.length} addresses — the contract accepts at most ${MAX_INVITEES}.`
-                  : invitees.length === 0
-                    ? "Add at least one address, or switch back to open bidding."
-                    : `${invitees.length} supplier${invitees.length === 1 ? "" : "s"} invited. The list is on-chain and public: it names who was asked, not what they bid.`}
+              One per line as <span className="mono-sm">item | qty | unit</span>; quantity and unit
+              are optional.{" "}
+              {parseLineItems(lineItemText).length > 0
+                ? `${parseLineItems(lineItemText).length} item(s) — suppliers quote a single total against this list, and it cannot change once bidding opens.`
+                : "Suppliers quote one total for the whole list. Leave empty for a single-line buy."}
             </span>
           </div>
-        )}
-        <div className="field full">
-          <label htmlFor="scope">{mode === "RFP" ? "Problem statement" : "Scope"}</label>
-          <textarea id="scope" rows={3} value={scope} onChange={(e) => setScope(e.target.value)} />
         </div>
-        <div className="field">
-          <label htmlFor="category">Category</label>
-          <input id="category" value={category} onChange={(e) => setCategory(e.target.value)} />
-        </div>
-        <div className="field">
-          <label htmlFor="region">Region</label>
-          <input id="region" value={region} onChange={(e) => setRegion(e.target.value)} />
-        </div>
-        <div className="field">
-          <label htmlFor="budget">Budget (USDC)</label>
-          <input
-            id="budget"
-            inputMode="decimal"
-            value={budget}
-            onChange={(e) => setBudget(e.target.value)}
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="deposit">Bid deposit (USDC)</label>
-          <input
-            id="deposit"
-            inputMode="decimal"
-            value={deposit}
-            onChange={(e) => setDeposit(e.target.value)}
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="stake">Your stake (% of budget)</label>
-          <input
-            id="stake"
-            inputMode="decimal"
-            value={stakePct}
-            onChange={(e) => setStakePct(e.target.value)}
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="retention">Retention (% per milestone)</label>
-          <input
-            id="retention"
-            inputMode="decimal"
-            value={retentionPct}
-            onChange={(e) => setRetentionPct(e.target.value)}
-          />
-        </div>
-        <div className="field full">
-          <label htmlFor="bidAt">Timetable</label>
-          <div className="presets">
-            {PRESETS.map((preset) => (
-              <button
-                key={preset.label}
-                type="button"
-                className="btn-outline"
-                title={preset.hint}
-                onClick={() => setDeadlines(applyPreset(preset.offsets, chainNow))}
-              >
-                {preset.label}
-              </button>
-            ))}
+      </section>
+
+      <section id="terms" className="form-section">
+        <h4>Terms and conditions</h4>
+        <div className="form">
+          <div className="field full">
+            <label htmlFor="termsSummary">Terms and conditions (optional)</label>
+            <textarea
+              id="termsSummary"
+              rows={2}
+              placeholder="Payment terms, warranty, liability, confidentiality — or a summary pointing at the attached document."
+              value={termsSummary}
+              onChange={(e) => setTermsSummary(e.target.value)}
+            />
           </div>
-        </div>
-        <div className="field">
-          <label htmlFor="bidAt">Bidding closes</label>
-          <input
-            id="bidAt"
-            type="datetime-local"
-            value={deadlines.bid}
-            onChange={(e) => setDeadlines({ ...deadlines, bid: e.target.value })}
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="revealAt">Revealing closes</label>
-          <input
-            id="revealAt"
-            type="datetime-local"
-            value={deadlines.reveal}
-            onChange={(e) => setDeadlines({ ...deadlines, reveal: e.target.value })}
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="awardAt">Award deadline</label>
-          <input
-            id="awardAt"
-            type="datetime-local"
-            value={deadlines.award}
-            onChange={(e) => setDeadlines({ ...deadlines, award: e.target.value })}
-          />
-        </div>
-        {deadlineError && (
-          <div className="full note warn">
-            <b>Timetable:</b> {deadlineError}
+          <div className="field">
+            <label htmlFor="termsUri">Terms document link</label>
+            <input
+              id="termsUri"
+              placeholder="https://…"
+              value={termsUri}
+              onChange={(e) => setTermsUri(e.target.value)}
+            />
           </div>
-        )}
-        {skew !== null && Math.abs(skew) > 90 && (
-          <div className="full note warn">
-            <b>
-              This device&apos;s clock is{" "}
-              {Math.abs(skew) > 3600
-                ? `${Math.round(Math.abs(skew) / 3600)}h`
-                : `${Math.round(Math.abs(skew) / 60)} min`}{" "}
-              {skew > 0 ? "behind" : "ahead of"} the network.
-            </b>{" "}
-            The dates above are measured from chain time, not from this machine, because that is
-            what the contract judges deadlines against.
-          </div>
-        )}
-        <div className="field">
-          <label htmlFor="deliverymin">Delivery per milestone (minutes)</label>
-          <input
-            id="deliverymin"
-            inputMode="numeric"
-            value={deliveryMin}
-            onChange={(e) => setDeliveryMin(e.target.value)}
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="acceptmin">Acceptance window (minutes)</label>
-          <input
-            id="acceptmin"
-            inputMode="numeric"
-            value={acceptMin}
-            onChange={(e) => setAcceptMin(e.target.value)}
-          />
-          {Number(acceptMin) < 60 && (
-            <span className="field-hint warn">
-              Payment auto-releases after this long. Fine for a demo; for real work give yourself
-              time to inspect — hours for a document, days for anything physical.
+          <div className="field">
+            <label htmlFor="termsFile">Terms document (hashed, not uploaded)</label>
+            <input
+              id="termsFile"
+              type="file"
+              onChange={async (e) => {
+                const f = e.target.files?.[0];
+                setTermsFile(f ? { name: f.name, sha256: await hashFile(f) } : null);
+              }}
+            />
+            <span className="hint">
+              {termsFile
+                ? `${termsFile.name} — ${termsFile.sha256.slice(0, 14)}…`
+                : "The file stays with you. Only its hash is published, so a supplier can prove the copy they received is the one you set before bidding opened."}
             </span>
+          </div>
+        </div>
+      </section>
+
+      <section id="requirements" className="form-section">
+        <h4>Requirements</h4>
+        <div className="form">
+          <div className="field">
+            <label htmlFor="maxDeliveryDays">Required delivery (days, optional)</label>
+            <input
+              id="maxDeliveryDays"
+              inputMode="numeric"
+              placeholder="e.g. 30"
+              value={maxDeliveryDays}
+              onChange={(e) => setMaxDeliveryDays(e.target.value)}
+            />
+            <span className="hint">A slower bid is flagged automatically when it is revealed.</span>
+          </div>
+          <div className="field">
+            <label htmlFor="minHistory">Minimum completed jobs here (optional)</label>
+            <input
+              id="minHistory"
+              inputMode="numeric"
+              placeholder="e.g. 1"
+              value={minHistory}
+              onChange={(e) => setMinHistory(e.target.value)}
+            />
+            <span className="hint">
+              Counted from this deployment&apos;s own record, not a claim.
+            </span>
+          </div>
+          <div className="field full">
+            <label htmlFor="attestations">Other requirements (one per line, optional)</label>
+            <textarea
+              id="attestations"
+              rows={2}
+              placeholder={"ISO 9001 certification\n24-month warranty\nNet 30 payment terms"}
+              value={attestations}
+              onChange={(e) => setAttestations(e.target.value)}
+            />
+            <span className="hint">
+              These are published with the RFQ and listed against every bid as still needing a human
+              check. Nothing here is ever marked satisfied automatically — a bid cannot prove a
+              certificate.
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section id="review" className="form-section">
+        <h4>Before you post</h4>
+        <div className="form">
+          <div className="full note warn">
+            <b>What this contract does not check:</b> whether delivered goods, materials or work
+            meet your specification. It settles money against rules and hashes. Inspection stays
+            yours — retention, the supplier&apos;s stake and your right to reject are what give it
+            teeth.
+          </div>
+          <div className="full note">
+            The rubric is hashed and stored when the RFQ opens, before anyone bids. An award has to
+            cite an evaluation made against this exact rubric, so the criteria cannot be rewritten
+            afterwards to justify a favoured bid.
+          </div>
+          {shortBy > 0n && (
+            <div className="full note warn">
+              <b>Not enough USDC.</b> Posting this RFQ escrows {formatUsdc(totalNeeded)} (budget
+              plus your stake) and this account holds {formatUsdc(balance ?? 0n)} —{" "}
+              {formatUsdc(shortBy)} short. On Arc the gas is USDC too, so an empty account cannot
+              even estimate a fee, which is why a wallet may say the network fee is unavailable
+              rather than saying you are short.
+            </div>
           )}
-        </div>
-        <div className="field">
-          <label htmlFor="milestones">Milestones (% split)</label>
-          <input
-            id="milestones"
-            value={milestones}
-            onChange={(e) => setMilestones(e.target.value)}
-          />
-        </div>
-        <div className="field full">
-          <label htmlFor="w-price">Rubric weights — price / delivery / quality</label>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              id="w-price"
-              inputMode="numeric"
-              value={weights.price}
-              onChange={(e) => setWeights({ ...weights, price: e.target.value })}
-            />
-            <input
-              aria-label="delivery weight"
-              inputMode="numeric"
-              value={weights.delivery}
-              onChange={(e) => setWeights({ ...weights, delivery: e.target.value })}
-            />
-            <input
-              aria-label="quality weight"
-              inputMode="numeric"
-              value={weights.quality}
-              onChange={(e) => setWeights({ ...weights, quality: e.target.value })}
-            />
+          <div className="full">
+            <button
+              type="button"
+              className="btn-primary"
+              disabled={!!busy || shortBy > 0n || inviteesUnusable || !!deadlineError}
+              onClick={submit}
+            >
+              {busy ?? "Escrow budget and open for bids"}
+            </button>
           </div>
         </div>
-        <div className="full note">
-          {mode === "RFP"
-            ? "In RFP mode each bid carries a proposal document, sealed with the price: neither can be rewritten after seeing rival bids."
-            : "In RFQ mode bids are price and delivery only — the fastest path when you already know exactly what you need."}
-        </div>
-        <div className="field full">
-          <label htmlFor="lineItems">Line items (optional)</label>
-          <textarea
-            id="lineItems"
-            rows={4}
-            placeholder={
-              "2D barcode scanner, USB-C | 500 | ea\nCleaning tablets | 20 | box\nInstall and commission on site"
-            }
-            value={lineItemText}
-            onChange={(e) => setLineItemText(e.target.value)}
-          />
-          <span className="hint">
-            One per line as <span className="mono-sm">item | qty | unit</span>; quantity and unit
-            are optional.{" "}
-            {parseLineItems(lineItemText).length > 0
-              ? `${parseLineItems(lineItemText).length} item(s) — suppliers quote a single total against this list, and it cannot change once bidding opens.`
-              : "Suppliers quote one total for the whole list. Leave empty for a single-line buy."}
-          </span>
-        </div>
-        <div className="field full">
-          <label htmlFor="termsSummary">Terms and conditions (optional)</label>
-          <textarea
-            id="termsSummary"
-            rows={2}
-            placeholder="Payment terms, warranty, liability, confidentiality — or a summary pointing at the attached document."
-            value={termsSummary}
-            onChange={(e) => setTermsSummary(e.target.value)}
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="termsUri">Terms document link</label>
-          <input
-            id="termsUri"
-            placeholder="https://…"
-            value={termsUri}
-            onChange={(e) => setTermsUri(e.target.value)}
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="termsFile">Terms document (hashed, not uploaded)</label>
-          <input
-            id="termsFile"
-            type="file"
-            onChange={async (e) => {
-              const f = e.target.files?.[0];
-              setTermsFile(f ? { name: f.name, sha256: await hashFile(f) } : null);
-            }}
-          />
-          <span className="hint">
-            {termsFile
-              ? `${termsFile.name} — ${termsFile.sha256.slice(0, 14)}…`
-              : "The file stays with you. Only its hash is published, so a supplier can prove the copy they received is the one you set before bidding opened."}
-          </span>
-        </div>
-        <div className="field">
-          <label htmlFor="maxDeliveryDays">Required delivery (days, optional)</label>
-          <input
-            id="maxDeliveryDays"
-            inputMode="numeric"
-            placeholder="e.g. 30"
-            value={maxDeliveryDays}
-            onChange={(e) => setMaxDeliveryDays(e.target.value)}
-          />
-          <span className="hint">A slower bid is flagged automatically when it is revealed.</span>
-        </div>
-        <div className="field">
-          <label htmlFor="minHistory">Minimum completed jobs here (optional)</label>
-          <input
-            id="minHistory"
-            inputMode="numeric"
-            placeholder="e.g. 1"
-            value={minHistory}
-            onChange={(e) => setMinHistory(e.target.value)}
-          />
-          <span className="hint">Counted from this deployment&apos;s own record, not a claim.</span>
-        </div>
-        <div className="field full">
-          <label htmlFor="attestations">Other requirements (one per line, optional)</label>
-          <textarea
-            id="attestations"
-            rows={2}
-            placeholder={"ISO 9001 certification\n24-month warranty\nNet 30 payment terms"}
-            value={attestations}
-            onChange={(e) => setAttestations(e.target.value)}
-          />
-          <span className="hint">
-            These are published with the RFQ and listed against every bid as still needing a human
-            check. Nothing here is ever marked satisfied automatically — a bid cannot prove a
-            certificate.
-          </span>
-        </div>
-        <div className="full note warn">
-          <b>What this contract does not check:</b> whether delivered goods, materials or work meet
-          your specification. It settles money against rules and hashes. Inspection stays yours —
-          retention, the supplier&apos;s stake and your right to reject are what give it teeth.
-        </div>
-        <div className="full note">
-          The rubric is hashed and stored when the RFQ opens, before anyone bids. An award has to
-          cite an evaluation made against this exact rubric, so the criteria cannot be rewritten
-          afterwards to justify a favoured bid.
-        </div>
-        {shortBy > 0n && (
-          <div className="full note warn">
-            <b>Not enough USDC.</b> Posting this RFQ escrows {formatUsdc(totalNeeded)} (budget plus
-            your stake) and this account holds {formatUsdc(balance ?? 0n)} — {formatUsdc(shortBy)}{" "}
-            short. On Arc the gas is USDC too, so an empty account cannot even estimate a fee, which
-            is why a wallet may say the network fee is unavailable rather than saying you are short.
-          </div>
-        )}
-        <div className="full">
-          <button
-            type="button"
-            className="btn-primary"
-            disabled={!!busy || shortBy > 0n || inviteesUnusable || !!deadlineError}
-            onClick={submit}
-          >
-            {busy ?? "Escrow budget and open for bids"}
-          </button>
-        </div>
-      </div>
+      </section>
       {error && (
         <div className="field-err" role="alert">
           {error}
