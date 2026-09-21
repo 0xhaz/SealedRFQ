@@ -628,10 +628,16 @@ export function NewRfqForm() {
         <h4>Before you post</h4>
         <div className="form">
           <div className="full note warn">
-            <b>What this contract does not check:</b> whether delivered goods, materials or work
-            meet your specification. It settles money against rules and hashes. Inspection stays
-            yours — retention, the supplier&apos;s stake and your right to reject are what give it
-            teeth.
+            <b>This contract never sees the goods.</b> It moves money according to rules and hashes,
+            so it cannot tell whether what arrives matches your specification. Someone on your side
+            still has to inspect each delivery and decide.
+            <br />
+            <br />
+            What it does give you is leverage to decide with: you hold back {retentionPct || "10"}%
+            of every milestone until the last one is accepted, the winning supplier&apos;s deposit
+            is staked on finishing the job, and you can reject a delivery with a reason instead of
+            paying for it. Accept a milestone and the money moves; say nothing for{" "}
+            {acceptMin || "3"} minutes and it moves anyway.
           </div>
           <div className="full note">
             The rubric is hashed and stored when the RFQ opens, before anyone bids. An award has to
