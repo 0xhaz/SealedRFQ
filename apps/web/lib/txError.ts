@@ -51,6 +51,8 @@ const EXPLAIN: Record<string, (a: readonly unknown[]) => string> = {
   InvalidMilestones: () => "The milestone percentages have to add up to exactly 100%.",
   InvalidTerms: () => "These terms are not accepted by the policy contract.",
   TooManyInvitees: () => "That is more invited suppliers than the contract accepts.",
+  QualifierNotSet: () =>
+    "This RFQ requires qualified suppliers, but no qualification registry is configured on this deployment — every bid would be refused, so the RFQ cannot be created.",
 
   // ── bidding ──
   BuyerCannotBid: () => "The buyer who posted an RFQ cannot bid on it.",

@@ -137,20 +137,43 @@ contract RFQRegistryTest is SealedRFQFixture {
     }
 
     function test_requiresQualification() public {
+        // The qualifier has to exist before an RFQ may demand qualification; see the test below.
+        MockQualifier q = new MockQualifier();
+        vm.prank(admin);
+        registry.setQualifier(q);
+
         IRFQRegistry.RFQParams memory p = defaultParams();
         p.requiresQualification = true;
         vm.prank(buyer);
         uint256 id = registry.createRFQ(p);
 
+        // Configured but not qualified: still refused.
         vm.prank(s1);
         vm.expectRevert(abi.encodeWithSelector(IRFQRegistry.NotQualified.selector, s1));
         registry.commitBid(id, bytes32("x"));
 
-        MockQualifier q = new MockQualifier();
         q.set(s1, true);
+        commit(id, s1, 2_800_000, 21);
+    }
+
+    /// @dev _commit fails closed with no qualifier configured, which is right: silently dropping a
+    ///      stated requirement would be worse than refusing. But that makes the combination an RFQ
+    ///      nobody could ever bid on, so creating one is refused rather than escrowing a budget
+    ///      against a tender that cannot receive a single bid.
+    function test_requiresQualification_withoutQualifier_cannotBeCreated() public {
+        IRFQRegistry.RFQParams memory p = defaultParams();
+        p.requiresQualification = true;
+
+        vm.prank(buyer);
+        vm.expectRevert(IRFQRegistry.QualifierNotSet.selector);
+        registry.createRFQ(p);
+
+        // Once a qualifier exists the same parameters are accepted.
+        MockQualifier q = new MockQualifier();
         vm.prank(admin);
         registry.setQualifier(q);
-        commit(id, s1, 2_800_000, 21);
+        vm.prank(buyer);
+        assertGt(registry.createRFQ(p), 0);
     }
 
     function test_reveal_rules() public {

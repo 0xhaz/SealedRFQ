@@ -250,6 +250,11 @@ contract RFQRegistry is SealedBid {
         // ERC-8183 jobs need expiredAt > now + 5 min; the adapter sets delivery + 2 x acceptance.
         if (p.deliveryWindow < 5 minutes || p.acceptanceWindow < 1 minutes) revert InvalidWindows();
         if (p.invitees.length > MAX_INVITEES) revert TooManyInvitees();
+        // _commit fails closed when qualification is demanded and no qualifier is configured, which
+        // is the right behaviour there: silently dropping a stated requirement would be worse than
+        // refusing. But it makes this combination an RFQ nobody can ever bid on, so it is refused
+        // here instead of escrowing a budget against a tender that cannot receive bids.
+        if (p.requiresQualification && address(qualifier) == address(0)) revert QualifierNotSet();
 
         uint256 n = p.milestoneBps.length;
         if (n == 0 || n > MAX_MILESTONES) revert InvalidMilestones();

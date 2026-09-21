@@ -147,6 +147,8 @@ interface IRFQRegistry {
     error WrongPhase(Phase current);
     error NotInvited(address bidder);
     error NotQualified(address bidder);
+    /// @dev Demanding qualification with no qualifier configured would reject every bid.
+    error QualifierNotSet();
     error BuyerCannotBid();
     error NoCommitment(address bidder);
     error AlreadyRevealed(address bidder);
