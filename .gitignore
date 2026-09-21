@@ -35,3 +35,7 @@ apps/web/next-env.d.ts
 # apps/web/lib/deployments/local.json is committed: the anvil addresses are
 # deterministic, and the web build imports it statically, so a clean checkout
 # (Vercel) cannot build without it. tools/local.sh rewrites it with the same values.
+
+# Internal testnet walkthrough. Names the demo personas and is a working document,
+# not part of what the repository publishes.
+demo-script.md
