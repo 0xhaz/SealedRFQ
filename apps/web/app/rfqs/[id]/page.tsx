@@ -29,6 +29,11 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
   // The agent supplies reasoning and the audit check; the chain above is the source of truth.
   const [evaluation, audit] = await Promise.all([agent.evaluation(id), agent.audit(id)]);
   const sealed = rfq.phase === "Bidding";
+  // A quotation can now ride on a plain RFQ, not only an RFP, so the column follows the bids
+  // rather than the mode: show it whenever any revealed bid actually carries a document.
+  const hasDocuments =
+    rfq.requiresProposal ||
+    bids.some((b) => b.revealed && b.proposalHash !== `0x${"0".repeat(64)}`);
   const sorted = [...bids].sort((a, b) =>
     a.revealed && b.revealed ? Number(a.price - b.price) : a.revealed ? -1 : 1,
   );
@@ -93,51 +98,67 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
                 </Link>
               </div>
             ) : (
-              <table>
-                <thead>
-                  <tr>
-                    <th>Supplier</th>
-                    <th className="num">Price</th>
-                    <th className="num">Delivery</th>
-                    {rfq.requiresProposal && <th>Proposal</th>}
-                    <th>Deposit</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sorted.map((b) => (
-                    <tr key={b.bidder}>
-                      <td className="mono">
-                        {short(b.bidder)}
-                        {b.bidder.toLowerCase() === rfq.winner.toLowerCase() && (
-                          <span className="badge p-awarded"> WON</span>
-                        )}
-                      </td>
-                      <td className="num">
-                        {sealed ? (
-                          <span className="mono" title="sealed">
-                            ███████
-                          </span>
-                        ) : b.revealed ? (
-                          `${formatUsdc(b.price)} USDC`
-                        ) : (
-                          <span className="muted">not revealed</span>
-                        )}
-                      </td>
-                      <td className="num">{b.revealed && !sealed ? `${b.deliveryDays} d` : "—"}</td>
-                      {rfq.requiresProposal && (
-                        <td className="mono" style={{ fontSize: 11 }}>
-                          {b.revealed && !sealed && b.proposalHash !== `0x${"0".repeat(64)}`
-                            ? `${b.proposalHash.slice(0, 14)}…`
-                            : "—"}
-                        </td>
-                      )}
-                      <td>
-                        <span className="badge">{b.deposit}</span>
-                      </td>
+              <>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Supplier</th>
+                      <th className="num">Price</th>
+                      <th className="num">Delivery</th>
+                      {hasDocuments && <th>{rfq.requiresProposal ? "Proposal" : "Quotation"}</th>}
+                      <th>Deposit</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {sorted.map((b) => (
+                      <tr key={b.bidder}>
+                        <td className="mono">
+                          {short(b.bidder)}
+                          {b.bidder.toLowerCase() === rfq.winner.toLowerCase() && (
+                            <span className="badge p-awarded"> WON</span>
+                          )}
+                        </td>
+                        <td className="num">
+                          {sealed ? (
+                            <span className="mono" title="sealed">
+                              ███████
+                            </span>
+                          ) : b.revealed ? (
+                            `${formatUsdc(b.price)} USDC`
+                          ) : (
+                            <span className="muted">not revealed</span>
+                          )}
+                        </td>
+                        <td className="num">
+                          {b.revealed && !sealed ? `${b.deliveryDays} d` : "—"}
+                        </td>
+                        {hasDocuments && (
+                          <td className="mono" style={{ fontSize: 11 }}>
+                            {b.revealed && !sealed && b.proposalHash !== `0x${"0".repeat(64)}`
+                              ? `${b.proposalHash.slice(0, 14)}…`
+                              : "—"}
+                          </td>
+                        )}
+                        <td>
+                          <span className="badge">{b.deposit}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {!sealed &&
+                  sorted
+                    .filter((b) => b.revealed && b.proposalHash !== `0x${"0".repeat(64)}`)
+                    .map((b) => (
+                      <div key={`check-${b.bidder}`} style={{ padding: "12px 20px 4px" }}>
+                        <DocumentCheck
+                          expected={b.proposalHash}
+                          label={`Verify the ${rfq.requiresProposal ? "proposal" : "quotation"} from ${short(b.bidder)}`}
+                          hint="Check the file this supplier sent you against the hash sealed with their price."
+                        />
+                      </div>
+                    ))}
+              </>
             )}
           </div>
 

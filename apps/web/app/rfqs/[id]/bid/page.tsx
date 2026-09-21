@@ -1,4 +1,5 @@
 import { Header } from "@/components/Header";
+import { LineItems } from "@/components/LineItems";
 import { PhaseBadge } from "@/components/PhaseBadge";
 import { TermsPanel } from "@/components/TermsPanel";
 import { agent } from "@/lib/agent";
@@ -35,6 +36,7 @@ export default async function BidPage({ params }: { params: Promise<{ id: string
       </section>
 
       <div className="grid">
+        <LineItems metadataURI={"rfq" in indexed ? indexed.rfq?.metadataURI : null} />
         <TermsPanel
           metadataURI={"rfq" in indexed ? indexed.rfq?.metadataURI : null}
           metadataHash={rfq.metadataHash}

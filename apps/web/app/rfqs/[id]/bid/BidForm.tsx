@@ -11,6 +11,7 @@ import {
   saveBid,
 } from "@/lib/bidStore";
 import { chain, contracts, explorerTx } from "@/lib/chain";
+import { hashFile } from "@/lib/docHash";
 import { signUsdcPermit } from "@/lib/permit";
 import { describeTxError } from "@/lib/txError";
 import { RFQRegistryAbi, USDC_ADDRESS, formatUsdc, parseUsdc } from "@sealedrfq/shared";
@@ -40,6 +41,11 @@ export function BidForm({ rfqId, phase, deposit, budget, requiresProposal }: Pro
   const [price, setPrice] = useState("");
   const [days, setDays] = useState("21");
   const [proposal, setProposal] = useState("");
+  /**
+   * A priced quotation as a file. A classic RFQ is answered with a document, not a paragraph, and
+   * hashing the bytes binds the breakdown to the sealed total exactly as typed text does.
+   */
+  const [quoteFile, setQuoteFile] = useState<{ name: string; hash: `0x${string}` } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -86,7 +92,9 @@ export function BidForm({ rfqId, phase, deposit, budget, requiresProposal }: Pro
     return saltFromSignature(signature);
   }
 
+  /** A file wins when one is attached: it is the document the buyer will receive and check. */
   function proposalHashOf(text: string): `0x${string}` {
+    if (quoteFile) return quoteFile.hash;
     return text.trim() ? sha256(stringToBytes(text)) : ZERO_HASH;
   }
 
@@ -132,8 +140,8 @@ export function BidForm({ rfqId, phase, deposit, budget, requiresProposal }: Pro
         throw new Error("Delivery must be a whole number of days");
       }
 
-      if (requiresProposal && !proposal.trim()) {
-        throw new Error("This RFQ is an RFP: a written proposal is required");
+      if (requiresProposal && !proposal.trim() && !quoteFile) {
+        throw new Error("This RFQ is an RFP: attach a proposal document or write one");
       }
       const proposalHash = proposalHashOf(proposal);
 
@@ -229,9 +237,10 @@ export function BidForm({ rfqId, phase, deposit, budget, requiresProposal }: Pro
         if (priceUnits > 0n && deliveryDays > 0) {
           setBusy("Re-deriving your bid secret from your wallet…");
           const salt = await deriveSalt(address);
-          const proposalHash = proposal.trim()
-            ? proposalHashOf(proposal)
-            : (candidates[0]?.proposalHash ?? ZERO_HASH);
+          const proposalHash =
+            quoteFile || proposal.trim()
+              ? proposalHashOf(proposal)
+              : (candidates[0]?.proposalHash ?? ZERO_HASH);
           if (
             commitmentFor(address, priceUnits, deliveryDays, proposalHash, salt).toLowerCase() ===
             target.toLowerCase()
@@ -350,12 +359,33 @@ export function BidForm({ rfqId, phase, deposit, budget, requiresProposal }: Pro
 
           {bidding && (
             <div className="field full">
+              <label htmlFor="bid-quote">
+                {requiresProposal ? "Proposal document (required)" : "Priced quotation (optional)"}
+              </label>
+              <input
+                id="bid-quote"
+                type="file"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  setQuoteFile(f ? { name: f.name, hash: await hashFile(f) } : null);
+                }}
+              />
+              <span className="hint">
+                {quoteFile
+                  ? `${quoteFile.name} — ${quoteFile.hash.slice(0, 14)}…`
+                  : "Your line-by-line pricing, hashed and sealed with the total. The file is not uploaded; send it to the buyer however you normally would and they can check it against this hash."}
+              </span>
+            </div>
+          )}
+
+          {bidding && !quoteFile && (
+            <div className="field full">
               <label htmlFor="bid-proposal">
-                Proposal {requiresProposal ? "(required)" : "(optional)"}
+                {requiresProposal ? "…or write it here" : "…or a note instead (optional)"}
               </label>
               <textarea
                 id="bid-proposal"
-                rows={4}
+                rows={3}
                 placeholder="Method, team, timeline — whatever the buyer asked for."
                 value={proposal}
                 onChange={(e) => setProposal(e.target.value)}

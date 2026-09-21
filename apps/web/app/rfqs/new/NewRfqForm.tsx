@@ -5,6 +5,7 @@ import { chain, contracts, explorerTx } from "@/lib/chain";
 import { type Deadlines, PRESETS, applyPreset, checkDeadlines, toUnix } from "@/lib/deadlines";
 import { hashFile } from "@/lib/docHash";
 import { MAX_INVITEES, parseInvitees } from "@/lib/invitees";
+import { parseLineItems } from "@/lib/lineItems";
 import { signUsdcPermit } from "@/lib/permit";
 import { describeTxError } from "@/lib/txError";
 import {
@@ -63,6 +64,8 @@ export function NewRfqForm() {
    * Buyer's terms. Hashed into the metadata document, whose own hash is fixed on-chain when the RFQ
    * opens — so the terms cannot be revised once bidding has started, and every bidder can prove it.
    */
+  /** The basket suppliers quote against. Hash-fixed with the rest of the metadata. */
+  const [lineItemText, setLineItemText] = useState("");
   const [termsSummary, setTermsSummary] = useState("");
   const [termsUri, setTermsUri] = useState("");
   const [termsFile, setTermsFile] = useState<{ name: string; sha256: `0x${string}` } | null>(null);
@@ -185,6 +188,7 @@ export function NewRfqForm() {
         ...(Number(minHistory) > 0 ? { minCompletedEngagements: Number(minHistory) } : {}),
         ...(attestationList.length ? { attestations: attestationList } : {}),
       };
+      const lineItems = parseLineItems(lineItemText);
       const metadata = JSON.stringify({
         scope,
         rubric: rubric.criteria,
@@ -192,6 +196,7 @@ export function NewRfqForm() {
         visibility,
         ...(terms ? { terms } : {}),
         ...(Object.keys(requirements).length ? { requirements } : {}),
+        ...(lineItems.length ? { lineItems } : {}),
       });
       const metadataHash = sha256(stringToBytes(metadata));
 
@@ -490,6 +495,25 @@ export function NewRfqForm() {
           {mode === "RFP"
             ? "In RFP mode each bid carries a proposal document, sealed with the price: neither can be rewritten after seeing rival bids."
             : "In RFQ mode bids are price and delivery only — the fastest path when you already know exactly what you need."}
+        </div>
+        <div className="field full">
+          <label htmlFor="lineItems">Line items (optional)</label>
+          <textarea
+            id="lineItems"
+            rows={4}
+            placeholder={
+              "2D barcode scanner, USB-C | 500 | ea\nCleaning tablets | 20 | box\nInstall and commission on site"
+            }
+            value={lineItemText}
+            onChange={(e) => setLineItemText(e.target.value)}
+          />
+          <span className="hint">
+            One per line as <span className="mono-sm">item | qty | unit</span>; quantity and unit
+            are optional.{" "}
+            {parseLineItems(lineItemText).length > 0
+              ? `${parseLineItems(lineItemText).length} item(s) — suppliers quote a single total against this list, and it cannot change once bidding opens.`
+              : "Suppliers quote one total for the whole list. Leave empty for a single-line buy."}
+          </span>
         </div>
         <div className="field full">
           <label htmlFor="termsSummary">Terms and conditions (optional)</label>
