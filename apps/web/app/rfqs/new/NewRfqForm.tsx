@@ -533,7 +533,6 @@ export function NewRfqForm() {
         <h4>What to quote</h4>
         <div className="form">
           <div className="field full">
-            <span className="field-label">Line items (optional)</span>
             <LineItemsEditor rows={lineRows} onChange={setLineRows} />
           </div>
         </div>
@@ -611,7 +610,7 @@ export function NewRfqForm() {
             <label htmlFor="attestations">Other requirements (one per line, optional)</label>
             <textarea
               id="attestations"
-              rows={2}
+              rows={3}
               placeholder={"ISO 9001 certification\n24-month warranty\nNet 30 payment terms"}
               value={attestations}
               onChange={(e) => setAttestations(e.target.value)}

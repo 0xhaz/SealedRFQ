@@ -18,7 +18,7 @@ export default function NewRfq() {
 
       <div className="grid">
         <NewRfqForm />
-        <div className="right">
+        <div className="right has-nav">
           <FormNav
             sections={[
               { id: "details", label: "Details" },

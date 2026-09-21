@@ -5781,9 +5781,20 @@ button.field-wallet {
   color: var(--muted);
 }
 
+/*
+ * A sticky child needs somewhere to travel. `.grid` uses `align-items: start` so a column is only
+ * as tall as its content, which meant the nav stuck until this column's own bottom scrolled past
+ * and then left with it — exactly halfway down a form it exists to navigate. Stretching is scoped
+ * to this page: the same rule elsewhere reintroduces the dead space the grid comment warns about.
+ */
+.right.has-nav {
+  align-self: stretch;
+}
+
 .form-nav {
   position: sticky;
   top: 24px;
+  z-index: 5; /* the commitments panel scrolls underneath, so the nav must paint over it */
   margin-bottom: 18px;
   border: 1px solid var(--ink);
   background: var(--card);
