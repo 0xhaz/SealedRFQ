@@ -179,7 +179,10 @@ NEXT_PUBLIC_AGENT_URL=https://<your-agent>.up.railway.app
 ```
 
 **Agent → Railway.** `railway.json` points at `apps/agent/Dockerfile`, which is built from the
-repository root. Two things are easy to get wrong:
+repository root, and states the start command because Railway otherwise infers `pnpm start` from
+package.json — pnpm belongs to the builder stage and is deliberately absent from the runtime image.
+If a deploy still fails with "The executable `pnpm` could not be found", clear any Custom Start
+Command left on the service under Settings → Deploy. Two more things are easy to get wrong:
 
 - **Add a Railway Volume mounted at `/data`**, on the service, before the first deploy. The index
   lives in SQLite, and a container filesystem is discarded on every deploy — without a volume the
