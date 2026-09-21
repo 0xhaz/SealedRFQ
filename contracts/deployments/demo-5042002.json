@@ -3,12 +3,12 @@
     "bidder": "0x681ca4521cee60a0a42e958855baf66B65912Cfb",
     "kind": "AWARD_RECOMMENDATION",
     "rationale": "recommend s3 at 3.40",
-    "rfqId": "1",
+    "rfqId": "2",
     "schema": "sealedrfq.demo-memo.v0"
   },
-  "firewallMemoHash": "0x2c3d11705ce12e1cdcc18caa7945d5babf663f4b736ce189a51be4cc2558147c",
+  "firewallMemoHash": "0xb33c896ade2d95438d53b9420995e13bdbd91a69fa5535b28c88a3678f88c668",
   "firewallWinner": "0x681ca4521cee60a0a42e958855baf66B65912Cfb",
-  "rfqId": 1,
+  "rfqId": 2,
   "rubricHash": "0x20193ace80ea3d57ffad20e0409206952a5f908ea8efc5c1a3f37d7696c9ad2e",
-  "startedAt": 1789887413
+  "startedAt": 1789968694
 }

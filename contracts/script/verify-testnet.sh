@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 # Verify one contract at a time with pauses: Blockscout rate-limits a --verify sweep.
+# Biggest contract first. Whatever goes last inherits the quota the earlier ones spent, and forge
+# reports that exhaustion as "Failed to obtain contract ABI" — which reads like a build failure,
+# not a rate limit, and sends you looking in the wrong place.
 set -u
 cd "$(dirname "$0")/.."
 D=deployments/5042002.json
@@ -15,6 +18,8 @@ try() { # name path ctor-args
   arc-forge verify-contract "$a" "$p" $V --constructor-args "$args" --watch 2>&1 | grep -E "successfully|Pass|Error" | head -2
 }
 for round in 1 2 3 4 5; do
+  try RFQRegistry src/rfq/RFQRegistry.sol:RFQRegistry \
+    "$(cast abi-encode 'c(address,address,address,address,address)' $USDC "$(addr ProcurementPolicy)" "$(addr AttestationLog)" "$(addr SealedRFQAdapter)" "$ADMIN_ADDRESS")"; sleep 45
   try AgenticCommerce src/core/AgenticCommerce.sol:AgenticCommerce \
     "$(cast abi-encode 'c(address,address,address)' $USDC "$ADMIN_ADDRESS" "$ADMIN_ADDRESS")"; sleep 45
   try AttestationLog src/governance/AttestationLog.sol:AttestationLog \
@@ -23,8 +28,6 @@ for round in 1 2 3 4 5; do
     "$(cast abi-encode 'c(address,(uint16,uint16,uint16,uint16,uint16,uint128))' "$ADMIN_ADDRESS" '(10000,2,500,500,4000,100000000)')"; sleep 45
   try SealedRFQAdapter src/rfq/SealedRFQAdapter.sol:SealedRFQAdapter \
     "$(cast abi-encode 'c(address,address,address,address)' $USDC "$(addr AgenticCommerce)" "$(addr AttestationLog)" "$ADMIN_ADDRESS")"; sleep 45
-  try RFQRegistry src/rfq/RFQRegistry.sol:RFQRegistry \
-    "$(cast abi-encode 'c(address,address,address,address,address)' $USDC "$(addr ProcurementPolicy)" "$(addr AttestationLog)" "$(addr SealedRFQAdapter)" "$ADMIN_ADDRESS")"; sleep 45
   ALL=true
   for n in AgenticCommerce AttestationLog ProcurementPolicy SealedRFQAdapter RFQRegistry; do
     [ "$(curl -s "https://explorer.testnet.arc.io/api/v2/smart-contracts/$(addr $n)" | jq -r '.is_verified // false')" = "true" ] || ALL=false

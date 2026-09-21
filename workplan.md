@@ -140,13 +140,13 @@ Build in this order. Each contract is done when it has unit tests and fuzz tests
 
 | Contract | Address |
 |---|---|
-| `AgenticCommerce` | `0xeF6C0445A6541263682FE08bDAf6Df53cf875BD8` |
-| `AttestationLog` | `0x48CFA17F69D06f3545200749F07b6810c8928287` |
-| `ProcurementPolicy` | `0xa2207aCd54aB6a410F21a711498F27fa5F426606` |
-| `SealedRFQAdapter` | `0x0aBA048426a2F4E7b1A6D1A4c1074eD6f80D89DB` |
-| `RFQRegistry` | `0x0509AD34B26Ec3D2Cac4D7d5780ED8eA5cd3695C` |
+| `AgenticCommerce` | `0xe98D25AB2ED549E699B8ECf40e03817bfA83e36b` |
+| `AttestationLog` | `0xF79126bdBE73d023Fd6FA57fB05E746a839a6096` |
+| `ProcurementPolicy` | `0xC3B99CaEa00A4f8918DDf44Be4DB257853B101F0` |
+| `SealedRFQAdapter` | `0xC72B8a49020a9B9dACb384b88CDB9580770fA9C0` |
+| `RFQRegistry` | `0xb727F5A8031591bc7e1ed0E626f5cE1108626D61` |
 
-Policy-firewall evidence: [`0xa9195ed1…faff4`](https://explorer.testnet.arc.io/tx/0xa9195ed1c622aeca7483552954d9e05e99bdbd91756af953ce9bdc7a2c1faff4) — award of an AI-recommended 3.40 bid reverted with `AwardExceedsBudget(3400000, 3000000)`.
+Policy-firewall evidence: [`0xa749b830…a9853`](https://explorer.testnet.arc.io/tx/0xa749b830c25f57da6a5680fd9ffe3f64df60f159187c323d68af5cae5c2a9853) — award of an AI-recommended 3.40 bid reverted with `AwardExceedsBudget(3400000, 3000000)`.
 
 **Lessons for the mainnet run (Day 18–22):**
 - Blockscout rate-limits verification: verify **one contract at a time with pauses**, not in one `--verify` sweep.
@@ -183,6 +183,41 @@ Arc rules to enforce in every PR: 6-decimal USDC, **never `msg.value`**, never p
 - [ ] Run the lifecycle again **through the UI** with MetaMask as buyer + 3 suppliers
 - [ ] Fill `evidence.ts` / `DORAHACKS.md` only from verified explorer links. Never hand-type a hash
 - [ ] README: what it does, what it uses Arc for, contract addresses, tx table, "worth taking further" (Malaysia/ePerolehan, supplier financing)
+
+### Phase 3b: CCTP funding flow (mainnet, decided 2026-09-21)
+
+Agreed to do on mainnet, not before. It is an on/off-ramp, not multi-network operation: the RFQ,
+escrow, sealed bids and settlement stay on Arc. What this buys is the buyer who holds USDC on Base
+or Ethereum and today hits a dead end.
+
+The objection that killed this earlier is gone. USDC is Arc's gas token, so a fresh address cannot
+pay to mint its own bridged funds — but Circle's **Forwarding Service** submits the destination mint
+itself and takes its fee from the transferred amount, so the destination wallet never signs and
+needs no balance. Verified on 2026-09-21:
+
+- Arc is **CCTP domain 26**, confirmed on-chain: `MessageTransmitterV2.localDomain()` returns 26 and
+  `TokenMessengerV2.localMessageTransmitter()` points back at it, so these are the wired contracts
+  and not just addresses in a doc.
+- Testnet: TokenMessengerV2 `0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA`, MessageTransmitterV2
+  `0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275`.
+- Mainnet: TokenMessengerV2 `0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d`, MessageTransmitterV2
+  `0x81D40F21F12A8F0E3252Bccb954D722d4c464B64`.
+- Cost into Arc, live from `GET https://iris-api.circle.com/v2/burn/USDC/fees/0/26?forward=true`:
+  `forwardFee` ≈ 16716 (~$0.017), and the standard transfer fee itself is 0. Re-fetch rather than
+  hardcoding — `maxFee` on `depositForBurn` is a cap, and the source tx reverts if the real fee
+  exceeds it.
+
+Tasks:
+- [ ] Source-chain funding step on the RFQ form, where `shortBy` already renders "Not enough USDC".
+      That dead end is the whole reason for this; do not build a general bridge UI
+- [ ] Use `@circle-fin/bridge-kit` in **forwarder-only destination** mode, so there is no
+      destination-side adapter or contract work
+- [ ] Poll `https://iris-api.circle.com/v2/messages/{srcDomain}?transactionHash=…` (40 req/s) and
+      show the transfer as pending rather than failed while it settles
+- [ ] Supplier payout needs **no CCTP**: Circle Gateway's `withdraw(amount, { chain })` already
+      pays out to a home chain, and that SDK is installed and tested for x402. Expose it instead
+- [ ] Unverified, check before relying on it: Arc is absent from the *mainnet* TokenMessengerWithFees
+      table (upfront fees), though the testnet entry exists
 
 ### Phase 4: MCP, video, submission (Oct 11–12, Days 23–24)
 - [ ] 🔶 `packages/mcp` stdio server: `list_open_rfqs`, `get_rfq`, `verify_decision_hash`, `escrow_status` (read + audit only)

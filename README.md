@@ -57,11 +57,11 @@ Keys live in `.env.testnet` / `.env.mainnet` (gitignored); see `.env.example`.
 
 | Contract | Address |
 |---|---|
-| `RFQRegistry` | [`0x0509AD34B26Ec3D2Cac4D7d5780ED8eA5cd3695C`](https://explorer.testnet.arc.io/address/0x0509AD34B26Ec3D2Cac4D7d5780ED8eA5cd3695C) |
-| `SealedRFQAdapter` | [`0x0aBA048426a2F4E7b1A6D1A4c1074eD6f80D89DB`](https://explorer.testnet.arc.io/address/0x0aBA048426a2F4E7b1A6D1A4c1074eD6f80D89DB) |
-| `AgenticCommerce` (ERC-8183) | [`0xeF6C0445A6541263682FE08bDAf6Df53cf875BD8`](https://explorer.testnet.arc.io/address/0xeF6C0445A6541263682FE08bDAf6Df53cf875BD8) |
-| `ProcurementPolicy` | [`0xa2207aCd54aB6a410F21a711498F27fa5F426606`](https://explorer.testnet.arc.io/address/0xa2207aCd54aB6a410F21a711498F27fa5F426606) |
-| `AttestationLog` | [`0x48CFA17F69D06f3545200749F07b6810c8928287`](https://explorer.testnet.arc.io/address/0x48CFA17F69D06f3545200749F07b6810c8928287) |
+| `RFQRegistry` | [`0xb727F5A8031591bc7e1ed0E626f5cE1108626D61`](https://explorer.testnet.arc.io/address/0xb727F5A8031591bc7e1ed0E626f5cE1108626D61) |
+| `SealedRFQAdapter` | [`0xC72B8a49020a9B9dACb384b88CDB9580770fA9C0`](https://explorer.testnet.arc.io/address/0xC72B8a49020a9B9dACb384b88CDB9580770fA9C0) |
+| `AgenticCommerce` (ERC-8183) | [`0xe98D25AB2ED549E699B8ECf40e03817bfA83e36b`](https://explorer.testnet.arc.io/address/0xe98D25AB2ED549E699B8ECf40e03817bfA83e36b) |
+| `ProcurementPolicy` | [`0xC3B99CaEa00A4f8918DDf44Be4DB257853B101F0`](https://explorer.testnet.arc.io/address/0xC3B99CaEa00A4f8918DDf44Be4DB257853B101F0) |
+| `AttestationLog` | [`0xF79126bdBE73d023Fd6FA57fB05E746a839a6096`](https://explorer.testnet.arc.io/address/0xF79126bdBE73d023Fd6FA57fB05E746a839a6096) |
 
 `contracts/deployments/evidence-5042002.json` lists one explorer link per lifecycle step of the last
 full run, including the policy firewall rejecting an AI-recommended over-budget award.
