@@ -1,7 +1,7 @@
 import { arcMainnet, arcTest } from "@sealedrfq/shared";
 import { defineChain } from "viem";
-import localDeployment from "./deployments/local.json";
 import testnetDeployment from "./deployments/5042002.json";
+import localDeployment from "./deployments/local.json";
 
 /** `arc-anvil --network arc`: Arc rules and the USDC precompile on a throwaway chain. */
 export const arcLocal = defineChain({
@@ -34,8 +34,34 @@ type Deployment = {
   RFQRegistry: `0x${string}`;
 };
 
-// The mainnet file lands on day 18; local is written by tools/local.sh.
-export const contracts = (isLocal ? localDeployment : testnetDeployment) as Deployment;
+/**
+ * Addresses for the chain this build targets, looked up rather than inferred.
+ *
+ * This used to be `isLocal ? local : testnet`, which meant pointing the build at mainnet gave it
+ * mainnet chain settings and testnet addresses — a wallet on real money calling contracts that do
+ * not exist there. A missing deployment must stop the build, not fall back to whichever file
+ * happens to be imported. Add the mainnet entry here when contracts/deployments/5042.json exists.
+ */
+const byChain: Record<number, Deployment> = {
+  [arcLocal.id]: localDeployment as Deployment,
+  [arcTest.id]: testnetDeployment as Deployment,
+};
+
+export const contracts: Deployment = (() => {
+  const found = byChain[CHAIN_ID];
+  if (!found) {
+    throw new Error(
+      `No deployment file for chain ${CHAIN_ID}. Deploy it, copy contracts/deployments/${CHAIN_ID}.json into apps/web/lib/deployments/, and register it in lib/chain.ts.`,
+    );
+  }
+  // Catches a file copied from the wrong network as well as a mis-set environment variable.
+  if (found.chainId !== CHAIN_ID) {
+    throw new Error(
+      `Deployment file for chain ${CHAIN_ID} declares chainId ${found.chainId}: the addresses do not belong to this network.`,
+    );
+  }
+  return found;
+})();
 
 /** Mainnet moves real money and Arc settlement is forward-only: no undo, no chargeback. */
 export const isMainnet = CHAIN_ID === arcMainnet.id;
