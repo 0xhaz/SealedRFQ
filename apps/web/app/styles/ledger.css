@@ -5838,3 +5838,79 @@ button.field-wallet {
     display: none;
   }
 }
+
+/* ── Line item editor ────────────────────────────────────────────────────────
+   Rows, not delimiters. The qty and unit columns are narrow on purpose so the
+   item name gets the room: descriptions are what people actually type. */
+.field-label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.lines {
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+.lines-head,
+.lines-row {
+  display: grid;
+  grid-template-columns: 1fr 88px 110px 34px;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+}
+.lines-head {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+}
+.lines-row input {
+  width: 100%;
+  padding: 7px 9px;
+  font-size: 13px;
+}
+.lines-remove {
+  border: 1px solid transparent;
+  background: none;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 0;
+}
+.lines-remove:hover {
+  color: var(--red);
+  border-color: var(--line);
+}
+.lines-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 8px;
+  border-top: 1px solid var(--line);
+}
+.lines-foot .btn-outline {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+/* On a phone the three columns are unusable; stack them and label by placeholder. */
+@media (max-width: 640px) {
+  .lines-head {
+    display: none;
+  }
+  .lines-row {
+    grid-template-columns: 1fr 1fr 34px;
+  }
+  .lines-row input:first-child {
+    grid-column: 1 / -1;
+  }
+}

@@ -2,43 +2,65 @@
  * The basket a buyer asks suppliers to quote against.
  *
  * A classic RFQ is a list of items with quantities, and the supplier returns a priced quotation.
- * Only the total is settled on-chain — that is what gets escrowed and paid — but the list itself
- * rides in the metadata document whose sha256 is fixed when the RFQ opens, so the basket cannot be
- * changed after bids are in. A supplier can prove they quoted the same items everyone else did.
- *
- * Entered one item per line, `item | qty | uom`, because people paste these out of a spreadsheet
- * and anything requiring a row editor gets abandoned halfway. Quantity and unit are optional: a
- * line with neither is still a line worth quoting.
+ * Only the total settles on-chain — that is what gets escrowed and paid — but the list rides in the
+ * metadata document whose sha256 is fixed when the RFQ opens, so the basket cannot change after
+ * bids are in and a supplier can prove they quoted the same items as everyone else.
  */
 export type LineItem = { item: string; qty?: number; uom?: string };
 
-export function parseLineItems(text: string): LineItem[] {
-  return text
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [item, qty, uom] = line.split("|").map((p) => p.trim());
-      const quantity = Number(qty);
+/** A row as the editor holds it: everything a string, because a half-typed number is not one. */
+export type LineItemRow = { item: string; qty: string; uom: string };
+
+export const emptyRow = (): LineItemRow => ({ item: "", qty: "", uom: "" });
+
+/** Units offered as suggestions. Free text stays allowed — nobody's catalogue fits a fixed list. */
+export const COMMON_UNITS = [
+  "ea",
+  "box",
+  "pack",
+  "set",
+  "kg",
+  "m",
+  "hr",
+  "day",
+  "month",
+  "licence",
+];
+
+/** Editor rows to the published shape: blanks dropped, quantities only when they are real. */
+export function toLineItems(rows: LineItemRow[]): LineItem[] {
+  return rows
+    .map((r) => {
+      const qty = Number(r.qty);
       return {
-        item: item || line,
-        ...(qty && Number.isFinite(quantity) && quantity > 0 ? { qty: quantity } : {}),
-        ...(uom ? { uom } : {}),
+        item: r.item.trim(),
+        ...(r.qty.trim() && Number.isFinite(qty) && qty > 0 ? { qty } : {}),
+        ...(r.uom.trim() ? { uom: r.uom.trim() } : {}),
       };
     })
     .filter((l) => l.item.length > 0);
 }
 
-/** Back to the editable text, so a buyer can reopen what they typed. */
-export function formatLineItems(items: LineItem[]): string {
-  return items
-    .map((l) =>
-      [l.item, l.qty ?? "", l.uom ?? ""]
-        .join(" | ")
-        .replace(/\s*\|\s*$/, "")
-        .trim(),
-    )
-    .join("\n");
+/**
+ * Rows pasted from a spreadsheet.
+ *
+ * Excel and Sheets put a tab between cells and a newline between rows, which is the case worth
+ * getting right: a buyer with a basket already in a spreadsheet should not retype it. Pipes are
+ * accepted too since that was the previous format. Commas deliberately are not — "2D barcode
+ * scanner, USB-C" is one item, and splitting on commas would quietly shred exactly the descriptive
+ * names people use.
+ */
+export function parsePastedRows(text: string): LineItemRow[] {
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const cells = line.includes("\t") ? line.split("\t") : line.split("|");
+      const [item = "", qty = "", uom = ""] = cells.map((c) => c.trim());
+      return { item, qty, uom };
+    })
+    .filter((r) => r.item.length > 0);
 }
 
 /** Narrows whatever the metadata document happens to hold; a malformed list shows as none. */

@@ -1,53 +1,90 @@
 import { describe, expect, it } from "vitest";
-import { formatLineItems, parseLineItems, readLineItems } from "../lib/lineItems.js";
+import { parsePastedRows, readLineItems, toLineItems } from "../lib/lineItems.js";
 
-describe("parseLineItems", () => {
-  it("reads item, quantity and unit", () => {
-    expect(parseLineItems("2D barcode scanner | 500 | ea")).toEqual([
+describe("toLineItems", () => {
+  it("keeps the quantity and unit when they are real", () => {
+    expect(toLineItems([{ item: "2D barcode scanner", qty: "500", uom: "ea" }])).toEqual([
       { item: "2D barcode scanner", qty: 500, uom: "ea" },
     ]);
   });
 
-  it("keeps a line that is just a description", () => {
-    // Not everything has a quantity; a line without one is still worth quoting.
-    expect(parseLineItems("Install and commission on site")).toEqual([
+  it("keeps a line that is only a description", () => {
+    // Not everything has a quantity; "install and commission" is still worth quoting.
+    expect(toLineItems([{ item: "Install and commission on site", qty: "", uom: "" }])).toEqual([
       { item: "Install and commission on site" },
     ]);
   });
 
-  it("ignores blank lines and stray whitespace from a paste", () => {
-    const pasted = "  Aprons | 20 | box \n\n\n  Coffee maker | 2 | ea  \n";
-    expect(parseLineItems(pasted)).toHaveLength(2);
-    expect(parseLineItems(pasted)[0].item).toBe("Aprons");
-  });
-
-  it("drops a quantity that is not a usable number rather than storing NaN", () => {
-    for (const bad of ["a few", "-5", "0", ""]) {
-      expect(parseLineItems(`Widget | ${bad} | ea`)[0].qty, bad).toBeUndefined();
+  it("drops a quantity that is not usable rather than publishing NaN", () => {
+    for (const bad of ["a few", "-5", "0", "  "]) {
+      expect(toLineItems([{ item: "Widget", qty: bad, uom: "ea" }])[0].qty, bad).toBeUndefined();
     }
   });
 
-  it("survives a round trip through the editable text", () => {
-    const items = [{ item: "Scanner", qty: 500, uom: "ea" }, { item: "Training day" }];
-    expect(parseLineItems(formatLineItems(items))).toEqual(items);
+  it("drops rows with no item name, so a spare empty row publishes nothing", () => {
+    const rows = [
+      { item: "Real", qty: "1", uom: "ea" },
+      { item: "   ", qty: "99", uom: "box" },
+      { item: "", qty: "", uom: "" },
+    ];
+    expect(toLineItems(rows)).toEqual([{ item: "Real", qty: 1, uom: "ea" }]);
+  });
+});
+
+describe("parsePastedRows", () => {
+  it("reads a spreadsheet paste: tabs between cells, newlines between rows", () => {
+    const fromExcel = "2D barcode scanner\t500\tea\nCleaning tablets\t20\tbox";
+    expect(parsePastedRows(fromExcel)).toEqual([
+      { item: "2D barcode scanner", qty: "500", uom: "ea" },
+      { item: "Cleaning tablets", qty: "20", uom: "box" },
+    ]);
+  });
+
+  it("never splits an item name on its commas", () => {
+    // "2D barcode scanner, USB-C" is one item. Splitting on commas would shred exactly the
+    // descriptive names people actually type.
+    const [row] = parsePastedRows("2D barcode scanner, USB-C\t500\tea");
+    expect(row.item).toBe("2D barcode scanner, USB-C");
+    expect(row.qty).toBe("500");
+  });
+
+  it("still accepts the pipe format that preceded this editor", () => {
+    expect(parsePastedRows("Aprons | 20 | box")).toEqual([
+      { item: "Aprons", qty: "20", uom: "box" },
+    ]);
+  });
+
+  it("handles a single column and ragged rows", () => {
+    expect(parsePastedRows("Scanner\nTablets\t20")).toEqual([
+      { item: "Scanner", qty: "", uom: "" },
+      { item: "Tablets", qty: "20", uom: "" },
+    ]);
+  });
+
+  it("ignores blank lines and carriage returns from a Windows paste", () => {
+    expect(parsePastedRows("Aprons\t2\r\n\r\nMugs\t4\r\n")).toHaveLength(2);
   });
 });
 
 describe("readLineItems", () => {
   it("reads the list back out of a published metadata document", () => {
-    const published = { lineItems: [{ item: "Scanner", qty: 500, uom: "ea" }] };
-    expect(readLineItems(published)).toEqual([{ item: "Scanner", qty: 500, uom: "ea" }]);
+    expect(readLineItems({ lineItems: [{ item: "Scanner", qty: 500, uom: "ea" }] })).toEqual([
+      { item: "Scanner", qty: 500, uom: "ea" },
+    ]);
   });
 
-  it("treats anything malformed as no list, rather than throwing on a page render", () => {
+  it("treats anything malformed as no list rather than throwing on a page render", () => {
     for (const bad of [null, undefined, {}, { lineItems: "not a list" }, { lineItems: [1, 2] }]) {
       expect(readLineItems(bad)).toEqual([]);
     }
   });
 
-  it("drops entries with no item name", () => {
-    expect(readLineItems({ lineItems: [{ item: "" }, { qty: 5 }, { item: "Real" }] })).toEqual([
-      { item: "Real" },
-    ]);
+  it("survives the round trip an RFQ actually makes", () => {
+    const rows = [
+      { item: "2D barcode scanner, USB-C", qty: "500", uom: "ea" },
+      { item: "Install and commission", qty: "", uom: "" },
+    ];
+    const published = JSON.parse(JSON.stringify({ lineItems: toLineItems(rows) }));
+    expect(readLineItems(published)).toEqual(toLineItems(rows));
   });
 });
