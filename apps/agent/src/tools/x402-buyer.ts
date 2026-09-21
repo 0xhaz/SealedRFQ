@@ -95,8 +95,21 @@ async function pay(rfqId: string) {
 }
 
 async function withdraw(amount: string) {
+  // Withdrawing costs a fee on top of the amount, so asking for the whole balance fails with
+  // "insufficient balance" naming a figure larger than what is there. Say so rather than letting
+  // the Gateway error look like a bug.
+  const { gateway: g } = await gateway.getBalances();
+  const asked = Number(amount);
+  if (Number.isFinite(asked) && asked >= Number(g.formattedAvailable)) {
+    console.log(
+      `note: ${g.formattedAvailable} USDC is available and a withdrawal costs a fee on top, so ask for slightly less.`,
+    );
+  }
+
   const r = await gateway.withdraw(amount);
-  console.log(`withdrew ${amount} USDC: ${JSON.stringify(r)}`);
+  // The result carries BigInt fields, which JSON.stringify throws on — it did, after the
+  // withdrawal had already gone through, which made a success look like a failure.
+  console.log(`withdrew ${r.formattedAmount} USDC to ${r.recipient} (${r.mintTxHash})`);
   await balances();
 }
 

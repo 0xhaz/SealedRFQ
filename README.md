@@ -187,6 +187,10 @@ always will be. The argument this whole project makes is that a losing bidder ca
 and check it against the chain without anyone's permission; charging for that would contradict it.
 What is sold is *compute on demand* — the scheduler scores every RFQ on its own anyway.
 
+Fees land in the seller's Gateway balance, not its wallet, and `withdraw` moves them out for a flat
+fee of about 0.0035 USDC. At five cents a call that is 7% of one evaluation, so withdraw in batches
+rather than per call — and note that a balance below the fee cannot be withdrawn at all.
+
 Off unless `X402_ENABLED=true`. Enabled on a chain Circle cannot settle, or without a payout
 address, the agent refuses to boot rather than quietly serving a paid endpoint for free. `GET /meta`
 advertises the price, so a buying agent can budget the call without provoking a 402 to discover it.
