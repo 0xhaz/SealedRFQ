@@ -64,6 +64,17 @@ describe("describeTxError", () => {
     );
   });
 
+  it("explains an unreachable node instead of showing the raw transport error", () => {
+    // What the deployed site actually showed a user: viem's generic transport failure, which reads
+    // like the app is broken when in fact nothing was submitted.
+    for (const raw of ["HTTP request failed.", "fetch failed", "Failed to fetch"]) {
+      const msg = describeTxError(new Error(raw));
+      expect(msg, raw).toMatch(/nothing was submitted/i);
+      expect(msg, raw).not.toBe(raw);
+    }
+    expect(describeTxError(new Error("429 Too Many Requests"))).toMatch(/rate-limiting/i);
+  });
+
   it("falls back to the first line when nothing about it is recognisable", () => {
     expect(describeTxError(new Error("nonce too low\nat some stack frame"))).toBe("nonce too low");
   });

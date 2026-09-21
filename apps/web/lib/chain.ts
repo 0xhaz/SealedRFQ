@@ -63,6 +63,38 @@ export const contracts: Deployment = (() => {
   return found;
 })();
 
+/**
+ * RPC endpoints for this build, best first.
+ *
+ * Arc's public endpoints share a rate limiter: `rpc.testnet.arc.io`, `rpc.testnet.arc.network` and
+ * the QuickNode one all start returning 429 together under load, which a browser reports as the
+ * uninformative "HTTP request failed". A single URL is therefore a single point of failure, so
+ * these are handed to viem's fallback transport and it moves to the next one on error.
+ *
+ * NEXT_PUBLIC_ARC_RPC_URL goes first when set. It used to be read only for the local chain, so
+ * setting it for a deployment quietly did nothing.
+ */
+const PUBLIC_RPCS: Record<number, string[]> = {
+  5042: [
+    "https://rpc.mainnet.arc.io",
+    "https://rpc.blockdaemon.mainnet.arc.io",
+    "https://rpc.quicknode.mainnet.arc.io",
+  ],
+  5042002: [
+    "https://rpc.blockdaemon.testnet.arc.network",
+    "https://rpc.testnet.arc.network",
+    "https://rpc.testnet.arc.io",
+  ],
+  31337: ["http://127.0.0.1:8545"],
+};
+
+export const rpcUrls: string[] = [
+  ...new Set([
+    ...(process.env.NEXT_PUBLIC_ARC_RPC_URL ? [process.env.NEXT_PUBLIC_ARC_RPC_URL] : []),
+    ...(PUBLIC_RPCS[CHAIN_ID] ?? chain.rpcUrls.default.http),
+  ]),
+];
+
 /** Mainnet moves real money and Arc settlement is forward-only: no undo, no chargeback. */
 export const isMainnet = CHAIN_ID === arcMainnet.id;
 

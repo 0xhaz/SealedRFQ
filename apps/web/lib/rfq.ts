@@ -1,6 +1,6 @@
 import { RFQRegistryAbi, SealedRFQAdapterAbi } from "@sealedrfq/shared";
-import { createPublicClient, http } from "viem";
-import { chain, contracts } from "./chain";
+import { http, createPublicClient, fallback } from "viem";
+import { chain, contracts, rpcUrls } from "./chain";
 
 /**
  * Read side of the RFQ board. Deliberately plain sequential reads: Arc has no Multicall3
@@ -9,7 +9,8 @@ import { chain, contracts } from "./chain";
  */
 export const publicClient = createPublicClient({
   chain,
-  transport: http(chain.rpcUrls.default.http[0]),
+  // One endpoint is a single point of failure on Arc; try each in turn.
+  transport: fallback(rpcUrls.map((url) => http(url))),
 });
 
 export const PHASES = [

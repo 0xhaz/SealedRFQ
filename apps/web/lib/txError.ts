@@ -195,6 +195,16 @@ export function describeTxError(e: unknown): string {
     if (name) return fromName(name, []);
   }
 
+  // The node was unreachable rather than unwilling: a rate limit, a dropped connection, an
+  // endpoint refusing the browser. viem reports all of it as "HTTP request failed", which reads
+  // like the site is broken when nothing has been submitted at all.
+  if (/HTTP request failed|fetch failed|Failed to fetch|network error|timed? out/i.test(raw)) {
+    return "Could not reach an Arc node, so nothing was submitted. Arc's public endpoints rate-limit under load — wait a moment and try again.";
+  }
+  if (/429|rate limit|too many requests/i.test(raw)) {
+    return "The Arc node is rate-limiting this connection, so nothing was submitted. Wait a moment and try again.";
+  }
+
   if (/insufficient funds/i.test(raw))
     return "This wallet does not hold enough USDC to cover the transaction and its gas.";
 
