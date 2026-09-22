@@ -4,6 +4,7 @@ import { chain, contracts, explorerAddress } from "@/lib/chain";
 import { hashText, sameHash } from "@/lib/docHash";
 import { readLineItems } from "@/lib/lineItems";
 import { getRfq, getRfqCount } from "@/lib/rfq";
+import { CATEGORIES, REGIONS, labelFor } from "@/lib/taxonomy";
 import { formatUsdc } from "@sealedrfq/shared";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -66,8 +67,8 @@ export default async function TenderPack({ params }: { params: Promise<{ id: str
             Request for {rfq.requiresProposal ? "Proposal" : "Quotation"} № {id}
           </h1>
           <p className="pack-sub">
-            {rfq.category} · {rfq.region} · {chain.name} · issued by{" "}
-            <span className="mono">{rfq.buyer}</span>
+            {labelFor(CATEGORIES, rfq.category)} · {labelFor(REGIONS, rfq.region)} · {chain.name} ·
+            issued by <span className="mono">{rfq.buyer}</span>
           </p>
         </div>
         <TenderPackActions rfqId={id} metadataURI={metadataURI} />

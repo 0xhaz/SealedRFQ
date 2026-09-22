@@ -1,9 +1,10 @@
-import { formatUsdc } from "@sealedrfq/shared";
-import Link from "next/link";
 import { Header } from "@/components/Header";
 import { PhaseBadge } from "@/components/PhaseBadge";
 import { chain } from "@/lib/chain";
 import { countdown, listRfqs } from "@/lib/rfq";
+import { CATEGORIES, labelFor } from "@/lib/taxonomy";
+import { formatUsdc } from "@sealedrfq/shared";
+import Link from "next/link";
 
 // Always read the chain: phases turn over on deadlines, not on deploys.
 export const dynamic = "force-dynamic";
@@ -92,7 +93,7 @@ export default async function RfqBoard() {
                       </Link>
                       {r.inviteOnly && <span className="badge"> invite</span>}
                     </td>
-                    <td>{r.category || "—"}</td>
+                    <td>{r.category ? labelFor(CATEGORIES, r.category) : "—"}</td>
                     <td className="num">{formatUsdc(r.budget)}</td>
                     <td className="num">{formatUsdc(r.depositAmount)}</td>
                     <td className="num">

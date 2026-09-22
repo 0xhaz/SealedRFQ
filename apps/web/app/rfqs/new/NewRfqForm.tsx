@@ -9,6 +9,7 @@ import { hashFile } from "@/lib/docHash";
 import { MAX_INVITEES, parseInvitees } from "@/lib/invitees";
 import { type LineItemRow, emptyRow, toLineItems } from "@/lib/lineItems";
 import { signUsdcPermit } from "@/lib/permit";
+import { CATEGORIES, REGIONS } from "@/lib/taxonomy";
 import { generateTerms } from "@/lib/terms";
 import { describeTxError } from "@/lib/txError";
 import {
@@ -40,7 +41,7 @@ export function NewRfqForm() {
     "Route-optimisation SaaS integration: connect our TMS to the carrier API, migrate historical routes, and hand over documentation.",
   );
   const [category, setCategory] = useState("SOFTWARE");
-  const [region, setRegion] = useState("US");
+  const [region, setRegion] = useState("GLOBAL");
   const [budget, setBudget] = useState("3.00");
   const [deposit, setDeposit] = useState("0.25");
   const [stakePct, setStakePct] = useState("5");
@@ -390,11 +391,27 @@ export function NewRfqForm() {
           </div>
           <div className="field">
             <label htmlFor="category">Category</label>
-            <input id="category" value={category} onChange={(e) => setCategory(e.target.value)} />
+            <select id="category" value={category} onChange={(e) => setCategory(e.target.value)}>
+              {CATEGORIES.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="field">
-            <label htmlFor="region">Region</label>
-            <input id="region" value={region} onChange={(e) => setRegion(e.target.value)} />
+            <label htmlFor="region">Delivery region</label>
+            <select id="region" value={region} onChange={(e) => setRegion(e.target.value)}>
+              {REGIONS.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+            <span className="hint">
+              Both are published on-chain so suppliers can find work in their field. A fixed list
+              keeps that searchable — free text turns one category into several.
+            </span>
           </div>
         </div>
       </section>

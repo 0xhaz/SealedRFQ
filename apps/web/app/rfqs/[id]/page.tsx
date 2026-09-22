@@ -6,6 +6,7 @@ import { RfqActions } from "@/components/RfqActions";
 import { agent } from "@/lib/agent";
 import { chain, contracts, explorerAddress } from "@/lib/chain";
 import { countdown, getBid, getBidders, getEngagement, getRfq, getRfqCount } from "@/lib/rfq";
+import { CATEGORIES, REGIONS, labelFor } from "@/lib/taxonomy";
 import { formatUsdc } from "@sealedrfq/shared";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -47,8 +48,8 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
           RFQ № {id} <PhaseBadge phase={rfq.phase} winner={rfq.winner} price={rfq.awardPrice} />
         </h2>
         <p className="desk-head-sub">
-          {rfq.category || "—"}
-          {rfq.region ? ` · ${rfq.region}` : ""} · buyer{" "}
+          {rfq.category ? labelFor(CATEGORIES, rfq.category) : "—"}
+          {rfq.region ? ` · ${labelFor(REGIONS, rfq.region)}` : ""} · buyer{" "}
           <a href={explorerAddress(rfq.buyer)} target="_blank" rel="noreferrer" className="mono">
             {short(rfq.buyer)}
           </a>
