@@ -11,6 +11,7 @@ import { ApiController } from "./modules/api/api.controller.js";
 import { AwarderService } from "./modules/awarder/awarder.service.js";
 import { ChainService } from "./modules/chain/chain.service.js";
 import { DocumentsService } from "./modules/documents/documents.service.js";
+import { DocumentsSweeper } from "./modules/documents/documents.sweeper.js";
 import { EvaluatorScheduler } from "./modules/evaluator/evaluator.scheduler.js";
 import { EvaluatorService } from "./modules/evaluator/evaluator.service.js";
 import { IndexerService } from "./modules/indexer/indexer.service.js";
@@ -26,6 +27,7 @@ import { X402Middleware } from "./modules/x402/x402.middleware.js";
     AwarderService,
     X402Middleware,
     DocumentsService,
+    DocumentsSweeper,
   ],
 })
 export class AppModule implements NestModule {
