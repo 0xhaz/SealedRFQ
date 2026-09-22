@@ -6164,6 +6164,11 @@ button.field-wallet {
 .prose-p:last-child {
   margin-bottom: 0;
 }
-.terms-body {
-  max-width: 68ch; /* a readable measure; long clauses are hard to follow across a wide column */
+/*
+ * No max-width here. The card the terms sit in is already a comfortable measure, so capping the
+ * text as well left an empty column to the right of every clause — whitespace that reads as a
+ * layout fault rather than as breathing room.
+ */
+.terms-body .prose-p {
+  margin-bottom: 8px;
 }
