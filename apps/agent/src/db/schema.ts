@@ -89,6 +89,31 @@ export const milestones = sqliteTable(
   (t) => [index("ms_rfq").on(t.rfqId)],
 );
 
+/**
+ * The clarification round: questions from suppliers, answers from the buyer.
+ *
+ * Every row is signed by its author, so the thread can be checked by anyone without this service
+ * being believed about who said what. `anonymous` hides the asker from other readers, never from
+ * the signature — a buyer must still be able to prove a question came from a real bidder.
+ */
+export const clarifications = sqliteTable(
+  "clarifications",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    rfqId: integer("rfq_id").notNull(),
+    /** The question this answers, or null for a question. */
+    parentId: integer("parent_id"),
+    author: text("author").notNull(),
+    role: text("role").notNull(),
+    body: text("body").notNull(),
+    bodyHash: text("body_hash").notNull(),
+    anonymous: integer("anonymous", { mode: "boolean" }).notNull().default(false),
+    signature: text("signature").notNull(),
+    ts: integer("ts").notNull(),
+  },
+  (t) => [index("clar_rfq").on(t.rfqId)],
+);
+
 /** One row: how far the indexer has read. */
 export const cursor = sqliteTable("cursor", {
   id: integer("id").primaryKey().default(1),

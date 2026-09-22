@@ -38,6 +38,11 @@ CREATE TABLE IF NOT EXISTS milestones (
   automatic INTEGER DEFAULT 0, funded_tx TEXT, submitted_tx TEXT, settled_tx TEXT,
   PRIMARY KEY (rfq_id, idx));
 CREATE INDEX IF NOT EXISTS ms_rfq ON milestones (rfq_id);
+CREATE TABLE IF NOT EXISTS clarifications (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, rfq_id INTEGER NOT NULL, parent_id INTEGER,
+  author TEXT NOT NULL, role TEXT NOT NULL, body TEXT NOT NULL, body_hash TEXT NOT NULL,
+  anonymous INTEGER NOT NULL DEFAULT 0, signature TEXT NOT NULL, ts INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS clar_rfq ON clarifications (rfq_id);
 CREATE TABLE IF NOT EXISTS cursor (id INTEGER PRIMARY KEY, last_block INTEGER NOT NULL DEFAULT 0, updated_at INTEGER);
 `);
 

@@ -204,7 +204,51 @@ const EMPTY_RECORD: TrackRecord = {
   },
 };
 
+export type ClarificationEntry = {
+  id: number;
+  rfqId: number;
+  parentId: number | null;
+  author: string | null;
+  role: "supplier" | "buyer";
+  body: string;
+  bodyHash: string;
+  signature: string;
+  ts: number;
+};
+
 export const agent = {
+  /** The public clarification thread for an RFQ. */
+  clarifications: (rfqId: number) =>
+    get<{ entries: ClarificationEntry[] }>(`/rfqs/${rfqId}/clarifications`, { entries: [] }),
+
+  /** Post a question or an answer, authorised by the signature rather than by a session. */
+  addClarification: async (
+    rfqId: number,
+    payload: {
+      body: string;
+      ts: number;
+      signature: string;
+      parentId?: number | null;
+      anonymous?: boolean;
+    },
+  ): Promise<ClarificationEntry | { error: string }> => {
+    if (agentConfigError) return { error: agentConfigError };
+    try {
+      const res = await fetch(`${BASE}/rfqs/${rfqId}/clarifications`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(30_000),
+      });
+      const json = (await res.json().catch(() => null)) as
+        | (ClarificationEntry & { message?: string })
+        | null;
+      if (!res.ok) return { error: json?.message ?? `the agent refused that (${res.status})` };
+      return json as ClarificationEntry;
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "could not reach the agent" };
+    }
+  },
   /** A counterparty's record. An unreachable agent yields zeroes, never an invented figure. */
   record: (address: string) =>
     get<TrackRecord>(`/reputation/${address}`, { ...EMPTY_RECORD, address }),

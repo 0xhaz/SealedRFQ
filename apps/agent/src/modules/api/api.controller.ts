@@ -1,10 +1,22 @@
-import { Controller, Get, Header, Headers, Param, Post, Req, Res, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  Header,
+  Headers,
+  Param,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+} from "@nestjs/common";
 import { hashCanonical } from "@sealedrfq/shared";
 import { desc, eq, sql } from "drizzle-orm";
 import { db, schema } from "../../db/index.js";
 import { TokenGuard } from "../auth/token.guard.js";
 import { AwarderService } from "../awarder/awarder.service.js";
 import { ChainService } from "../chain/chain.service.js";
+import { ClarificationsService } from "../clarifications/clarifications.service.js";
 import { DocumentsService } from "../documents/documents.service.js";
 import { EvaluatorService } from "../evaluator/evaluator.service.js";
 import { IndexerService } from "../indexer/indexer.service.js";
@@ -21,7 +33,33 @@ export class ApiController {
     private readonly x402: X402Middleware,
     private readonly documents: DocumentsService,
     private readonly reputation: ReputationService,
+    private readonly clarifications: ClarificationsService,
   ) {}
+
+  /** The clarification thread. Public by design: an answer only one bidder can read is a favour. */
+  @Get("rfqs/:id/clarifications")
+  clarificationThread(@Param("id") id: string) {
+    return { entries: this.clarifications.thread(Number(id)) };
+  }
+
+  /**
+   * Ask a question, or answer one as the buyer. Authorised by signature rather than by a session:
+   * there are no accounts here, and the wallet is the identity everywhere else.
+   */
+  @Post("rfqs/:id/clarifications")
+  addClarification(
+    @Param("id") id: string,
+    @Body()
+    body: {
+      body: string;
+      ts: number;
+      signature: `0x${string}`;
+      parentId?: number | null;
+      anonymous?: boolean;
+    },
+  ) {
+    return this.clarifications.add({ rfqId: Number(id), ...body });
+  }
 
   /** A counterparty's record, counted from the chain. Free: it is evidence, not a product. */
   @Get("reputation/:address")

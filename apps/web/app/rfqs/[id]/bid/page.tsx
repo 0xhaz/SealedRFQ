@@ -1,3 +1,4 @@
+import { Clarifications } from "@/components/Clarifications";
 import { Header } from "@/components/Header";
 import { LineItems } from "@/components/LineItems";
 import { PhaseBadge } from "@/components/PhaseBadge";
@@ -45,6 +46,7 @@ export default async function BidPage({ params }: { params: Promise<{ id: string
           has the full scope, terms, timetable and hashes on one printable page.
         </div>
         <LineItems metadataURI={"rfq" in indexed ? indexed.rfq?.metadataURI : null} />
+        <Clarifications rfqId={id} buyer={rfq.buyer} biddingOpen={rfq.phase === "Bidding"} />
         <RequirementsPanel metadataURI={"rfq" in indexed ? indexed.rfq?.metadataURI : null} />
         <TermsPanel
           metadataURI={"rfq" in indexed ? indexed.rfq?.metadataURI : null}

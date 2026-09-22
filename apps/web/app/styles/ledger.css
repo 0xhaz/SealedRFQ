@@ -6129,3 +6129,29 @@ button.field-wallet {
 .warn-text {
   color: var(--red);
 }
+
+/* Clarification thread: questions and the answers everyone sees. */
+.qa {
+  border-top: 1px solid var(--line);
+  padding: 10px 0;
+}
+.qa-q {
+  font-size: 13.5px;
+}
+.qa-a {
+  margin: 6px 0 0 18px;
+  padding-left: 10px;
+  border-left: 2px solid var(--line);
+  font-size: 13px;
+}
+.qa-form {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.qa-form textarea {
+  width: 100%;
+}

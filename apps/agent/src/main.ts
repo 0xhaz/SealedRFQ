@@ -10,6 +10,7 @@ import { NestFactory } from "@nestjs/core";
 import { ApiController } from "./modules/api/api.controller.js";
 import { AwarderService } from "./modules/awarder/awarder.service.js";
 import { ChainService } from "./modules/chain/chain.service.js";
+import { ClarificationsService } from "./modules/clarifications/clarifications.service.js";
 import { DocumentsService } from "./modules/documents/documents.service.js";
 import { DocumentsSweeper } from "./modules/documents/documents.sweeper.js";
 import { EvaluatorScheduler } from "./modules/evaluator/evaluator.scheduler.js";
@@ -30,6 +31,7 @@ import { X402Middleware } from "./modules/x402/x402.middleware.js";
     DocumentsService,
     DocumentsSweeper,
     ReputationService,
+    ClarificationsService,
   ],
 })
 export class AppModule implements NestModule {
