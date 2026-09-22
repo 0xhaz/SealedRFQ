@@ -46,6 +46,12 @@ export function BidForm({ rfqId, phase, deposit, budget, requiresProposal }: Pro
    * hashing the bytes binds the breakdown to the sealed total exactly as typed text does.
    */
   const [quoteFile, setQuoteFile] = useState<{ name: string; hash: `0x${string}` } | null>(null);
+  /**
+   * Acceptance of the published terms. The real binding is cryptographic — the commitment is for an
+   * RFQ whose metadataHash covers the terms — but a supplier should be asked before they are bound,
+   * not told afterwards that bidding counted as agreement.
+   */
+  const [accepted, setAccepted] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -140,6 +146,11 @@ export function BidForm({ rfqId, phase, deposit, budget, requiresProposal }: Pro
         throw new Error("Delivery must be a whole number of days");
       }
 
+      if (!accepted) {
+        throw new Error(
+          "Confirm you have read the tender pack and accept the terms before bidding",
+        );
+      }
       if (requiresProposal && !proposal.trim() && !quoteFile) {
         throw new Error("This RFQ is an RFP: attach a proposal document or write one");
       }
@@ -417,11 +428,33 @@ export function BidForm({ rfqId, phase, deposit, budget, requiresProposal }: Pro
                   empty account cannot even estimate a fee.
                 </div>
               )}
+              <div className="full accept-terms">
+                <label htmlFor="accept-terms">
+                  <input
+                    id="accept-terms"
+                    type="checkbox"
+                    checked={accepted}
+                    onChange={(e) => setAccepted(e.target.checked)}
+                  />
+                  <span>
+                    I have read the{" "}
+                    <Link href={`/rfqs/${rfqId}/pack`} className="linklike">
+                      tender pack
+                    </Link>{" "}
+                    and accept the terms published with this RFQ.
+                  </span>
+                </label>
+                <span className="hint">
+                  Your bid is sealed against those exact terms: the commitment covers the RFQ&apos;s
+                  metadata hash, so they cannot be changed afterwards without every bidder seeing
+                  it.
+                </span>
+              </div>
               <div className="full">
                 <button
                   type="button"
                   className="btn-primary"
-                  disabled={!!busy || shortBy > 0n || notInvited}
+                  disabled={!!busy || shortBy > 0n || notInvited || !accepted}
                   onClick={() => commit(false)}
                 >
                   {busy ?? "Seal and submit bid"}

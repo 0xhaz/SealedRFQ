@@ -36,6 +36,13 @@ export default async function BidPage({ params }: { params: Promise<{ id: string
       </section>
 
       <div className="grid">
+        <div className="note">
+          Pricing this offline? The{" "}
+          <Link href={`/rfqs/${id}/pack`} className="linklike">
+            tender pack
+          </Link>{" "}
+          has the full scope, terms, timetable and hashes on one printable page.
+        </div>
         <LineItems metadataURI={"rfq" in indexed ? indexed.rfq?.metadataURI : null} />
         <TermsPanel
           metadataURI={"rfq" in indexed ? indexed.rfq?.metadataURI : null}

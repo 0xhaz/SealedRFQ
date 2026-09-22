@@ -5925,3 +5925,107 @@ button.field-wallet {
     grid-column: 1 / -1;
   }
 }
+
+/* ── Tender pack ─────────────────────────────────────────────────────────────
+   The document a supplier sends to whoever prices it. Plain, printable, and
+   carrying the hashes that prove the copy is the one the RFQ was opened with. */
+.pack {
+  max-width: 860px;
+}
+.pack-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 14px;
+  border-bottom: 2px solid var(--ink);
+  margin-bottom: 8px;
+}
+.pack-head h1 {
+  margin: 0;
+  font-size: 26px;
+}
+.pack-sub {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.pack-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.pack section {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+  break-inside: avoid;
+}
+.pack section h2 {
+  font-size: 15px;
+  margin: 0 0 10px;
+}
+.pack table {
+  width: 100%;
+  margin: 10px 0;
+}
+.pack td,
+.pack th {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+  font-size: 13px;
+}
+.pack .mono {
+  word-break: break-all;
+}
+.pack-note {
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+.pack-foot {
+  display: flex;
+  gap: 10px;
+  padding: 18px 0;
+}
+
+.accept-terms label {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  cursor: pointer;
+  font-size: 13.5px;
+}
+.accept-terms input {
+  margin-top: 3px;
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+/* Printing is how the pack becomes a PDF, so strip anything that is not the document. */
+@media print {
+  .no-print,
+  header,
+  nav,
+  .form-nav {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+  body::before {
+    display: none;
+  }
+  .pack {
+    max-width: none;
+  }
+  .pack section {
+    page-break-inside: avoid;
+  }
+  a {
+    text-decoration: none;
+    color: inherit;
+  }
+}

@@ -322,6 +322,9 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
             {rfq.phase === "Bidding" ? "Submit a sealed bid →" : "Reveal your bid →"}
           </Link>
         )}
+        <Link className="btn-nav" href={`/rfqs/${id}/pack`}>
+          Tender pack ↓
+        </Link>
         <Link className="btn-nav" href={`/audit/${id}`}>
           Audit the decision
         </Link>
