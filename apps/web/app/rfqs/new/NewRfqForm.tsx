@@ -8,6 +8,7 @@ import { hashFile } from "@/lib/docHash";
 import { MAX_INVITEES, parseInvitees } from "@/lib/invitees";
 import { type LineItemRow, emptyRow, toLineItems } from "@/lib/lineItems";
 import { signUsdcPermit } from "@/lib/permit";
+import { generateTerms } from "@/lib/terms";
 import { describeTxError } from "@/lib/txError";
 import {
   RFQRegistryAbi,
@@ -68,6 +69,12 @@ export function NewRfqForm() {
   /** The basket suppliers quote against. Hash-fixed with the rest of the metadata. */
   const [lineRows, setLineRows] = useState<LineItemRow[]>([emptyRow()]);
   const [termsSummary, setTermsSummary] = useState("");
+  /**
+   * The last text this form generated. If the box still matches it the buyer has not edited, so
+   * changing a figure above can safely refresh the clauses. Once they have typed, it never
+   * overwrites them — it only points out that the numbers have moved.
+   */
+  const [generated, setGenerated] = useState("");
   const [termsUri, setTermsUri] = useState("");
   const [termsFile, setTermsFile] = useState<{ name: string; sha256: `0x${string}` } | null>(null);
   /** Screened by the evaluator at reveal. Checkable ones become red flags; the rest need a person. */
@@ -105,6 +112,33 @@ export function NewRfqForm() {
 
   const chainNow = Math.floor(Date.now() / 1000) + (skew ?? 0);
   const deadlineError = skew === null ? null : checkDeadlines(deadlines, chainNow);
+
+  const termsDraft = generateTerms({
+    mode,
+    budget,
+    deposit,
+    stakePct,
+    retentionPct,
+    milestones,
+    deliveryMin,
+    acceptMin,
+    maxDeliveryDays,
+    attestations: attestations
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean),
+    lineItemCount: toLineItems(lineRows).length,
+  });
+  const termsAreGenerated = termsSummary === generated && termsSummary.length > 0;
+  const termsAreStale = termsAreGenerated && termsDraft !== termsSummary;
+
+  // Unedited terms follow the figures above; edited ones are left alone and flagged instead.
+  useEffect(() => {
+    if (termsAreStale) {
+      setTermsSummary(termsDraft);
+      setGenerated(termsDraft);
+    }
+  }, [termsAreStale, termsDraft]);
 
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -543,10 +577,38 @@ export function NewRfqForm() {
         <div className="form">
           <div className="field full">
             <label htmlFor="termsSummary">Terms and conditions (optional)</label>
+            <div className="terms-actions">
+              <button
+                type="button"
+                className="btn-outline"
+                onClick={() => {
+                  if (
+                    termsSummary.trim() &&
+                    !termsAreGenerated &&
+                    !confirm("Replace the terms you have written with freshly generated ones?")
+                  ) {
+                    return;
+                  }
+                  setTermsSummary(termsDraft);
+                  setGenerated(termsDraft);
+                }}
+              >
+                {termsSummary.trim() ? "Regenerate standard terms" : "Generate standard terms"}
+              </button>
+              {termsAreGenerated && (
+                <span className="hint">
+                  Generated from the figures above, and following them as you change them. Edit
+                  freely — once you do, they stop tracking.
+                </span>
+              )}
+              {!termsAreGenerated && termsSummary.trim() && (
+                <span className="hint">Edited by you; the button above will replace them.</span>
+              )}
+            </div>
             <textarea
               id="termsSummary"
-              rows={2}
-              placeholder="Payment terms, warranty, liability, confidentiality — or a summary pointing at the attached document."
+              rows={8}
+              placeholder="Press Generate above for clauses built from the figures you have entered, then edit. Anything a form cannot guess — warranty, liability, governing law — belongs in the attached document."
               value={termsSummary}
               onChange={(e) => setTermsSummary(e.target.value)}
             />

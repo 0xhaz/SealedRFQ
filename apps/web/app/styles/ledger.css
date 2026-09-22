@@ -6029,3 +6029,16 @@ button.field-wallet {
     color: inherit;
   }
 }
+
+/* Generated terms: the button sits above the box it fills. */
+.terms-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.terms-actions .btn-outline {
+  padding: 6px 12px;
+  font-size: 12px;
+}
