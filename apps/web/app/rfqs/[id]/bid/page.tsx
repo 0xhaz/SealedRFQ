@@ -38,27 +38,32 @@ export default async function BidPage({ params }: { params: Promise<{ id: string
       </section>
 
       <div className="grid">
-        <div className="note">
-          Pricing this offline? The{" "}
-          <Link href={`/rfqs/${id}/pack`} className="linklike">
-            tender pack
-          </Link>{" "}
-          has the full scope, terms, timetable and hashes on one printable page.
+        {/* One stack, in the order a supplier reads: what is wanted, on what terms, then bid. Left
+            as bare children of .grid they were auto-placed across both columns by source order,
+            which stranded short panels beside tall ones and left gaps between them. */}
+        <div className="col">
+          <div className="note">
+            Pricing this offline? The{" "}
+            <Link href={`/rfqs/${id}/pack`} className="linklike">
+              tender pack
+            </Link>{" "}
+            has the full scope, terms, timetable and hashes on one printable page.
+          </div>
+          <LineItems metadataURI={"rfq" in indexed ? indexed.rfq?.metadataURI : null} />
+          <RequirementsPanel metadataURI={"rfq" in indexed ? indexed.rfq?.metadataURI : null} />
+          <TermsPanel
+            metadataURI={"rfq" in indexed ? indexed.rfq?.metadataURI : null}
+            metadataHash={rfq.metadataHash}
+          />
+          <Clarifications rfqId={id} buyer={rfq.buyer} biddingOpen={rfq.phase === "Bidding"} />
+          <BidForm
+            rfqId={id}
+            phase={rfq.phase}
+            deposit={rfq.depositAmount.toString()}
+            budget={rfq.budget.toString()}
+            requiresProposal={rfq.requiresProposal}
+          />
         </div>
-        <LineItems metadataURI={"rfq" in indexed ? indexed.rfq?.metadataURI : null} />
-        <Clarifications rfqId={id} buyer={rfq.buyer} biddingOpen={rfq.phase === "Bidding"} />
-        <RequirementsPanel metadataURI={"rfq" in indexed ? indexed.rfq?.metadataURI : null} />
-        <TermsPanel
-          metadataURI={"rfq" in indexed ? indexed.rfq?.metadataURI : null}
-          metadataHash={rfq.metadataHash}
-        />
-        <BidForm
-          rfqId={id}
-          phase={rfq.phase}
-          deposit={rfq.depositAmount.toString()}
-          budget={rfq.budget.toString()}
-          requiresProposal={rfq.requiresProposal}
-        />
         <div className="right">
           <div className="panel">
             <div className="head">

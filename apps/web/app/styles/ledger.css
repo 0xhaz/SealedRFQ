@@ -6155,3 +6155,15 @@ button.field-wallet {
 .qa-form textarea {
   width: 100%;
 }
+
+/* Authored text: clauses need to sit apart to be read before they are agreed to. */
+.prose-p {
+  margin: 0 0 10px;
+  line-height: 1.65;
+}
+.prose-p:last-child {
+  margin-bottom: 0;
+}
+.terms-body {
+  max-width: 68ch; /* a readable measure; long clauses are hard to follow across a wide column */
+}

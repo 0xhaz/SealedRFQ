@@ -1,6 +1,7 @@
 "use client";
 
 import { DocumentCheck } from "@/components/DocumentCheck";
+import { Prose } from "@/components/Prose";
 import { hashText, sameHash } from "@/lib/docHash";
 import type { Hex } from "viem";
 
@@ -44,7 +45,7 @@ export function TermsPanel({ metadataURI, metadataHash }: Props) {
         <h3>Terms of this tender</h3>
       </div>
       <div className="card-body">
-        {terms.summary && <p className="note">{terms.summary}</p>}
+        {terms.summary && <Prose text={terms.summary} className="note terms-body" />}
 
         <div className={documentMatches ? "note ok" : "note warn"}>
           {documentMatches ? (

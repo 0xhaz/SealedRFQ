@@ -1,3 +1,4 @@
+import { Prose } from "@/components/Prose";
 import { TenderPackActions } from "@/components/TenderPackActions";
 import { agent } from "@/lib/agent";
 import { chain, contracts, explorerAddress } from "@/lib/chain";
@@ -168,7 +169,11 @@ export default async function TenderPack({ params }: { params: Promise<{ id: str
 
       <section>
         <h2>4. Terms and conditions</h2>
-        {terms?.summary ? <p>{terms.summary}</p> : <p>No terms published with this RFQ.</p>}
+        {terms?.summary ? (
+          <Prose text={terms.summary} className="terms-body" />
+        ) : (
+          <p>No terms published with this RFQ.</p>
+        )}
         {terms?.uri && (
           <p>
             Document:{" "}
