@@ -1,3 +1,4 @@
+import { DirectMessages } from "@/components/DirectMessages";
 import { DocumentCheck } from "@/components/DocumentCheck";
 import { EvaluationPanel } from "@/components/EvaluationPanel";
 import { Header } from "@/components/Header";
@@ -314,6 +315,8 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
               )}
             </div>
           )}
+
+          {engagement && <DirectMessages buyer={rfq.buyer} supplier={engagement.supplier} />}
         </div>
 
         <div className="right">

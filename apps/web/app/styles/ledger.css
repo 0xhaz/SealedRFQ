@@ -6193,3 +6193,37 @@ button.field-wallet {
   font-size: 12px;
   flex: none;
 }
+
+/*
+ * The private thread between a buyer and their awarded supplier.
+ *
+ * Deliberately plainer than a chat app: this sits inside a tender record, and bubbles floating in
+ * from alternating sides would read as a different kind of document. Each line is stamped with who
+ * and when, because these messages are about a contract and the answer to "when did you tell me
+ * that" matters more here than it does in a messenger.
+ */
+.dm-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 340px;
+  overflow-y: auto;
+  padding: 4px 0 12px;
+}
+.dm-line {
+  border-left: 2px solid var(--line);
+  padding-left: 10px;
+}
+.dm-line.mine {
+  border-left-color: var(--ink);
+}
+.dm-who {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+.dm-text {
+  font-size: 13.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
