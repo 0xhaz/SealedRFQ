@@ -8,10 +8,26 @@
  */
 export type LineItem = { item: string; qty?: number; uom?: string };
 
-/** A row as the editor holds it: everything a string, because a half-typed number is not one. */
-export type LineItemRow = { item: string; qty: string; uom: string };
+/**
+ * A row as the editor holds it: everything a string, because a half-typed number is not one.
+ *
+ * `id` exists only to key the React list. It must not derive from the contents — keying a row by
+ * what has been typed into it changes the key on every keystroke, which remounts the input and
+ * takes the caret with it.
+ */
+export type LineItemRow = { id: string; item: string; qty: string; uom: string };
 
-export const emptyRow = (): LineItemRow => ({ item: "", qty: "", uom: "" });
+let seq = 0;
+/**
+ * Pass an id for the row a form starts with. Server and client must agree on the first render, and
+ * a module-level counter does not survive being evaluated once per process and hydrated per page.
+ */
+export const emptyRow = (id?: string): LineItemRow => ({
+  id: id ?? `row-${++seq}`,
+  item: "",
+  qty: "",
+  uom: "",
+});
 
 /** Units offered as suggestions. Free text stays allowed — nobody's catalogue fits a fixed list. */
 export const COMMON_UNITS = [
@@ -58,7 +74,7 @@ export function parsePastedRows(text: string): LineItemRow[] {
     .map((line) => {
       const cells = line.includes("\t") ? line.split("\t") : line.split("|");
       const [item = "", qty = "", uom = ""] = cells.map((c) => c.trim());
-      return { item, qty, uom };
+      return { id: `row-${++seq}`, item, qty, uom };
     })
     .filter((r) => r.item.length > 0);
 }

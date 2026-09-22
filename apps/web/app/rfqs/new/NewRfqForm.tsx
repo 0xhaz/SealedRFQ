@@ -68,7 +68,7 @@ export function NewRfqForm() {
    * opens — so the terms cannot be revised once bidding has started, and every bidder can prove it.
    */
   /** The basket suppliers quote against. Hash-fixed with the rest of the metadata. */
-  const [lineRows, setLineRows] = useState<LineItemRow[]>([emptyRow()]);
+  const [lineRows, setLineRows] = useState<LineItemRow[]>([emptyRow("row-initial")]);
   const [termsSummary, setTermsSummary] = useState("");
   /**
    * The last text this form generated. If the box still matches it the buyer has not edited, so

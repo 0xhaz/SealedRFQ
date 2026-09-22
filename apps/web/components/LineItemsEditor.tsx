@@ -44,7 +44,7 @@ export function LineItemsEditor({ rows, onChange }: Props) {
       </div>
 
       {rows.map((row, i) => (
-        <div className="lines-row" key={`line-${i}-${row.item.slice(0, 12)}`}>
+        <div className="lines-row" key={row.id}>
           <input
             aria-label={`Item ${i + 1}`}
             placeholder="2D barcode scanner, USB-C"
