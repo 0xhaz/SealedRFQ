@@ -2,6 +2,7 @@ import { BoardFilters } from "@/components/BoardFilters";
 import { Header } from "@/components/Header";
 import { Payouts } from "@/components/Payouts";
 import { PhaseBadge } from "@/components/PhaseBadge";
+import { YourWork } from "@/components/YourWork";
 import { applyBoardQuery, facetsOf, parseBoardQuery } from "@/lib/boardFilter";
 import { chain } from "@/lib/chain";
 import { countdown, listRfqs } from "@/lib/rfq";
@@ -38,6 +39,19 @@ export default async function RfqBoard({
           Live from {chain.name}. Sealed bids show only a count until their reveal window opens.
         </p>
       </section>
+
+      <YourWork
+        rfqs={all.map((r) => ({
+          id: r.id,
+          phase: r.phase,
+          inviteOnly: r.inviteOnly,
+          buyer: r.buyer,
+          winner: r.winner,
+          bidDeadline: r.bidDeadline,
+          revealDeadline: r.revealDeadline,
+          awardDeadline: r.awardDeadline,
+        }))}
+      />
 
       <Payouts />
 

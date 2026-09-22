@@ -1,0 +1,114 @@
+"use client";
+
+import { chain, contracts } from "@/lib/chain";
+import { countdown } from "@/lib/rfq";
+import { type WorkRow, deriveWork } from "@/lib/work";
+import { RFQRegistryAbi } from "@sealedrfq/shared";
+import Link from "next/link";
+import { useAccount, useReadContracts } from "wagmi";
+
+export type BoardRfq = {
+  id: number;
+  phase: string;
+  inviteOnly: boolean;
+  buyer: string;
+  winner: string;
+  bidDeadline: number;
+  revealDeadline: number;
+  awardDeadline: number;
+};
+
+/**
+ * What the connected wallet has to do, and by when.
+ *
+ * An invitation names a wallet address, and a wallet address is not a contact method: nothing can
+ * email `0x0C01…`, so an invited supplier who never opens the site never learns they were invited
+ * and the buyer's list quietly does nothing. Collecting email addresses would mean accounts, which
+ * this project does not have and does not want — so discovery is pulled rather than pushed. Connect
+ * a wallet and the work addressed to it is listed.
+ *
+ * That does not remove the need to tell someone a tender exists; it removes the need to tell them
+ * anything more than once. The deadline that keeps catching people is the reveal window, because a
+ * sealed bid that is never revealed loses both the tender and the deposit, so it is listed first
+ * and in the strongest terms this panel has.
+ */
+export function YourWork({ rfqs }: { rfqs: BoardRfq[] }) {
+  const { address, isConnected, chainId } = useAccount();
+  const me = address?.toLowerCase();
+
+  const open = rfqs.filter((r) => r.phase === "Bidding" || r.phase === "Reveal");
+
+  // Only invite-only RFQs still taking bids need an invitation check.
+  const inviteChecks = open.filter((r) => r.inviteOnly && r.phase === "Bidding");
+  const bidChecks = open;
+
+  const { data } = useReadContracts({
+    contracts: [
+      ...inviteChecks.map((r) => ({
+        abi: RFQRegistryAbi,
+        address: contracts.RFQRegistry,
+        functionName: "isInvited" as const,
+        args: [BigInt(r.id), address as `0x${string}`],
+      })),
+      ...bidChecks.map((r) => ({
+        abi: RFQRegistryAbi,
+        address: contracts.RFQRegistry,
+        functionName: "getBid" as const,
+        args: [BigInt(r.id), address as `0x${string}`],
+      })),
+    ],
+    query: { enabled: Boolean(address) && chainId === chain.id, refetchInterval: 30_000 },
+  });
+
+  if (!isConnected || chainId !== chain.id) return null;
+
+  const ZERO_HASH = `0x${"0".repeat(64)}`;
+  const bidAt = (id: number) =>
+    data?.[inviteChecks.length + bidChecks.findIndex((b) => b.id === id)]?.result as
+      | { commitHash?: string; revealed?: boolean }
+      | undefined;
+
+  const rows: WorkRow[] = rfqs.map((r) => {
+    const invited = inviteChecks.findIndex((x) => x.id === r.id);
+    const bid = bidAt(r.id);
+    return {
+      ...r,
+      invited: invited >= 0 ? data?.[invited]?.result === true : undefined,
+      hasBid: Boolean(bid?.commitHash && bid.commitHash !== ZERO_HASH),
+      revealed: Boolean(bid?.revealed),
+    };
+  });
+
+  const items = deriveWork(rows, address);
+  if (items.length === 0) return null;
+
+  const describe = (it: (typeof items)[number]) => {
+    switch (it.kind) {
+      case "reveal":
+        return `Reveal your bid on RFQ № ${it.rfqId} within ${countdown(it.deadline)} — an unrevealed bid loses the tender and forfeits its deposit.`;
+      case "award":
+        return `Award RFQ № ${it.rfqId} within ${countdown(it.deadline)}, or it closes with no award.`;
+      default:
+        return `You are invited to bid on RFQ № ${it.rfqId}. Bidding closes in ${countdown(it.deadline)}.`;
+    }
+  };
+  const hrefFor = (it: (typeof items)[number]) =>
+    it.kind === "award" ? `/rfqs/${it.rfqId}` : `/rfqs/${it.rfqId}/bid`;
+
+  return (
+    <div className="panel">
+      <div className="head">
+        Needs you
+        <span className="hint">addressed to this wallet</span>
+      </div>
+      {items.map((it) => (
+        <div key={it.key} className={it.urgent ? "work-row urgent" : "work-row"}>
+          <span>{describe(it)}</span>
+          <Link className="btn-outline" href={hrefFor(it)}>
+            Open →
+          </Link>
+        </div>
+      ))}
+    </div>
+  );
+}
