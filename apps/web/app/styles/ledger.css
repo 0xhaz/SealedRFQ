@@ -6107,3 +6107,20 @@ button.field-wallet {
   font-family: var(--mono);
   font-size: 11px;
 }
+
+/* Payouts: one row per contract holding money for you. */
+.payout-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+.payout-row .btn-primary,
+.payout-row .btn-outline {
+  padding: 6px 14px;
+  font-size: 12px;
+}

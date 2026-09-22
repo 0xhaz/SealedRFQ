@@ -1,10 +1,12 @@
 import { DocumentCheck } from "@/components/DocumentCheck";
 import { EvaluationPanel } from "@/components/EvaluationPanel";
 import { Header } from "@/components/Header";
+import { Payouts } from "@/components/Payouts";
 import { PhaseBadge } from "@/components/PhaseBadge";
 import { RfqActions } from "@/components/RfqActions";
 import { agent } from "@/lib/agent";
 import { chain, contracts, explorerAddress } from "@/lib/chain";
+import { milestoneLedger } from "@/lib/milestones";
 import { countdown, getBid, getBidders, getEngagement, getRfq, getRfqCount } from "@/lib/rfq";
 import { CATEGORIES, REGIONS, labelFor } from "@/lib/taxonomy";
 import { formatUsdc } from "@sealedrfq/shared";
@@ -163,6 +165,8 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
             )}
           </div>
 
+          <Payouts />
+
           <EvaluationPanel rfqId={id} evaluation={evaluation} audit={audit} />
 
           {engagement && (
@@ -211,6 +215,65 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
                   </b>
                 </div>
               )}
+              {(() => {
+                const ledger = milestoneLedger(
+                  engagement.price,
+                  rfq.milestoneBps,
+                  rfq.retentionBps,
+                );
+                return (
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Milestone</th>
+                        <th className="num">Value</th>
+                        <th className="num">Retained</th>
+                        <th className="num">Pays now</th>
+                        <th>State</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ledger.lines.map((l) => {
+                        const done = l.index < engagement.currentMilestone;
+                        const current = l.index === engagement.currentMilestone;
+                        return (
+                          <tr key={l.index}>
+                            <td>
+                              {l.index + 1} of {ledger.lines.length}
+                              {current && <span className="badge"> current</span>}
+                            </td>
+                            <td className="num">{formatUsdc(l.gross)}</td>
+                            <td className="num">{formatUsdc(l.retained)}</td>
+                            <td className="num">{formatUsdc(l.net)}</td>
+                            <td className="muted" style={{ fontSize: 11 }}>
+                              {done ? "paid" : current ? "in progress" : "not started"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      <tr>
+                        <td>
+                          <b>Retention</b>
+                        </td>
+                        <td className="num">—</td>
+                        <td className="num">{formatUsdc(ledger.retentionHeld)}</td>
+                        <td className="num">
+                          <b>{formatUsdc(ledger.retentionHeld)}</b>
+                        </td>
+                        <td className="muted" style={{ fontSize: 11 }}>
+                          released at final acceptance
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                );
+              })()}
+              <div className="note">
+                Every milestone pays less than its share because retention is held back from each
+                one; the difference arrives in a single release when the last is accepted. Money
+                released is credited to the supplier, not transferred — it waits under{" "}
+                <b>Your payouts</b> until they withdraw it.
+              </div>
               {engagement.deliverable && engagement.deliverable !== `0x${"0".repeat(64)}` && (
                 <div style={{ padding: "12px 20px 4px" }}>
                   <DocumentCheck
