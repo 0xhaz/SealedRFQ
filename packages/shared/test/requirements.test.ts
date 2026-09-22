@@ -55,3 +55,27 @@ describe("checkRequirements", () => {
     expect(checkRequirements(bid, req)).toEqual(checkRequirements(bid, req));
   });
 });
+
+describe("supplier region", () => {
+  it("is reported as declared, never as satisfied", () => {
+    // An address has no country. Presenting this as checked would be the exact dishonesty the
+    // unverified list exists to prevent.
+    const r = checkRequirements(bid, { supplierRegion: "South East Asia" });
+    expect(r.failed).toEqual([]);
+    expect(r.unverified).toHaveLength(1);
+    expect(r.unverified[0]).toContain("South East Asia");
+    expect(r.unverified[0]).toMatch(/declared only/i);
+  });
+
+  it("sits alongside other stated requirements rather than replacing them", () => {
+    const r = checkRequirements(bid, {
+      supplierRegion: "EU",
+      attestations: ["ISO 9001"],
+    });
+    expect(r.unverified).toHaveLength(2);
+  });
+
+  it("is absent when the buyer did not restrict it", () => {
+    expect(checkRequirements(bid, { attestations: ["ISO 9001"] }).unverified).toHaveLength(1);
+  });
+});

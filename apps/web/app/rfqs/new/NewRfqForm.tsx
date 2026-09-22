@@ -9,7 +9,7 @@ import { hashFile } from "@/lib/docHash";
 import { MAX_INVITEES, parseInvitees } from "@/lib/invitees";
 import { type LineItemRow, emptyRow, toLineItems } from "@/lib/lineItems";
 import { signUsdcPermit } from "@/lib/permit";
-import { CATEGORIES, REGIONS } from "@/lib/taxonomy";
+import { CATEGORIES, REGIONS, labelFor } from "@/lib/taxonomy";
 import { generateTerms } from "@/lib/terms";
 import { describeTxError } from "@/lib/txError";
 import {
@@ -85,6 +85,8 @@ export function NewRfqForm() {
     warning?: string;
   } | null>(null);
   /** Screened by the evaluator at reveal. Checkable ones become red flags; the rest need a person. */
+  /** Empty means any supplier may bid. Declared only — see the hint beside the field. */
+  const [supplierRegion, setSupplierRegion] = useState("");
   const [maxDeliveryDays, setMaxDeliveryDays] = useState("");
   const [minHistory, setMinHistory] = useState("");
   const [attestations, setAttestations] = useState("");
@@ -234,6 +236,7 @@ export function NewRfqForm() {
         ...(Number(maxDeliveryDays) > 0 ? { maxDeliveryDays: Number(maxDeliveryDays) } : {}),
         ...(Number(minHistory) > 0 ? { minCompletedEngagements: Number(minHistory) } : {}),
         ...(attestationList.length ? { attestations: attestationList } : {}),
+        ...(supplierRegion ? { supplierRegion: labelFor(REGIONS, supplierRegion) } : {}),
       };
       const lineItems = toLineItems(lineRows);
       const metadata = JSON.stringify({
@@ -690,6 +693,33 @@ export function NewRfqForm() {
       <section id="requirements" className="form-section">
         <h4>Requirements</h4>
         <div className="form">
+          <div className="field full">
+            <label htmlFor="supplierRegion">Who may bid</label>
+            <select
+              id="supplierRegion"
+              value={supplierRegion}
+              onChange={(e) => setSupplierRegion(e.target.value)}
+            >
+              <option value="">Any supplier, anywhere</option>
+              {REGIONS.filter((r) => r.value !== "GLOBAL").map((r) => (
+                <option key={r.value} value={r.value}>
+                  Suppliers established in {r.label}
+                </option>
+              ))}
+            </select>
+            <span className="hint">
+              {supplierRegion ? (
+                <>
+                  <b>Published, not enforced.</b> An address has no country, so nothing on-chain can
+                  check this — it is listed against every bid as needing a human, exactly like a
+                  certification. To actually restrict who can bid, set <b>Visibility</b> to invited
+                  and list the suppliers; the contract enforces that one.
+                </>
+              ) : (
+                "Leave this open unless a supplier's own location matters. Where the work is delivered is the Delivery region field above."
+              )}
+            </span>
+          </div>
           <div className="field">
             <label htmlFor="maxDeliveryDays">Required delivery (days, optional)</label>
             <input

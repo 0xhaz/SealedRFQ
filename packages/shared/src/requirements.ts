@@ -24,6 +24,12 @@ export const Requirements = z.object({
   minCompletedEngagements: z.number().int().nonnegative().optional(),
   /** Stated requirements no bid field can prove. Surfaced for a human; never auto-passed. */
   attestations: z.array(z.string().min(1)).optional(),
+  /**
+   * Where a bidder must be established. Declared, never verified: an address has no country, so
+   * nothing here can check it. A buyer who needs this enforced should make the RFQ invite-only,
+   * which the contract does enforce.
+   */
+  supplierRegion: z.string().min(1).optional(),
 });
 export type Requirements = z.infer<typeof Requirements>;
 
@@ -61,10 +67,14 @@ export function checkRequirements(bid: BidFacts, requirements?: unknown): Requir
     );
   }
 
-  return {
-    failed,
-    unverified: (r.attestations ?? []).map(
-      (a) => `${a} — stated requirement, not provable from a bid`,
-    ),
-  };
+  const unverified = (r.attestations ?? []).map(
+    (a) => `${a} — stated requirement, not provable from a bid`,
+  );
+  if (r.supplierRegion) {
+    unverified.push(
+      `supplier must be established in ${r.supplierRegion} — declared only; an address has no country, so check it before awarding`,
+    );
+  }
+
+  return { failed, unverified };
 }

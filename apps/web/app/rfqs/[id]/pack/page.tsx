@@ -47,6 +47,7 @@ export default async function TenderPack({ params }: { params: Promise<{ id: str
     maxDeliveryDays?: number;
     minCompletedEngagements?: number;
     attestations?: string[];
+    supplierRegion?: string;
   } | null;
   const rubric = (published?.rubric ?? null) as Record<string, number> | null;
   const scope = typeof published?.scope === "string" ? published.scope : null;
@@ -200,6 +201,9 @@ export default async function TenderPack({ params }: { params: Promise<{ id: str
                   "Completed jobs on this deployment",
                   `at least ${requirements.minCompletedEngagements}`,
                 )}
+              {requirements.supplierRegion
+                ? row("Bidders must be established in", requirements.supplierRegion)
+                : null}
               {requirements.attestations?.length
                 ? row(
                     "Stated requirements",

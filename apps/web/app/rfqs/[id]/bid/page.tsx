@@ -1,6 +1,7 @@
 import { Header } from "@/components/Header";
 import { LineItems } from "@/components/LineItems";
 import { PhaseBadge } from "@/components/PhaseBadge";
+import { RequirementsPanel } from "@/components/RequirementsPanel";
 import { TermsPanel } from "@/components/TermsPanel";
 import { agent } from "@/lib/agent";
 import { countdown, getRfq, getRfqCount } from "@/lib/rfq";
@@ -44,6 +45,7 @@ export default async function BidPage({ params }: { params: Promise<{ id: string
           has the full scope, terms, timetable and hashes on one printable page.
         </div>
         <LineItems metadataURI={"rfq" in indexed ? indexed.rfq?.metadataURI : null} />
+        <RequirementsPanel metadataURI={"rfq" in indexed ? indexed.rfq?.metadataURI : null} />
         <TermsPanel
           metadataURI={"rfq" in indexed ? indexed.rfq?.metadataURI : null}
           metadataHash={rfq.metadataHash}
