@@ -6042,3 +6042,55 @@ button.field-wallet {
   padding: 6px 12px;
   font-size: 12px;
 }
+
+/* ── Board filters ───────────────────────────────────────────────────────────
+   Links, not state: a supplier's category is a URL they bookmark and come back
+   to, and the board keeps working with JavaScript off. */
+.board-filters {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.filter-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+  width: 66px;
+  flex: none;
+}
+.chip {
+  display: inline-block;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 12px;
+  text-decoration: none;
+  color: var(--muted);
+  background: var(--paper);
+  white-space: nowrap;
+}
+.chip:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+.chip.is-active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+@media (max-width: 640px) {
+  .filter-label {
+    width: auto;
+  }
+}

@@ -1,5 +1,7 @@
+import { BoardFilters } from "@/components/BoardFilters";
 import { Header } from "@/components/Header";
 import { PhaseBadge } from "@/components/PhaseBadge";
+import { applyBoardQuery, facetsOf, parseBoardQuery } from "@/lib/boardFilter";
 import { chain } from "@/lib/chain";
 import { countdown, listRfqs } from "@/lib/rfq";
 import { CATEGORIES, labelFor } from "@/lib/taxonomy";
@@ -9,14 +11,21 @@ import Link from "next/link";
 // Always read the chain: phases turn over on deadlines, not on deploys.
 export const dynamic = "force-dynamic";
 
-export default async function RfqBoard() {
-  const rfqs = await listRfqs();
-  const open = rfqs.filter((r) => r.phase === "Bidding" || r.phase === "Reveal");
-  const escrowed = rfqs
+export default async function RfqBoard({
+  searchParams,
+}: {
+  searchParams: Promise<{ category?: string; region?: string; open?: string }>;
+}) {
+  const all = await listRfqs();
+  const params = await searchParams;
+  const active = parseBoardQuery(params);
+  const rfqs = applyBoardQuery(all, active);
+  const open = all.filter((r) => r.phase === "Bidding" || r.phase === "Reveal");
+  const escrowed = all
     .filter((r) => r.status === 1)
     .reduce((sum, r) => sum + r.budget + r.buyerStake, 0n);
-  const deposits = rfqs.reduce((sum, r) => sum + r.depositAmount * BigInt(r.commitCount), 0n);
-  const awarded = rfqs.filter((r) => r.winner !== "0x0000000000000000000000000000000000000000");
+  const deposits = all.reduce((sum, r) => sum + r.depositAmount * BigInt(r.commitCount), 0n);
+  const awarded = all.filter((r) => r.winner !== "0x0000000000000000000000000000000000000000");
 
   return (
     <div className="shell">
@@ -52,15 +61,35 @@ export default async function RfqBoard() {
         <div className="head">
           RFQs
           <span className="hint">
-            {rfqs.length} total ·{" "}
+            {all.length} total ·{" "}
             <Link className="linklike" href="/rfqs/new">
               post one →
             </Link>
           </span>
         </div>
+        {all.length > 0 && (
+          <BoardFilters
+            categories={facetsOf(all, (r) => r.category)}
+            regions={facetsOf(all, (r) => r.region)}
+            active={active}
+            total={all.length}
+            shown={rfqs.length}
+          />
+        )}
         {rfqs.length === 0 ? (
           <div className="empty">
-            No RFQs yet. <Link href="/rfqs/new">Post the first one →</Link>
+            {all.length === 0 ? (
+              <>
+                No RFQs yet. <Link href="/rfqs/new">Post the first one →</Link>
+              </>
+            ) : (
+              <>
+                Nothing matches those filters.{" "}
+                <Link className="linklike" href="/rfqs">
+                  Show every RFQ →
+                </Link>
+              </>
+            )}
           </div>
         ) : (
           <table>
