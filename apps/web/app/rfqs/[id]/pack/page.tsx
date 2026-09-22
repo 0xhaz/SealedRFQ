@@ -52,6 +52,7 @@ export default async function TenderPack({ params }: { params: Promise<{ id: str
   } | null;
   const rubric = (published?.rubric ?? null) as Record<string, number> | null;
   const scope = typeof published?.scope === "string" ? published.scope : null;
+  const contact = typeof published?.contact === "string" ? published.contact : null;
   const documentMatches = metadataURI ? sameHash(hashText(metadataURI), rfq.metadataHash) : false;
 
   const row = (k: string, v: React.ReactNode) => (
@@ -160,6 +161,11 @@ export default async function TenderPack({ params }: { params: Promise<{ id: str
             {row("Award deadline", when(rfq.awardDeadline))}
           </tbody>
         </table>
+        {contact && (
+          <table>
+            <tbody>{row("Send your quotation to", contact)}</tbody>
+          </table>
+        )}
         <p className="pack-note">
           Deadlines are judged by block timestamp, not by your computer&apos;s clock. Bidding is two
           steps: seal a bid before the first deadline, then <b>return and reveal it</b> before the

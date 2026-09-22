@@ -84,6 +84,8 @@ export function NewRfqForm() {
    */
   /** The basket suppliers quote against. Hash-fixed with the rest of the metadata. */
   const [lineRows, setLineRows] = useState<LineItemRow[]>([emptyRow("row-initial")]);
+  /** Where suppliers send the quotation. Published, so it must be an address meant to be public. */
+  const [contact, setContact] = useState("");
   const [termsSummary, setTermsSummary] = useState("");
   /**
    * The last text this form generated. If the box still matches it the buyer has not edited, so
@@ -261,6 +263,7 @@ export function NewRfqForm() {
         ...(terms ? { terms } : {}),
         ...(Object.keys(requirements).length ? { requirements } : {}),
         ...(lineItems.length ? { lineItems } : {}),
+        ...(contact.trim() ? { contact: contact.trim() } : {}),
       });
       const metadataHash = sha256(stringToBytes(metadata));
 
@@ -648,6 +651,20 @@ export function NewRfqForm() {
       <section id="terms" className="form-section">
         <h4>Terms and conditions</h4>
         <div className="form">
+          <div className="field full">
+            <label htmlFor="contact">Where to send quotations</label>
+            <input
+              id="contact"
+              placeholder="tenders@yourcompany.com"
+              value={contact}
+              onChange={(e) => setContact(e.target.value)}
+            />
+            <span className="hint">
+              Published with the RFQ and permanent, so use an address meant to be public — a
+              tenders@ or procurement@ inbox, never a personal one. Suppliers put their own contact
+              inside the quotation they send you, which stays between the two of you.
+            </span>
+          </div>
           <div className="field full">
             <label htmlFor="termsSummary">Terms and conditions (optional)</label>
             <div className="terms-actions">

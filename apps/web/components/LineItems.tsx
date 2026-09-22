@@ -12,12 +12,15 @@ export function LineItems({ metadataURI }: { metadataURI?: string | null }) {
   if (!metadataURI) return null;
 
   let items: ReturnType<typeof readLineItems> = [];
+  let contact: string | null = null;
   try {
-    items = readLineItems(JSON.parse(metadataURI));
+    const published = JSON.parse(metadataURI) as { contact?: unknown };
+    items = readLineItems(published);
+    contact = typeof published.contact === "string" ? published.contact : null;
   } catch {
     return null; // metadata is a bare URI or free text
   }
-  if (items.length === 0) return null;
+  if (items.length === 0 && !contact) return null;
 
   return (
     <div className="card">
@@ -27,29 +30,41 @@ export function LineItems({ metadataURI }: { metadataURI?: string | null }) {
         </h3>
       </div>
       <div className="card-body">
-        <table>
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th style={{ textAlign: "right" }}>Qty</th>
-              <th>Unit</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((l) => (
-              <tr key={`${l.item}-${l.qty ?? ""}-${l.uom ?? ""}`}>
-                <td>{l.item}</td>
-                <td style={{ textAlign: "right" }}>{l.qty ?? "—"}</td>
-                <td>{l.uom ?? "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <div className="note">
-          Bid <b>one total</b> for this list. Attach your priced quotation with the bid: its hash is
-          sealed alongside the price, so the breakdown behind your number cannot be revised after
-          rival bids open — and the buyer can check the file they receive against it.
-        </div>
+        {items.length > 0 && (
+          <>
+            <table>
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th style={{ textAlign: "right" }}>Qty</th>
+                  <th>Unit</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((l) => (
+                  <tr key={`${l.item}-${l.qty ?? ""}-${l.uom ?? ""}`}>
+                    <td>{l.item}</td>
+                    <td style={{ textAlign: "right" }}>{l.qty ?? "—"}</td>
+                    <td>{l.uom ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {contact && (
+              <div className="note">
+                <b>Send your priced quotation to {contact}</b>, and put your own contact details
+                inside it — that document goes to the buyer alone, so it is the private half of this
+                exchange.
+              </div>
+            )}
+            <div className="note">
+              Bid <b>one total</b> for this list. Attach your priced quotation with the bid: its
+              hash is sealed alongside the price, so the breakdown behind your number cannot be
+              revised after rival bids open — and the buyer can check the file they receive against
+              it.
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
