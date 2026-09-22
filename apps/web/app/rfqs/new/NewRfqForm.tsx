@@ -2,6 +2,7 @@
 
 import { LineItemsEditor } from "@/components/LineItemsEditor";
 import { WalletChip } from "@/components/WalletChip";
+import { uploadDocument } from "@/lib/agent";
 import { chain, contracts, explorerTx } from "@/lib/chain";
 import { type Deadlines, PRESETS, applyPreset, checkDeadlines, toUnix } from "@/lib/deadlines";
 import { hashFile } from "@/lib/docHash";
@@ -75,8 +76,13 @@ export function NewRfqForm() {
    * overwrites them — it only points out that the numbers have moved.
    */
   const [generated, setGenerated] = useState("");
-  const [termsUri, setTermsUri] = useState("");
-  const [termsFile, setTermsFile] = useState<{ name: string; sha256: `0x${string}` } | null>(null);
+  const [termsFile, setTermsFile] = useState<{
+    name: string;
+    sha256: `0x${string}`;
+    /** Set when the agent is hosting it; absent means the buyer must send the file themselves. */
+    uri?: string;
+    warning?: string;
+  } | null>(null);
   /** Screened by the evaluator at reveal. Checkable ones become red flags; the rest need a person. */
   const [maxDeliveryDays, setMaxDeliveryDays] = useState("");
   const [minHistory, setMinHistory] = useState("");
@@ -207,11 +213,16 @@ export function NewRfqForm() {
       // Publish the rubric with the scope: only its hash is on-chain, and the evaluator refuses to
       // score unless the published weights hash to it. Otherwise criteria could be invented later.
       const terms =
-        termsSummary.trim() || termsUri.trim() || termsFile
+        termsSummary.trim() || termsFile
           ? {
               ...(termsSummary.trim() ? { summary: termsSummary.trim() } : {}),
-              ...(termsUri.trim() ? { uri: termsUri.trim() } : {}),
-              ...(termsFile ? { name: termsFile.name, sha256: termsFile.sha256 } : {}),
+              ...(termsFile
+                ? {
+                    name: termsFile.name,
+                    sha256: termsFile.sha256,
+                    ...(termsFile.uri ? { uri: termsFile.uri } : {}),
+                  }
+                : {}),
             }
           : undefined;
       const attestationList = attestations
@@ -613,29 +624,47 @@ export function NewRfqForm() {
               onChange={(e) => setTermsSummary(e.target.value)}
             />
           </div>
-          <div className="field">
-            <label htmlFor="termsUri">Terms document link</label>
-            <input
-              id="termsUri"
-              placeholder="https://…"
-              value={termsUri}
-              onChange={(e) => setTermsUri(e.target.value)}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="termsFile">Terms document (hashed, not uploaded)</label>
+          <div className="field full">
+            <label htmlFor="termsFile">Terms document (optional)</label>
             <input
               id="termsFile"
               type="file"
+              accept=".pdf,.docx,.xlsx,.csv,.md,.txt"
               onChange={async (e) => {
                 const f = e.target.files?.[0];
-                setTermsFile(f ? { name: f.name, sha256: await hashFile(f) } : null);
+                if (!f) return setTermsFile(null);
+                // Hash locally first: that value is what gets published, and it holds whether or
+                // not the upload succeeds.
+                const sha256 = await hashFile(f);
+                setTermsFile({ name: f.name, sha256 });
+                setBusy("Uploading the terms document…");
+                const up = await uploadDocument(f);
+                setBusy(null);
+                if ("error" in up) {
+                  setTermsFile({ name: f.name, sha256, warning: up.error });
+                  return;
+                }
+                // The agent stores by content hash, so disagreement here means it stored something
+                // other than what this browser read. Publish ours and do not link to theirs.
+                if (up.sha256.toLowerCase() !== sha256.toLowerCase()) {
+                  setTermsFile({
+                    name: f.name,
+                    sha256,
+                    warning: "the stored copy does not match this file, so it has not been linked",
+                  });
+                  return;
+                }
+                setTermsFile({ name: f.name, sha256, uri: up.url });
               }}
             />
             <span className="hint">
-              {termsFile
-                ? `${termsFile.name} — ${termsFile.sha256.slice(0, 14)}…`
-                : "The file stays with you. Only its hash is published, so a supplier can prove the copy they received is the one you set before bidding opened."}
+              {termsFile?.uri
+                ? `${termsFile.name} — published with the RFQ and downloadable by any supplier. sha256 ${termsFile.sha256.slice(0, 14)}…`
+                : termsFile?.warning
+                  ? `${termsFile.name} — hash published, but not hosted: ${termsFile.warning}. Suppliers can still verify a copy you send them.`
+                  : termsFile
+                    ? `${termsFile.name} — ${termsFile.sha256.slice(0, 14)}…`
+                    : "Uploaded so any supplier can download it, and hashed so they can prove the copy they hold is the one you published. Required for an open tender: otherwise only the people you email can read the terms."}
             </span>
           </div>
         </div>

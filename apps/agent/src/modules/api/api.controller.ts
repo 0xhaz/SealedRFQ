@@ -1,10 +1,11 @@
-import { Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
+import { Controller, Get, Header, Headers, Param, Post, Req, Res, UseGuards } from "@nestjs/common";
 import { hashCanonical } from "@sealedrfq/shared";
 import { desc, eq, sql } from "drizzle-orm";
 import { db, schema } from "../../db/index.js";
 import { TokenGuard } from "../auth/token.guard.js";
 import { AwarderService } from "../awarder/awarder.service.js";
 import { ChainService } from "../chain/chain.service.js";
+import { DocumentsService } from "../documents/documents.service.js";
 import { EvaluatorService } from "../evaluator/evaluator.service.js";
 import { IndexerService } from "../indexer/indexer.service.js";
 import { X402Middleware } from "../x402/x402.middleware.js";
@@ -17,7 +18,43 @@ export class ApiController {
     private readonly evaluator: EvaluatorService,
     private readonly awarder: AwarderService,
     private readonly x402: X402Middleware,
+    private readonly documents: DocumentsService,
   ) {}
+
+  /**
+   * Store a tender document and return the hash to publish with the RFQ.
+   *
+   * Open to callers on purpose: a buyer posting an RFQ has no credential here, and gating this
+   * would put the terms back behind an email. The limits are what protect it — an allowlist of
+   * document types, a size cap, and storage keyed by content hash so the same file uploaded twice
+   * occupies one entry rather than two.
+   */
+  @Post("documents")
+  async upload(
+    // biome-ignore lint/suspicious/noExplicitAny: the raw Express request, read as a stream
+    @Req() req: any,
+    @Headers("content-type") contentType: string,
+  ) {
+    const chunks: Buffer[] = [];
+    let total = 0;
+    for await (const chunk of req) {
+      total += chunk.length;
+      // Stop reading a body that is already over the cap rather than buffering all of it.
+      if (total > 10 * 1024 * 1024 + 1024) break;
+      chunks.push(chunk as Buffer);
+    }
+    return this.documents.store(Buffer.concat(chunks), contentType ?? "");
+  }
+
+  /** Serve it back. Callers re-hash what they receive; this endpoint is not the authority. */
+  @Get("documents/:sha256")
+  @Header("Cache-Control", "public, max-age=31536000, immutable")
+  // biome-ignore lint/suspicious/noExplicitAny: the raw Express response, for a binary body
+  document(@Param("sha256") sha256: string, @Res() res: any) {
+    const { bytes, contentType } = this.documents.read(sha256);
+    res.setHeader("Content-Type", contentType);
+    res.send(bytes);
+  }
 
   @Get("health")
   health() {

@@ -61,14 +61,21 @@ export function TermsPanel({ metadataURI, metadataHash }: Props) {
           )}
         </div>
 
-        {terms.uri && (
+        {terms.uri ? (
           <p className="note">
-            Document:{" "}
-            <a href={terms.uri} target="_blank" rel="noreferrer noopener">
-              {terms.name ?? terms.uri}
-            </a>
+            <a className="btn-outline" href={terms.uri} target="_blank" rel="noreferrer noopener">
+              ↓ {terms.name ?? "Download the terms document"}
+            </a>{" "}
+            <span className="hint">
+              Hosted for convenience, not on trust — verify the download below.
+            </span>
           </p>
-        )}
+        ) : terms.sha256 ? (
+          <p className="note">
+            The buyer has published the hash of a terms document but is not hosting it. Ask them for
+            the file, then check it below.
+          </p>
+        ) : null}
 
         {terms.sha256 && (
           <DocumentCheck

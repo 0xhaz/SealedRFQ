@@ -122,6 +122,41 @@ export type IndexedRfq = {
   rfq?: { metadataURI?: string } | null;
 };
 
+/** Where a stored tender document can be fetched from. Empty when the agent is not configured. */
+export const documentUrl = (sha256: string) => (BASE ? `${BASE}/documents/${sha256}` : "");
+
+/**
+ * Hand a tender document to the agent and get back the hash to publish.
+ *
+ * The agent is storage, not an authority: it keys files by the sha256 of their own bytes, and that
+ * hash goes into the RFQ metadata whose own hash the chain fixes. Anyone downloading later re-hashes
+ * what they received. An upload that fails is therefore recoverable — the buyer can still publish
+ * the hash and send the file by hand, which is what happened before this existed.
+ */
+export async function uploadDocument(
+  file: File,
+): Promise<{ sha256: `0x${string}`; url: string } | { error: string }> {
+  if (agentConfigError) return { error: agentConfigError };
+  try {
+    const res = await fetch(`${BASE}/documents`, {
+      method: "POST",
+      headers: { "content-type": file.type || "application/octet-stream" },
+      body: file,
+      signal: AbortSignal.timeout(60_000),
+    });
+    const body = (await res.json().catch(() => null)) as {
+      sha256?: string;
+      message?: string;
+    } | null;
+    if (!res.ok || !body?.sha256) {
+      return { error: body?.message ?? `the agent refused the file (${res.status})` };
+    }
+    return { sha256: body.sha256 as `0x${string}`, url: documentUrl(body.sha256) };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "could not reach the agent" };
+  }
+}
+
 export const agent = {
   /** The indexed row, for the published metadata document the chain only stores a hash of. */
   rfq: (rfqId: number) => get<IndexedRfq>(`/rfqs/${rfqId}`, { rfq: null }),
