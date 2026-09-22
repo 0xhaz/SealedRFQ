@@ -6094,3 +6094,16 @@ button.field-wallet {
     width: auto;
   }
 }
+
+/* Past suppliers offered as one-click invitations. */
+.partners {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0;
+}
+.partners .chip {
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 11px;
+}

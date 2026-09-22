@@ -2,7 +2,7 @@
 
 import { LineItemsEditor } from "@/components/LineItemsEditor";
 import { WalletChip } from "@/components/WalletChip";
-import { uploadDocument } from "@/lib/agent";
+import { agent, uploadDocument } from "@/lib/agent";
 import { chain, contracts, explorerTx } from "@/lib/chain";
 import { type Deadlines, PRESETS, applyPreset, checkDeadlines, toUnix } from "@/lib/deadlines";
 import { hashFile } from "@/lib/docHash";
@@ -64,6 +64,20 @@ export function NewRfqForm() {
    */
   const [visibility, setVisibility] = useState<"public" | "invited">("public");
   const [inviteeText, setInviteeText] = useState("");
+  /** Suppliers this buyer has already finished a job with, offered as one-click invitations. */
+  const [partners, setPartners] = useState<
+    { supplier: string; completed: number; lastRfqId: number }[]
+  >([]);
+  useEffect(() => {
+    if (!address || visibility !== "invited") return;
+    let live = true;
+    agent.partners(address).then((r) => {
+      if (live && "partners" in r) setPartners(r.partners);
+    });
+    return () => {
+      live = false;
+    };
+  }, [address, visibility]);
   /**
    * Buyer's terms. Hashed into the metadata document, whose own hash is fixed on-chain when the RFQ
    * opens — so the terms cannot be revised once bidding has started, and every bidder can prove it.
@@ -370,6 +384,34 @@ export function NewRfqForm() {
                 value={inviteeText}
                 onChange={(e) => setInviteeText(e.target.value)}
               />
+              {partners.length > 0 && (
+                <div className="partners">
+                  <span className="hint">
+                    Suppliers who have finished a job for you. The count is the chain&apos;s record,
+                    not a rating:
+                  </span>
+                  <div className="filter-row">
+                    {partners.map((p) => {
+                      const already = invitees.includes(p.supplier.toLowerCase() as `0x${string}`);
+                      return (
+                        <button
+                          key={p.supplier}
+                          type="button"
+                          className={already ? "chip is-active" : "chip"}
+                          onClick={() =>
+                            setInviteeText((t) =>
+                              already ? t : `${t.trim()}${t.trim() ? "\n" : ""}${p.supplier}`,
+                            )
+                          }
+                        >
+                          {already ? "✓ " : "+ "}
+                          {p.supplier.slice(0, 6)}…{p.supplier.slice(-4)} · {p.completed} completed
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               <span className="hint">
                 {invalidInvitees.length > 0
                   ? `Not an address: ${invalidInvitees.slice(0, 3).join(", ")}${

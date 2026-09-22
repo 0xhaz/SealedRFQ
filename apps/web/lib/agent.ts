@@ -157,7 +157,56 @@ export async function uploadDocument(
   }
 }
 
+export type TrackRecord = {
+  address: string;
+  asSupplier: {
+    bidsPlaced: number;
+    bidsRevealed: number;
+    bidsAbandoned: number;
+    awards: number;
+    engagementsCompleted: number;
+    milestonesDelivered: number;
+    milestonesRejected: number;
+  };
+  asBuyer: {
+    rfqsPosted: number;
+    rfqsAwarded: number;
+    rfqsClosedWithoutAward: number;
+    milestonesAcceptedOnTime: number;
+    milestonesLeftToAutoRelease: number;
+  };
+};
+
+const EMPTY_RECORD: TrackRecord = {
+  address: "",
+  asSupplier: {
+    bidsPlaced: 0,
+    bidsRevealed: 0,
+    bidsAbandoned: 0,
+    awards: 0,
+    engagementsCompleted: 0,
+    milestonesDelivered: 0,
+    milestonesRejected: 0,
+  },
+  asBuyer: {
+    rfqsPosted: 0,
+    rfqsAwarded: 0,
+    rfqsClosedWithoutAward: 0,
+    milestonesAcceptedOnTime: 0,
+    milestonesLeftToAutoRelease: 0,
+  },
+};
+
 export const agent = {
+  /** A counterparty's record. An unreachable agent yields zeroes, never an invented figure. */
+  record: (address: string) =>
+    get<TrackRecord>(`/reputation/${address}`, { ...EMPTY_RECORD, address }),
+  /** Suppliers this buyer has completed work with, for inviting them again. */
+  partners: (buyer: string) =>
+    get<{ partners: { supplier: string; completed: number; lastRfqId: number }[] }>(
+      `/reputation/${buyer}/partners`,
+      { partners: [] },
+    ),
   /** The indexed row, for the published metadata document the chain only stores a hash of. */
   rfq: (rfqId: number) => get<IndexedRfq>(`/rfqs/${rfqId}`, { rfq: null }),
   evaluation: (rfqId: number) => get<Evaluation>(`/rfqs/${rfqId}/evaluation`, { evaluated: false }),

@@ -8,6 +8,7 @@ import { ChainService } from "../chain/chain.service.js";
 import { DocumentsService } from "../documents/documents.service.js";
 import { EvaluatorService } from "../evaluator/evaluator.service.js";
 import { IndexerService } from "../indexer/indexer.service.js";
+import { ReputationService } from "../reputation/reputation.service.js";
 import { X402Middleware } from "../x402/x402.middleware.js";
 
 @Controller()
@@ -19,7 +20,20 @@ export class ApiController {
     private readonly awarder: AwarderService,
     private readonly x402: X402Middleware,
     private readonly documents: DocumentsService,
+    private readonly reputation: ReputationService,
   ) {}
+
+  /** A counterparty's record, counted from the chain. Free: it is evidence, not a product. */
+  @Get("reputation/:address")
+  record(@Param("address") address: string) {
+    return this.reputation.record(address);
+  }
+
+  /** Suppliers this buyer has completed work with, for inviting them to the next tender. */
+  @Get("reputation/:address/partners")
+  partners(@Param("address") address: string) {
+    return { partners: this.reputation.partners(address) };
+  }
 
   /**
    * Store a tender document and return the hash to publish with the RFQ.
