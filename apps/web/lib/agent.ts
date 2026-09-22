@@ -120,6 +120,13 @@ async function post<T>(path: string): Promise<T | { error: string }> {
 
 export type IndexedRfq = {
   rfq?: { metadataURI?: string } | null;
+  milestones?: {
+    idx: number;
+    state: string;
+    reason?: string | null;
+    deliverable?: string | null;
+    automatic?: boolean | null;
+  }[];
 };
 
 /** Where a stored tender document can be fetched from. Empty when the agent is not configured. */

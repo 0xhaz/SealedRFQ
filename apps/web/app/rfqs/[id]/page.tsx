@@ -3,11 +3,12 @@ import { EvaluationPanel } from "@/components/EvaluationPanel";
 import { Header } from "@/components/Header";
 import { Payouts } from "@/components/Payouts";
 import { PhaseBadge } from "@/components/PhaseBadge";
+import { ReasonNote } from "@/components/ReasonNote";
 import { RfqActions } from "@/components/RfqActions";
 import { SettleDeposit } from "@/components/SettleDeposit";
 import { agent } from "@/lib/agent";
 import { chain, contracts, explorerAddress } from "@/lib/chain";
-import { milestoneLedger } from "@/lib/milestones";
+import { milestoneLedger, milestoneMeaning } from "@/lib/milestones";
 import { countdown, getBid, getBidders, getEngagement, getRfq, getRfqCount } from "@/lib/rfq";
 import { CATEGORIES, REGIONS, labelFor } from "@/lib/taxonomy";
 import { formatUsdc } from "@sealedrfq/shared";
@@ -31,7 +32,12 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
   );
   const engagement = await getEngagement(id);
   // The agent supplies reasoning and the audit check; the chain above is the source of truth.
-  const [evaluation, audit] = await Promise.all([agent.evaluation(id), agent.audit(id)]);
+  const [evaluation, audit, indexed] = await Promise.all([
+    agent.evaluation(id),
+    agent.audit(id),
+    agent.rfq(id),
+  ]);
+  const indexedMilestones = "milestones" in indexed ? (indexed.milestones ?? []) : [];
   const sealed = rfq.phase === "Bidding";
   // A quotation can now ride on a plain RFQ, not only an RFP, so the column follows the bids
   // rather than the mode: show it whenever any revealed bid actually carries a document.
@@ -251,7 +257,16 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
                             <td className="num">{formatUsdc(l.retained)}</td>
                             <td className="num">{formatUsdc(l.net)}</td>
                             <td className="muted" style={{ fontSize: 11 }}>
-                              {done ? "paid" : current ? "in progress" : "not started"}
+                              {(() => {
+                                const m = indexedMilestones.find((x) => x.idx === l.index);
+                                return m
+                                  ? milestoneMeaning(m.state, m.automatic)
+                                  : done
+                                    ? "paid"
+                                    : current
+                                      ? "in progress"
+                                      : "not started";
+                              })()}
                             </td>
                           </tr>
                         );
@@ -273,6 +288,15 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
                   </table>
                 );
               })()}
+              {indexedMilestones
+                .filter((m) => m.reason)
+                .map((m) => (
+                  <ReasonNote
+                    key={`reason-${m.idx}`}
+                    hash={m.reason}
+                    label={`Milestone ${m.idx + 1} — ${m.state === "Rejected" ? "rejected" : "accepted"}:`}
+                  />
+                ))}
               <div className="note">
                 Every milestone pays less than its share because retention is held back from each
                 one; the difference arrives in a single release when the last is accepted. Money

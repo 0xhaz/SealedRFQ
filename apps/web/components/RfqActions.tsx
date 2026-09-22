@@ -3,6 +3,7 @@
 import { DocumentCheck } from "@/components/DocumentCheck";
 import { WalletChip } from "@/components/WalletChip";
 import { agent } from "@/lib/agent";
+import { uploadDocument } from "@/lib/agent";
 import { chain, contracts, explorerTx } from "@/lib/chain";
 import { ZERO_HASH, hashFile, hashText } from "@/lib/docHash";
 import { describeTxError } from "@/lib/txError";
@@ -118,28 +119,50 @@ export function RfqActions({
       }),
     );
 
-  const accept = () =>
-    run("Accepting…", () =>
-      writeContractAsync({
+  /**
+   * Publish the reason text so the supplier can read it.
+   *
+   * Only the hash goes on-chain, which commits the buyer to a specific sentence but leaves the
+   * other party holding 32 bytes they cannot read. The document store is keyed by sha256 of the
+   * exact bytes and `hashText` is that same sha256, so storing the text makes it retrievable by the
+   * value already recorded. Nothing new has to be trusted: anyone can re-hash what they fetch.
+   *
+   * Best effort — a store that is down must never stop a buyer rejecting work they did not get.
+   */
+  async function publishReason(text: string) {
+    if (!text.trim()) return;
+    try {
+      await uploadDocument(new File([text], "reason.txt", { type: "text/plain" }));
+    } catch {
+      // The hash still lands on-chain and the text can be sent by hand.
+    }
+  }
+
+  const accept = () => {
+    // Built once: the bytes published and the bytes hashed must be the same or the note the
+    // supplier fetches will not match what the chain recorded.
+    const text = reason || `accepted milestone ${(engagement?.currentMilestone ?? 0) + 1}`;
+    return run("Accepting…", async () => {
+      await publishReason(text);
+      return writeContractAsync({
         abi: SealedRFQAdapterAbi,
         address: contracts.SealedRFQAdapter,
         functionName: "acceptMilestone",
-        args: [
-          BigInt(rfqId),
-          hashText(reason || `accepted milestone ${(engagement?.currentMilestone ?? 0) + 1}`),
-        ],
-      }),
-    );
+        args: [BigInt(rfqId), hashText(text)],
+      });
+    });
+  };
 
   const reject = () =>
-    run("Rejecting…", () =>
-      writeContractAsync({
+    run("Rejecting…", async () => {
+      await publishReason(reason);
+      return writeContractAsync({
         abi: SealedRFQAdapterAbi,
         address: contracts.SealedRFQAdapter,
         functionName: "rejectMilestone",
         args: [BigInt(rfqId), hashText(reason)],
-      }),
-    );
+      });
+    });
 
   const autoRelease = () =>
     run("Releasing…", () =>

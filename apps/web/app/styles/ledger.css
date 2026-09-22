@@ -6124,3 +6124,8 @@ button.field-wallet {
   padding: 6px 14px;
   font-size: 12px;
 }
+
+/* An unverifiable note must not read like the buyer's own words. */
+.warn-text {
+  color: var(--red);
+}
