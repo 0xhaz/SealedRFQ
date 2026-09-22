@@ -4,6 +4,7 @@ import { Header } from "@/components/Header";
 import { Payouts } from "@/components/Payouts";
 import { PhaseBadge } from "@/components/PhaseBadge";
 import { RfqActions } from "@/components/RfqActions";
+import { SettleDeposit } from "@/components/SettleDeposit";
 import { agent } from "@/lib/agent";
 import { chain, contracts, explorerAddress } from "@/lib/chain";
 import { milestoneLedger } from "@/lib/milestones";
@@ -143,7 +144,11 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
                           </td>
                         )}
                         <td>
-                          <span className="badge">{b.deposit}</span>
+                          <span className="badge">{b.deposit}</span>{" "}
+                          {b.deposit === "Held" &&
+                            (rfq.phase === "Awarded" || rfq.phase === "NoAward") && (
+                              <SettleDeposit rfqId={id} bidder={b.bidder} />
+                            )}
                         </td>
                       </tr>
                     ))}
