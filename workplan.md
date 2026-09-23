@@ -390,6 +390,166 @@ deploy ×N · configure roles/policy · createRFQ + fund · commit ×3 · reveal
 
 ---
 
+## 6b. Deferred: delivery-window enforcement (found 2026-09-23)
+
+**The gap.** A bid's `deliveryDays` and an RFQ's `deliveryWindow` are never compared. The supplier
+quotes days; the buyer sets the window; the adapter takes the deadline solely from the buyer
+(`e.deliveryWindow = t.deliveryWindow`, `SealedRFQAdapter.sol:71`) and never reads the bid. So a
+supplier can quote 14 days into a 15-minute window, win, and have the first milestone's deadline
+already be unreachable at the moment of award — then forfeit the escrow **and** the performance
+stake for missing a date they were never asked to agree to.
+
+Found on testnet RFQ 4: window 900 s, winning bid 14 days. That is 1,344× over, and nothing in the
+contracts, the evaluator or the bid form objected.
+
+**Why it is shaped this way, and why that part is right.** The window is a term of the tender, so
+every bidder races the same clock, and `deliveryDays` is how they compete within it — faster scores
+better. Price works identically: `budget` is the buyer's cap, `price` is the bid. The design is
+sound; the enforcement is missing on one of the two axes.
+
+**Shipped instead (2026-09-23):**
+- The evaluator red-flags an over-window bid and will not recommend it, mirroring the budget rule.
+- The bid form publishes the window and warns before the deposit is committed.
+
+**Deferred: the contract-level check** — reject at reveal or award, the way `budget` is enforced.
+Not done because it needs a redeploy and re-verification of contracts already published and linked
+from the evidence pack, which is a poor trade this close to **Oct 12**.
+
+**Consequence to state plainly, not paper over:** the two guards above are advisory. Both live off
+the chain, so a supplier bidding directly against the contract bypasses them entirely, and the
+evaluator's refusal is its own policy rather than something the chain enforces. The memo wording is
+deliberately careful about that distinction — it says an over-budget bid is one *the contract would
+reject*, and says of an over-window bid only that its first milestone *would expire before it could
+be delivered*. Claiming the contract would refuse it would be false.
+
+---
+
+## 6c. Late delivery: the intended process, and why there is no arbiter (decided 2026-09-23)
+
+### The intended process
+
+1. **Buyer sets the delivery window** when creating the RFQ. Note it is a *window*, not a date:
+   `deadline = block.timestamp + deliveryWindow` is recomputed each time a milestone opens
+   (`SealedRFQAdapter.sol:266`), so a three-milestone job grants the window three times over and each
+   clock starts when the previous milestone is accepted.
+2. **Supplier bids within it.** Their `deliveryDays` competes on speed; see §6b for the enforcement
+   gap and the advisory guards now in place.
+3. **Delay is flagged early over the private thread**, and the buyer extends the window.
+4. **Failing that, the consequence is mechanical** — a computed sum, not a hearing.
+
+Steps 1 and 2 hold today. Steps 3 and 4 do not exist: `deliveryDeadline` is written once and no
+function can move it, and the only outcome on expiry is total forfeiture.
+
+### Why no arbiter — researched 2026-09-23, four independent traditions
+
+The original design instinct was that a neutral third party should decide contested non-delivery.
+That was abandoned, for reasons worth recording because they are not obvious.
+
+- **No enterprise procurement suite has one.** Ariba, Coupa, Jaggaer, Ivalua, GEP, Tradeshift and
+  Oracle were checked. "Dispute" is an invoice status flag and a comment thread, decided by the
+  buying organisation. SAP's own terms: *"any transaction between You and another user will be
+  solely between yourselves and not Ariba."* The reason is commercial, not technical — these are
+  buyer-licensed tools, and a neutral arbiter would mean ruling against the paying customer.
+- **Licensed escrow refuses to adjudicate.** Escrow.com's obligation is *"limited to the holding and
+  disbursement of funds upon written instructions signed by all parties or an award from the
+  arbitrator."* Operators that do decide disclaim being courts — Alibaba determines *"only as an
+  ordinary non-professional person."*
+- **Formal frameworks resolve lateness mechanically.** FAR, FIDIC, the World Bank SBD and Singapore
+  PSSCOC all compute damages by formula; the buyer deducts unilaterally. Human judgement enters only
+  for the *excuse* (extension of time, force majeure), and that is decided by the buyer's own named
+  officer — never by a neutral.
+- **Identity makes it unworkable here regardless.** Our participants are wallet addresses. Naming
+  `arbiter: 0x7a3c…60c9` in the terms tells a supplier nothing they can assess, and the only parties
+  a buyer can identify are their own team, who are not neutral.
+- **On-chain arbitration has been tried and has no traction.** Aragon Court sunset 1 Dec 2024;
+  Celeste's contracts have been untouched since Dec 2021. Kleros survives, but measured on-chain its
+  mainnet Escrow contract has **110 transactions in its entire life since 2019**, producing 2 of
+  Kleros's 1,676 mainnet disputes — its actual product-market fit is registry curation, not commerce.
+  A first-instance case takes 14.5–21 days, and 6–10 weeks with appeals; a buyer waiting on goods
+  cannot use that.
+- **Kleros's own design doctrine says the buyer must not choose.** Their documentation states
+  credible neutrality comes from the fact that *"No party to a dispute can choose or influence who
+  reviews their case"* — explicitly replacing reputation-and-regulation with structural
+  unselectability. Buyer-nominated arbitration is precisely the failure mode decentralised courts
+  were built to remove.
+- **Reputation cannot stand in for identity.** ERC-8004's Reputation Registry regressed from Review
+  back to **Draft** in Jan 2026, and peer-reviewed measurement (arXiv:2606.26028) finds manipulation
+  roughly 259× cheaper than the median value at stake, concluding it "cannot function as a trust
+  signal". The deeper objection is structural and survives any fix: reputation is a backward-looking
+  aggregate over *other people's* deals, whereas neutrality is a forward-looking property of *this*
+  one. A high-reputation arbiter with a relationship to one party is exactly a high-reputation
+  conflicted arbiter.
+- **No live on-chain procurement system handles non-delivery — none.** Nothing found combines sealed
+  bids, award, escrow and a non-delivery remedy; nothing has even three of the four. The strongest
+  counterexample is Aragón, Spain, whose *Gestor de Licitaciones* was made **mandatory** by Decreto
+  45/2025 and genuinely runs tenders on Hyperledger Fabric — and whose own tender documents settle
+  payment by ordinary electronic invoice and state that penalties *"shall be imposed by agreement of
+  the contracting body"*, a human administrative act. Public bidding systems have award but no money;
+  crypto escrow has money but no bidding. **That gap is where this project sits, and scoping
+  arbitration out of it is a defensible position rather than a hole.**
+
+**What the existing dispute path is for, and why its scope is already correct.** `raiseDispute`
+requires status `Rejected` — the supplier delivered and the buyer refused the work. Two parties hold
+opposing accounts of the same facts and someone must weigh them: that is what arbitration is for.
+Lateness is not that. Either the deliverable arrived before the deadline or it did not, and the chain
+already knows which. There is nothing to weigh, so there is nothing to arbitrate. `ARBITER` stays as
+it is — held by the deployment operator, dormant, and disclosed as a trust assumption for quality
+disputes only. **We do not claim decentralised arbitration.**
+
+### The four gaps, and the mechanism proposed for each
+
+1. **Total forfeiture has no precedent.** On expiry `_drain` credits the buyer with the remaining
+   price, the retention held, the current milestone budget *and* the whole performance stake,
+   whether or not the buyer lost anything. Across Escrow.com, Upwork, Fiverr, Freelancer, Alibaba,
+   Amazon, PayPal, Visa and US federal procurement, **no instrument imposes an automatic fixed
+   forfeiture for lateness.** Every one is compensatory and capped: FAR's bid guarantee is *"available
+   to offset the difference"* in re-procurement cost, and FAR 11.501(b) requires liquidated damages be
+   *"not punitive"* and *"a reasonable forecast of just compensation."*
+
+   **Proposed:** damages measured as `nextBestBid − awardPrice`, capped at the performance stake,
+   with the remainder returned to the supplier. A sealed-bid tender is the one setting where this is
+   directly computable, because the auction already revealed every price. Bids live in a nested
+   mapping so the contract cannot enumerate them, but the runner-up price can be passed at award and
+   bound to the evaluation memo already anchored in the `AttestationLog` — the same mechanism
+   `award()` uses to refuse an unattested evaluation.
+
+2. **No extension.** **Proposed:** `extendDelivery(rfqId, newDeadline)`, buyer-only, before the
+   current deadline passes, capped at `job.expiredAt − acceptanceWindow` so the acceptance window
+   still fits inside the ERC-8183 job. Fits entirely in the adapter; `AgenticCommerce` is untouched,
+   because the job already carries `deliveryDeadline + 2 × acceptanceWindow` of headroom.
+
+   Worth copying from SAP Business Network: a **delivery-date tolerance** on the order, where slip
+   inside the band re-baselines silently and slip outside it raises an explicit buyer approval. That
+   is the industry's answer to *when does a delay become an event*.
+
+3. **No notice safe-harbour.** Upwork returns escrow to the client when the freelancer missed the
+   deadline *"and did not provide a minimum of 24 hours' advance notice."* Notice converts a breach
+   into a non-breach without requiring the counterparty to agree. **Proposed:** an on-chain
+   `noticeOfDelay` before the deadline, which caps damages even if the buyer never responds. This is
+   the cheapest protection available to an honest supplier and pairs with the XMTP thread.
+
+4. **The dead zone.** Between `deliveryDeadline` and `job.expiredAt` (a span of
+   `2 × acceptanceWindow`) the supplier cannot submit, the buyer can neither accept nor reject for
+   want of a submission, and `settleExpired` reverts `NotExpired`. Nothing at all can happen.
+
+### On excusable delay — settled, and it answers the question that started this
+
+*"My manufacturer was late"* is **not** an excuse, in every framework checked. FAR 52.249-8(c) opens
+*"Except for defaults of subcontractors at any tier"*, and (d) relieves the supplier only where the
+manufacturer's own failure was itself force-majeure-grade **and** the goods were not obtainable
+elsewhere in time. Europol's terms carve it out by name. Procurement law treats choice of manufacturer
+as the supplier's own risk allocation. Defaulting it to non-excusable is correct and needs no
+apology.
+
+### Not doing now
+
+All four are contract changes, and re-deploying and re-verifying contracts already linked from the
+evidence pack is a poor trade this close to **Oct 12**. The mitigation that needs no redeploy is
+making the clock visible — see the "Needs you" panel — because on testnet RFQ 4 the actual failure
+was not that the rules were harsh but that **nobody noticed the deadline**.
+
+---
+
 ## 7. Submission checklist
 - [ ] Contracts live and verified on Arc mainnet (chain 5042), addresses in the README
 - [ ] Public GitHub repo; README covers what it does and what it uses Arc for
