@@ -13,6 +13,9 @@ export function Header() {
       <Link className="chip" href="/rfqs">
         RFQ board
       </Link>
+      <Link className="chip" href="/suppliers">
+        Suppliers
+      </Link>
       <a className="chip" href="https://github.com/0xhaz/SealedTender" target="_blank" rel="noreferrer">
         ⭐ GitHub
       </a>

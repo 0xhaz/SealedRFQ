@@ -43,6 +43,11 @@ CREATE TABLE IF NOT EXISTS clarifications (
   author TEXT NOT NULL, role TEXT NOT NULL, body TEXT NOT NULL, body_hash TEXT NOT NULL,
   anonymous INTEGER NOT NULL DEFAULT 0, signature TEXT NOT NULL, ts INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS clar_rfq ON clarifications (rfq_id);
+CREATE TABLE IF NOT EXISTS profiles (
+  address TEXT PRIMARY KEY, name TEXT NOT NULL, country TEXT NOT NULL DEFAULT '',
+  categories TEXT NOT NULL DEFAULT '', website TEXT NOT NULL DEFAULT '',
+  contact TEXT NOT NULL DEFAULT '', about TEXT NOT NULL DEFAULT '',
+  signature TEXT NOT NULL, ts INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS cursor (id INTEGER PRIMARY KEY, last_block INTEGER NOT NULL DEFAULT 0, updated_at INTEGER);
 `);
 

@@ -218,6 +218,46 @@ export type ClarificationEntry = {
   ts: number;
 };
 
+export type DirectoryEntry = {
+  address: string;
+  profile: {
+    name: string;
+    country: string;
+    categories: string[];
+    website: string;
+    contact: string;
+    about: string;
+    signature: string;
+    ts: number;
+  } | null;
+  record: TrackRecord;
+};
+
+/** What a supplier signs to publish a profile. Must match the agent's builder exactly. */
+export function profileMessage(input: {
+  address: string;
+  name: string;
+  country: string;
+  categories: string;
+  website: string;
+  contact: string;
+  about: string;
+  ts: number;
+}): string {
+  return [
+    "SealedRFQ supplier profile",
+    `address:${input.address.toLowerCase()}`,
+    `name:${input.name}`,
+    `country:${input.country}`,
+    `categories:${input.categories}`,
+    `website:${input.website}`,
+    `contact:${input.contact}`,
+    `ts:${input.ts}`,
+    "",
+    input.about,
+  ].join("\n");
+}
+
 export const agent = {
   /** The public clarification thread for an RFQ. */
   clarifications: (rfqId: number) =>
@@ -254,6 +294,43 @@ export const agent = {
   /** A counterparty's record. An unreachable agent yields zeroes, never an invented figure. */
   record: (address: string) =>
     get<TrackRecord>(`/reputation/${address}`, { ...EMPTY_RECORD, address }),
+  /**
+   * The supplier directory: who the chain has seen bid, with what they say about themselves.
+   *
+   * An unreachable agent yields an empty list rather than an invented one — a directory that
+   * silently shows nothing is recoverable; one that shows a plausible fiction is not.
+   */
+  suppliers: () =>
+    get<{ suppliers: DirectoryEntry[] }>("/suppliers", { suppliers: [] }),
+  supplier: (address: string) =>
+    get<DirectoryEntry>(`/suppliers/${address}`, {
+      address,
+      profile: null,
+      record: { ...EMPTY_RECORD, address },
+    }),
+  /** Publish your own profile. The signature is what makes it yours; nothing here is verified. */
+  publishProfile: async (address: string, body: Record<string, unknown>) => {
+    if (agentConfigError) return { error: agentConfigError };
+    try {
+      const res = await fetch(`${BASE}/suppliers/${address}/profile`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        try {
+          return { error: (JSON.parse(text).message as string) ?? `agent returned ${res.status}` };
+        } catch {
+          return { error: `agent returned ${res.status}` };
+        }
+      }
+      return (await res.json()) as DirectoryEntry;
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "agent unreachable" };
+    }
+  },
   /** Suppliers this buyer has completed work with, for inviting them again. */
   partners: (buyer: string) =>
     get<{ partners: { supplier: string; completed: number; lastRfqId: number }[] }>(

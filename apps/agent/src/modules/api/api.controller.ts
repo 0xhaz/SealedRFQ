@@ -20,6 +20,7 @@ import { ClarificationsService } from "../clarifications/clarifications.service.
 import { DocumentsService } from "../documents/documents.service.js";
 import { EvaluatorService } from "../evaluator/evaluator.service.js";
 import { IndexerService } from "../indexer/indexer.service.js";
+import { DirectoryService } from "../reputation/directory.service.js";
 import { ReputationService } from "../reputation/reputation.service.js";
 import { X402Middleware } from "../x402/x402.middleware.js";
 
@@ -34,6 +35,7 @@ export class ApiController {
     private readonly documents: DocumentsService,
     private readonly reputation: ReputationService,
     private readonly clarifications: ClarificationsService,
+    private readonly directory: DirectoryService,
   ) {}
 
   /** The clarification thread. Public by design: an answer only one bidder can read is a favour. */
@@ -59,6 +61,42 @@ export class ApiController {
     },
   ) {
     return this.clarifications.add({ rfqId: Number(id), ...body });
+  }
+
+  /**
+   * The supplier directory.
+   *
+   * Listed because the chain saw them bid, never because they registered — a directory that anyone
+   * can add themselves to is a directory of people who have done nothing. Counted facts and claimed
+   * ones come back in separate fields and are never blended into a score.
+   */
+  @Get("suppliers")
+  suppliers() {
+    return { suppliers: this.directory.list() };
+  }
+
+  @Get("suppliers/:address")
+  supplier(@Param("address") address: string) {
+    return this.directory.entry(address);
+  }
+
+  /** Publish your own profile. Signature-authorised: a wallet may only describe itself. */
+  @Post("suppliers/:address/profile")
+  publishProfile(
+    @Param("address") address: string,
+    @Body()
+    body: {
+      name: string;
+      country?: string;
+      categories?: string;
+      website?: string;
+      contact?: string;
+      about?: string;
+      ts: number;
+      signature: `0x${string}`;
+    },
+  ) {
+    return this.directory.publish({ address, ...body });
   }
 
   /** A counterparty's record, counted from the chain. Free: it is evidence, not a product. */

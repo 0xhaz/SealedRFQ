@@ -96,6 +96,28 @@ export const milestones = sqliteTable(
  * being believed about who said what. `anonymous` hides the asker from other readers, never from
  * the signature — a buyer must still be able to prove a question came from a real bidder.
  */
+/**
+ * What a supplier says about itself.
+ *
+ * Kept rigidly apart from the track record, which is counted from the chain. Nothing here is
+ * verified by anyone: a wallet can call itself whatever it likes, and the only thing the signature
+ * establishes is that this address published these words — not that they are true. The directory
+ * presents the two in separate columns for that reason, and a buyer who needs a company to really
+ * hold ISO 9001 still has to ask for the certificate.
+ */
+export const profiles = sqliteTable("profiles", {
+  address: text("address").primaryKey(),
+  name: text("name").notNull(),
+  country: text("country").notNull().default(""),
+  /** Comma-separated taxonomy keys, matching the RFQ categories. */
+  categories: text("categories").notNull().default(""),
+  website: text("website").notNull().default(""),
+  contact: text("contact").notNull().default(""),
+  about: text("about").notNull().default(""),
+  signature: text("signature").notNull(),
+  ts: integer("ts").notNull(),
+});
+
 export const clarifications = sqliteTable(
   "clarifications",
   {

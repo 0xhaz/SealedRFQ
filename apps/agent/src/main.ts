@@ -16,6 +16,7 @@ import { DocumentsSweeper } from "./modules/documents/documents.sweeper.js";
 import { EvaluatorScheduler } from "./modules/evaluator/evaluator.scheduler.js";
 import { EvaluatorService } from "./modules/evaluator/evaluator.service.js";
 import { IndexerService } from "./modules/indexer/indexer.service.js";
+import { DirectoryService } from "./modules/reputation/directory.service.js";
 import { ReputationService } from "./modules/reputation/reputation.service.js";
 import { X402Middleware } from "./modules/x402/x402.middleware.js";
 
@@ -31,6 +32,7 @@ import { X402Middleware } from "./modules/x402/x402.middleware.js";
     DocumentsService,
     DocumentsSweeper,
     ReputationService,
+    DirectoryService,
     ClarificationsService,
   ],
 })
