@@ -111,7 +111,9 @@ async function post<T>(path: string): Promise<T | { error: string }> {
           "the agent URL is not pointing at the agent (404). Check NEXT_PUBLIC_AGENT_URL on the deployment.",
       };
     }
-    return { error: `agent returned ${res.status}` };
+    // Guard, not an unconditional return: without it the success path below is unreachable and a
+    // request that worked is reported as a failure.
+    if (!res.ok) return { error: `agent returned ${res.status}` };
     return (await res.json()) as T;
   } catch (e) {
     return { error: e instanceof Error ? e.message : "agent unreachable" };
