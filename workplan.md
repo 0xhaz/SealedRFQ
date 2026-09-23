@@ -550,8 +550,53 @@ was not that the rules were harsh but that **nobody noticed the deadline**.
 
 ---
 
+## 6d. Mainnet hardening: what the operator gives up (decided 2026-09-23)
+
+An audit of the privilege surface found the code sound where it matters — nothing is upgradeable,
+nothing is pausable, there is no rescue or sweep, and `withdraw()`, `closeNoAward`, `settleDeposit`,
+`autoRelease`, `settleExpired` and `finalizeRejection` are all permissionless. **No key can take or
+freeze a user's funds.**
+
+What the operator *can* do is the gap between the pitch and the deployment, and it is wider than it
+looks: `ADMIN` is the OZ default admin, so it can grant itself every other role; `AWARDER` can award
+without the buyer; `VERIFIER` can accept or reject a milestone on any engagement; `ARBITER` can split
+any disputed escrow; and `setPlatformFee` accepts up to 100% and is read at *release* time, so a
+change reaches jobs that are already funded. Holding funds plus discretion over where they go is an
+escrow-agent profile, which is the thing this project says it does not need.
+
+**Testnet keeps the roles**, because policy and qualifier still need tuning and a frozen testnet is
+useless.
+
+**Mainnet, before the first real tender:**
+- [ ] Confirm `platformFeeBP` and `evaluatorFeeBP` are `0`
+- [ ] Decide `AWARDER` deliberately. Holding it means the agent can award unattended — convenient,
+      and also fully automated decision-making binding a supplier, which is GDPR Art 22 territory
+      and contrary to the procurement norm of a human award. A buyer can always award themselves,
+      so the default should be **not to hold it**
+- [ ] Renounce `VERIFIER` and `ARBITER` unless we intend to offer that as a service — and if we do,
+      say so plainly rather than claiming disintermediation
+- [ ] Renounce `ADMIN` last. This makes the role set permanent and **locks the fee at zero forever**,
+      which is the single strongest claim available to us. The price is that `setPolicy`,
+      `setQualifier` and `setKindRole` freeze permanently, so a policy bug becomes unfixable — which
+      argues for a timelock or multisig rather than renunciation if there is any doubt
+- [ ] README's *What the operator can and cannot do* table updated to match whatever is actually held
+
+**Migration contingency.** Nothing is upgradeable, so v2 is a new deployment and there is
+deliberately no admin path to move in-flight escrow into it. Retirement is a drain, not a migration:
+deploy alongside, stop new business in the interface, and let v1 finish itself — every path
+terminates in a state that credits `withdrawable`, which never expires. Because the settlement
+functions are permissionless, the operator can advance a stalled participant's funds to *claimable*
+without holding any privilege that could divert them; `withdraw()` pays `msg.sender`, so the last
+step always belongs to the owner. Retirement is complete when `totalHeld` reaches zero, which is
+public. A v2 must carry the `AttestationLog` history rather than orphan it, and any migration of a
+*live* engagement must require both parties' signatures — anything less reintroduces the power this
+design exists to refuse. Written up in the README under *Contract migration*.
+
+---
+
 ## 7. Submission checklist
 - [ ] Contracts live and verified on Arc mainnet (chain 5042), addresses in the README
+- [ ] Mainnet role hardening done and the README table matches what is actually held (§6d)
 - [ ] Public GitHub repo; README covers what it does and what it uses Arc for
 - [ ] Live app link that opens (Vercel)
 - [ ] `DORAHACKS.md` evidence pack with one explorer link per lifecycle step

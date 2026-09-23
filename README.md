@@ -247,6 +247,80 @@ Off unless `X402_ENABLED=true`. Enabled on a chain Circle cannot settle, or with
 address, the agent refuses to boot rather than quietly serving a paid endpoint for free. `GET /meta`
 advertises the price, so a buying agent can budget the call without provoking a 402 to discover it.
 
+## What the operator can and cannot do
+
+This project's claim is that a buyer and a supplier can run a tender between themselves. That claim
+is only worth as much as the powers held by whoever deployed the contracts, so here they are in
+full. Read this before trusting a deployment — including this one.
+
+**Cannot, by construction:**
+
+- **Take your money.** There is no rescue, sweep, drain or `selfdestruct` anywhere. `withdraw()`
+  has no role check and no pause: once an amount is credited to an address, only that address can
+  move it, and nothing can stop it.
+- **Freeze your money.** There is no pausable modifier in any contract. A buyer recovers escrow via
+  `closeNoAward` once the award deadline passes — permissionless, and not gated on policy, so it
+  cannot be blocked by changing the rules afterwards. A losing supplier recovers their own deposit
+  via `settleDeposit` without the buyer's cooperation.
+- **Rewrite the rules.** Nothing is upgradeable. There are no proxies, no initialisers and no
+  `delegatecall`. The code at the published addresses is the code that will run forever.
+- **Forge a decision.** An award requires an evaluation attested on-chain for that specific winner,
+  and the winner must have revealed. A memo is re-hashable by anyone; a rewritten one fails the
+  audit endpoint.
+
+**Can, today:**
+
+| Role | Power | Why it exists |
+|---|---|---|
+| `ADMIN` (OZ default admin) | Grant itself every other role below | Configuration; it is the root key |
+| `ADMIN` on AgenticCommerce | Raise the platform fee — applied when a milestone **releases**, so it reaches already-funded jobs | ERC-8183 reference behaviour. **Set to 0 and, on mainnet, to be locked there by renouncing admin** |
+| `AWARDER` | Award a tender **without the buyer** | Lets the agent close an award the buyer has walked away from. It still cannot pick a bidder the attested evaluation did not recommend |
+| `VERIFIER` | Accept or reject a milestone on any engagement | Delegated review. A verifier must anchor its reason in the `AttestationLog` first — the buyer need not |
+| `ARBITER` | Split escrow on an engagement that is already `Disputed` | Quality disputes only; it cannot touch a healthy engagement. See the work plan §6c for why there is no neutral third party and why we do not claim one |
+
+**So the honest summary:** the operator cannot take or freeze funds, but can decide *where a
+disputed engagement's money goes* and *whether a submitted milestone is accepted*. That is an
+intermediary. A deployment that wants to drop the claim entirely should renounce `ADMIN`, `VERIFIER`
+and `ARBITER` after configuration, which makes the role set permanent and locks the fee at zero —
+at the cost of never being able to change `setPolicy`, `setQualifier` or `setKindRole` again. This
+deployment keeps them on testnet deliberately, and the mainnet decision is recorded in the work
+plan.
+
+**Also worth knowing:** wallet addresses and signed clarifications are on-chain permanently and
+cannot be erased; bidding is permissionless, so there is no sanctions or AML screening; and the
+generated terms are a restatement of what the escrow does, not legal advice.
+
+## Contract migration: how funds get out of a version we retire
+
+Nothing is upgradeable, which is what makes the guarantees above true — and it means a future
+version is a **new deployment, not an upgrade**. There is deliberately no admin path to move
+in-flight escrow into it, because that path is exactly the one an attacker or a subpoena would use.
+
+So a retirement is a drain, not a migration:
+
+1. **Deploy v2 alongside v1.** Both stay live. v1 keeps working for everything already in it.
+2. **Stop new business on v1** in the interface. There is no on-chain kill switch by design, so v1
+   remains usable directly by anyone who wants it — which is the point of publishing it.
+3. **Let v1 finish itself.** Every path in v1 terminates: an RFQ reaches Awarded, NoAward or
+   Cancelled; an engagement reaches Completed, Resolved or Abandoned. Every terminal state credits
+   `withdrawable`, and `withdrawable` never expires.
+4. **Push, do not pull.** `settleDeposit`, `closeNoAward`, `autoRelease`, `settleExpired` and
+   `finalizeRejection` are all **permissionless**. Anyone — including the operator, with no special
+   privilege — can advance a stalled participant's funds to *claimable*. The operator can therefore
+   retire v1 without holding a single key that could divert a payment.
+5. **The last step belongs to the owner.** `withdraw()` pays `msg.sender`, so nobody can claim on
+   another's behalf. Residual balances stay claimable indefinitely rather than being swept.
+6. **Watch `totalHeld` fall to zero.** That is the retirement condition, and it is public.
+
+Two things a v2 must carry rather than abandon:
+
+- **The attestation history.** `AttestationLog` is the evidence the whole project rests on. A v2
+  with a fresh log orphans every earlier decision, so the audit path has to read both, and the
+  published addresses of retired versions are part of the record — not something to delete.
+- **A migration of a live engagement, if ever needed, must require both parties' signatures.** Any
+  mechanism that lets an operator move an engagement without the buyer and the supplier both
+  consenting reintroduces precisely the power this design exists to refuse.
+
 ## Which procurement instruments this covers
 
 | | Covered | How |

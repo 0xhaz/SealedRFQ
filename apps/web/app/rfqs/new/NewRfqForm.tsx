@@ -702,6 +702,20 @@ export function NewRfqForm() {
               value={termsSummary}
               onChange={(e) => setTermsSummary(e.target.value)}
             />
+            {/*
+              Said to the buyer, not only to the reader of the source.
+              These clauses become a binding term of a real contract the moment the RFQ is posted,
+              and the generator knows nothing about the parties, the goods, the governing law or
+              anything a form cannot see. Restating what the escrow does is the whole of what it can
+              honestly claim to do, and a buyer is entitled to be told that before they rely on it.
+            */}
+            <div className="note warn">
+              These clauses restate what the escrow contract does with the figures you entered. They
+              are <b>not legal advice and not a complete contract</b> — no form can know your
+              governing law, warranty, liability or termination terms. Have them reviewed, and put
+              anything they do not cover in the attached terms document. Once the RFQ is posted they
+              bind you: the hash is published and suppliers bid against it.
+            </div>
           </div>
           <div className="field full">
             <label htmlFor="termsFile">Terms document (optional)</label>
