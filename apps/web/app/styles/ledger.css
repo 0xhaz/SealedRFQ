@@ -6238,3 +6238,16 @@ button.field-wallet {
   line-height: 1.55;
   white-space: pre-wrap;
 }
+
+/*
+ * The supplier directory: a plain vertical stack of panels.
+ *
+ * `.panel` carries no margin of its own — elsewhere panels sit inside a grid that supplies the
+ * gap — so a bare list of them renders flush, every card touching the next with no seam. The gap
+ * lives here rather than on `.panel` so nothing already laid out by a grid shifts.
+ */
+.supplier-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
