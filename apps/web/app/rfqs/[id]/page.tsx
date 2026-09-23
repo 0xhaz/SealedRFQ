@@ -401,6 +401,7 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
                     submittedAt: engagement.submittedAt,
                     acceptanceWindow: engagement.acceptanceWindow,
                     currentJobBudget: engagement.currentJobBudget.toString(),
+                    deliveryDeadline: engagement.deliveryDeadline,
                     deliverable: engagement.deliverable,
                   }
                 : null

@@ -79,6 +79,17 @@ describe("describeTxError", () => {
     expect(describeTxError(new Error("nonce too low\nat some stack frame"))).toBe("nonce too low");
   });
 
+  it("names a late milestone submission from the selector alone", () => {
+    // Recorded from a real testnet revert: the supplier submitted 15 hours after the delivery
+    // window shut. The call goes to AgenticCommerce but is vetoed by the adapter's hook, so viem
+    // cannot decode it against the ABI at hand and reports the bare selector — which is exactly the
+    // path that used to surface as "Execution reverted for an unknown reason".
+    const asText = new Error(
+      'The contract function "submit" reverted with the following signature:\n0x5a6fec96',
+    );
+    expect(describeTxError(asText)).toMatch(/delivery window/i);
+  });
+
   it("does not crash when a formatted error arrives without its args", () => {
     // The selector-only path loses args, so the arg-bearing formatters must degrade rather than throw.
     expect(describeTxError(revertWith("AwardExceedsBudget", []))).toContain("AwardExceedsBudget");

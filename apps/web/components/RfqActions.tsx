@@ -17,7 +17,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Hex } from "viem";
 import { useAccount, useConfig, useWriteContract } from "wagmi";
-import { waitForTransactionReceipt } from "wagmi/actions";
+import { simulateContract, waitForTransactionReceipt } from "wagmi/actions";
 
 type Props = {
   rfqId: number;
@@ -36,6 +36,8 @@ type Props = {
     submittedAt: number;
     acceptanceWindow: number;
     currentJobBudget: string;
+    /** When this milestone's delivery window shuts. Past it the contract refuses a submission. */
+    deliveryDeadline: number;
     /** Hash of the submitted deliverable, for the buyer to check their copy against. */
     deliverable?: string;
   } | null;
@@ -73,15 +75,48 @@ export function RfqActions({
   const isSupplier = Boolean(engagement && me === engagement.supplier.toLowerCase());
   const wrongChain = isConnected && chainId !== chain.id;
 
+  /**
+   * Ask the chain first, then send.
+   *
+   * Without this the only thing standing between a doomed transaction and the user is the wallet's
+   * gas estimate, and a wallet that fails to estimate says so in its own words — "execution
+   * reverted for an unknown reason" — then offers to send it anyway with a hand-set gas limit. The
+   * user pays for a revert and learns nothing. A simulation returns the contract's own error, which
+   * `describeTxError` can turn into the actual rule that was broken, before any gas is spent.
+   *
+   * The error may belong to a contract other than the one being called — a milestone submission
+   * goes to AgenticCommerce but is vetoed by the adapter's hook — so viem cannot always decode it
+   * against the ABI at hand. It still reports the selector, and the decoder recovers the name from
+   * that.
+   */
+  async function write(params: Parameters<typeof writeContractAsync>[0]) {
+    // biome-ignore lint/suspicious/noExplicitAny: the request shape is the caller's, not ours
+    await simulateContract(config, { ...(params as any), account: address });
+    return writeContractAsync(params);
+  }
+
   async function run(label: string, fn: () => Promise<`0x${string}`>) {
     setError(null);
+    // A link left over from an earlier attempt would point at an unrelated transaction and read
+    // as evidence for whatever happens next.
+    setTxHash(null);
     setBusy(label);
     try {
       const hash = await fn();
       setTxHash(hash);
       setBusy("Waiting for the transaction…");
-      await waitForTransactionReceipt(config, { hash });
+      const receipt = await waitForTransactionReceipt(config, { hash });
       setBusy(null);
+      // viem never inspects `status`, so a mined-and-reverted transaction resolves here exactly
+      // like a successful one. Left unchecked this reports failure as success — the worst outcome
+      // available, because a supplier would believe a deliverable was recorded when the chain
+      // rejected it. The revert data is not in the receipt, so the honest thing is to say that.
+      if (receipt.status === "reverted") {
+        setError(
+          "The transaction was mined but the contract rejected it, so nothing changed. Open it below to see why.",
+        );
+        return;
+      }
       router.refresh();
     } catch (e) {
       setBusy(null);
@@ -92,7 +127,7 @@ export function RfqActions({
 
   const award = () =>
     run("Awarding…", () =>
-      writeContractAsync({
+      write({
         abi: RFQRegistryAbi,
         address: contracts.RFQRegistry,
         functionName: "award",
@@ -111,7 +146,7 @@ export function RfqActions({
 
   const submitMilestone = () =>
     run("Submitting the deliverable…", () =>
-      writeContractAsync({
+      write({
         abi: AgenticCommerceAbi,
         address: contracts.AgenticCommerce,
         functionName: "submit",
@@ -144,7 +179,7 @@ export function RfqActions({
     const text = reason || `accepted milestone ${(engagement?.currentMilestone ?? 0) + 1}`;
     return run("Accepting…", async () => {
       await publishReason(text);
-      return writeContractAsync({
+      return write({
         abi: SealedRFQAdapterAbi,
         address: contracts.SealedRFQAdapter,
         functionName: "acceptMilestone",
@@ -156,7 +191,7 @@ export function RfqActions({
   const reject = () =>
     run("Rejecting…", async () => {
       await publishReason(reason);
-      return writeContractAsync({
+      return write({
         abi: SealedRFQAdapterAbi,
         address: contracts.SealedRFQAdapter,
         functionName: "rejectMilestone",
@@ -166,7 +201,7 @@ export function RfqActions({
 
   const autoRelease = () =>
     run("Releasing…", () =>
-      writeContractAsync({
+      write({
         abi: SealedRFQAdapterAbi,
         address: contracts.SealedRFQAdapter,
         functionName: "autoRelease",
@@ -202,6 +237,16 @@ export function RfqActions({
   const canAutoRelease = releasesAt > 0 && Date.now() / 1000 >= releasesAt;
   const deliverableOnChain = engagement?.deliverable as Hex | undefined;
   const awaitingReview = Boolean(engagement?.submittedAt);
+  /**
+   * Past this the adapter's hook rejects a submission outright (`DeliveryWindowClosed`).
+   *
+   * Compared against the wall clock, which is close enough to decide what to *offer*: the contract
+   * judges by `block.timestamp` and remains the authority, so a borderline case is caught by the
+   * simulation in `write` rather than being waved through here.
+   */
+  const deliveryClosed = Boolean(
+    engagement?.deliveryDeadline && Date.now() / 1000 > engagement.deliveryDeadline,
+  );
 
   return (
     <div className="panel">
@@ -343,11 +388,25 @@ export function RfqActions({
                 <button
                   type="button"
                   className="btn-primary"
-                  disabled={!!busy || pendingHash() === ZERO_HASH}
+                  disabled={!!busy || pendingHash() === ZERO_HASH || deliveryClosed}
                   onClick={submitMilestone}
                 >
                   {busy ?? "Submit deliverable"}
                 </button>
+                {deliveryClosed && (
+                  <div className="note warn" style={{ marginTop: 10 }}>
+                    <b>The delivery window for this milestone closed on{" "}
+                    {new Date((engagement?.deliveryDeadline ?? 0) * 1000)
+                      .toISOString()
+                      .replace("T", " ")
+                      .slice(0, 16)}
+                    .</b>{" "}
+                    The contract will not accept a submission now, so nothing can be sent from here.
+                    Once the window has passed either side can settle the milestone, which returns
+                    the escrow to the buyer along with the performance stake. Talk to the buyer
+                    before that happens.
+                  </div>
+                )}
               </div>
             </>
           )}
