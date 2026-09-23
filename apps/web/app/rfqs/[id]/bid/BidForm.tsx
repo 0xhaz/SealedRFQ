@@ -14,7 +14,13 @@ import { chain, contracts, explorerTx } from "@/lib/chain";
 import { hashFile } from "@/lib/docHash";
 import { signUsdcPermit } from "@/lib/permit";
 import { describeTxError } from "@/lib/txError";
-import { RFQRegistryAbi, USDC_ADDRESS, formatUsdc, parseUsdc } from "@sealedrfq/shared";
+import {
+  RFQRegistryAbi,
+  USDC_ADDRESS,
+  describeWindow,
+  formatUsdc,
+  parseUsdc,
+} from "@sealedrfq/shared";
 import Link from "next/link";
 import { useState } from "react";
 import { sha256, stringToBytes } from "viem";
@@ -29,17 +35,37 @@ type Props = {
   phase: string;
   deposit: string; // 6-decimal units as string
   budget: string;
+  /** Seconds each milestone allows for delivery. The bid has to fit inside it. */
+  deliveryWindow: number;
   /** RFP mode: the bid must carry a proposal, not just a price. */
   requiresProposal: boolean;
 };
 
-export function BidForm({ rfqId, phase, deposit, budget, requiresProposal }: Props) {
+export function BidForm({
+  rfqId,
+  phase,
+  deposit,
+  budget,
+  deliveryWindow,
+  requiresProposal,
+}: Props) {
   const { address, isConnected, chainId } = useAccount();
   const config = useConfig();
   const { writeContractAsync } = useWriteContract();
 
   const [price, setPrice] = useState("");
   const [days, setDays] = useState("21");
+
+  /**
+   * Whether the quoted delivery fits the window the buyer published.
+   *
+   * Nothing on-chain enforces this: the contract will happily take the bid, award it, and then
+   * start a milestone whose deadline has already passed — at which point the supplier forfeits the
+   * escrow and their performance stake for missing a date they were never asked to agree to. The
+   * only place this can be caught cheaply is before the deposit is committed, which is here.
+   */
+  const windowDays = deliveryWindow / 86_400;
+  const overWindow = deliveryWindow > 0 && Number(days) > windowDays;
   const [proposal, setProposal] = useState("");
   /**
    * A priced quotation as a file. A classic RFQ is answered with a document, not a paragraph, and
@@ -341,6 +367,7 @@ export function BidForm({ rfqId, phase, deposit, budget, requiresProposal }: Pro
         {bidding ? "Submit a sealed bid" : revealing ? "Reveal your bid" : "Bidding closed"}
         <span className="hint">
           budget {formatUsdc(BigInt(budget))} · deposit {formatUsdc(BigInt(deposit))} USDC
+          {deliveryWindow > 0 && ` · delivery within ${describeWindow(deliveryWindow)}`}
         </span>
       </div>
 
@@ -366,6 +393,14 @@ export function BidForm({ rfqId, phase, deposit, budget, requiresProposal }: Pro
               value={days}
               onChange={(e) => setDays(e.target.value)}
             />
+            {overWindow && (
+              <div className="field-err" role="alert">
+                This tender gives each milestone {describeWindow(deliveryWindow)} to deliver, so a{" "}
+                {days}-day quote cannot be met. Bid it and the first milestone's deadline passes
+                before you can deliver, forfeiting the escrow and your performance stake. The
+                evaluator flags this and will not recommend the bid.
+              </div>
+            )}
           </div>
 
           {bidding && (

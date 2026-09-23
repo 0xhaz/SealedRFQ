@@ -4,6 +4,7 @@ import {
   type DecisionMemo,
   MEMO_SCHEMA,
   checkRequirements,
+  describeWindow,
   hashCanonical,
 } from "@sealedrfq/shared";
 import { eq, sql } from "drizzle-orm";
@@ -89,6 +90,28 @@ export class EvaluatorService {
     const { rubric, verified, published } = await this.rubricFor(rfq.metadataURI, rfq.rubricHash);
     const weightTotal = rubric.price + rubric.delivery + rubric.quality || 1;
     const budget = BigInt(rfq.budget);
+
+    // Read from the chain rather than the index: `RFQCreated` does not carry the delivery window,
+    // and an evaluation is rare enough that one extra call costs nothing.
+    //
+    // Zero means "do not measure delivery against anything", which covers both an RFQ that set no
+    // window and a read that did not come back. Failing the whole evaluation because one advisory
+    // field was unreadable would be the wrong trade: the deliverability check is this evaluator's
+    // own policy, not a rule the contract enforces, so losing it degrades the memo rather than
+    // invalidating it. It is logged so that absence is visible rather than assumed.
+    let deliveryWindow = 0;
+    try {
+      const onChain = await this.chain.publicClient.readContract({
+        ...this.chain.registry,
+        functionName: "getRFQ",
+        args: [BigInt(rfqId)],
+      });
+      deliveryWindow = Number(onChain.deliveryWindow ?? 0);
+    } catch (e) {
+      this.log.warn(
+        `RFQ ${rfqId}: could not read the delivery window, so bids are not screened against it (${e instanceof Error ? e.message : e})`,
+      );
+    }
     const bestPrice = revealed.reduce(
       (m, b) => (BigInt(b.price ?? "0") < m ? BigInt(b.price ?? "0") : m),
       BigInt(revealed[0].price ?? "0"),
@@ -111,6 +134,15 @@ export class EvaluatorService {
 
       const redFlags: string[] = [];
       if (price > budget) redFlags.push(`bid ${price} exceeds the published budget ${budget}`);
+      // A bid that cannot be delivered inside the tender's own window is non-compliant in the same
+      // way an over-budget bid is. It is worth catching here because the consequence lands on the
+      // supplier: award them and the first milestone's deadline is already impossible, so they
+      // forfeit the escrow and their performance stake for missing a date they never agreed to.
+      if (deliveryWindow > 0 && days * 86_400 > deliveryWindow) {
+        redFlags.push(
+          `bid promises ${days} days but this tender allows ${describeWindow(deliveryWindow)}`,
+        );
+      }
       if (rfq.requiresProposal && !b.proposalHash) {
         redFlags.push("no proposal document bound to this bid");
       }
@@ -152,11 +184,24 @@ export class EvaluatorService {
 
     scores.sort((a, b) => b.totalBps - a.totalBps);
     const best = scores[0];
-    const withinBudget = scores.filter((s) => BigInt(s.price) <= budget);
-    const winner = withinBudget[0];
+    /**
+     * Two kinds of non-compliance, kept apart because they are not the same kind of fact.
+     *
+     * Over budget is a rule the *contract* enforces: award it and the transaction reverts, so
+     * recommending it would be recommending something impossible. Over the delivery window is a
+     * rule the contract does not enforce — it would let the award through, and then the first
+     * milestone's deadline would already be unreachable and the supplier would forfeit their stake
+     * for it. Excluding that is this evaluator's judgement, not the chain's, and the memo says so
+     * in those terms rather than claiming the contract would refuse.
+     */
+    const overBudget = (s: { price: string }) => BigInt(s.price) > budget;
+    const overWindow = (s: { deliveryDays: number }) =>
+      deliveryWindow > 0 && s.deliveryDays * 86_400 > deliveryWindow;
+    const winner = scores.filter((s) => !overBudget(s) && !overWindow(s))[0];
 
     const inputsHash = hashCanonical({
       budget: String(budget),
+      deliveryWindow,
       rubric,
       bids: revealed.map((b) => ({
         bidder: b.bidder,
@@ -168,13 +213,17 @@ export class EvaluatorService {
 
     const runnerUp =
       best.bidder !== winner?.bidder
-        ? ` ${best.bidder} scored higher overall but bids above the published budget, which the contract would reject.`
+        ? overBudget(best)
+          ? ` ${best.bidder} scored higher overall but bids above the published budget, which the contract would reject.`
+          : ` ${best.bidder} scored higher overall but promises ${best.deliveryDays} days against a ${describeWindow(deliveryWindow)} delivery window, so its first milestone would expire before it could be delivered.`
         : "";
     const rationale = !verified
       ? "The rubric published with this RFQ does not match the hash fixed on-chain, so the bids cannot be scored against the agreed criteria."
       : winner
         ? `${winner.bidder} scores highest within budget (${winner.totalBps / 100}/100) on price ${winner.criteria.price}, delivery ${winner.criteria.delivery}, quality ${winner.criteria.quality}.${runnerUp}`
-        : "Every revealed bid is above the published budget; no award can be recommended.";
+        : scores.every(overBudget)
+          ? "Every revealed bid is above the published budget; no award can be recommended."
+          : `No revealed bid is both within the published budget and deliverable inside the ${describeWindow(deliveryWindow)} delivery window; no award can be recommended.`;
 
     const memo: DecisionMemo = {
       schema: MEMO_SCHEMA,

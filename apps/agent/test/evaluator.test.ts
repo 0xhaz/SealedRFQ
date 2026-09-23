@@ -23,10 +23,23 @@ let db: any;
 // biome-ignore lint/suspicious/noExplicitAny: imported after env setup
 let schema: any;
 
+/**
+ * The delivery window the stubbed chain reports for the RFQ under test.
+ *
+ * It is not in the index — `RFQCreated` does not carry it — so the evaluator reads it from the
+ * chain, and a test that wants the deliverability screen has to say what the chain would answer.
+ * Zero means "no window", which is also what a failed read degrades to.
+ */
+let chainDeliveryWindow = 0;
+
 beforeAll(async () => {
   ({ db, schema } = await import("../src/db/index.js"));
   const { EvaluatorService } = await import("../src/modules/evaluator/evaluator.service.js");
-  const chain = { address: () => EVALUATOR } as never;
+  const chain = {
+    address: () => EVALUATOR,
+    registry: { address: EVALUATOR, abi: [] },
+    publicClient: { readContract: async () => ({ deliveryWindow: chainDeliveryWindow }) },
+  } as never;
   evaluator = new EvaluatorService(chain);
 });
 
@@ -66,6 +79,7 @@ function seedBid(rfqId: number, bidder: string, price: string, deliveryDays: num
 }
 
 beforeEach(() => {
+  chainDeliveryWindow = 0;
   db.delete(schema.bids).run();
   db.delete(schema.rfqs).run();
   db.delete(schema.engagements).run();
@@ -99,6 +113,57 @@ describe("evaluator scoring", () => {
     expect(over.redFlags.join(" ")).toContain("exceeds the published budget");
     // The memo says out loud that a higher scorer was passed over, rather than quietly dropping it.
     expect(memo.rationale).toContain("above the published budget");
+  });
+
+  it("flags a bid that cannot be delivered inside the tender's window", async () => {
+    // The window is the buyer's term; the days are the supplier's quote. Nothing on-chain compares
+    // them, which is exactly why the evaluator has to.
+    chainDeliveryWindow = 900; // 15 minutes
+    seedRfq(10);
+    seedBid(10, S1, "2800000", 14);
+    const { memo } = await evaluator.evaluate(10);
+
+    const flagged = memo.scores.find((s: { bidder: string }) => s.bidder === S1);
+    expect(flagged.redFlags.join(" ")).toContain("14 days");
+    expect(flagged.redFlags.join(" ")).toContain("15 minutes");
+  });
+
+  it("will not recommend an undeliverable bid, and does not blame the contract for it", async () => {
+    chainDeliveryWindow = 86_400; // one day
+    seedRfq(11);
+    // S1 has to actually top the ranking for the runner-up sentence to be reached, so its price
+    // advantage must outweigh the delivery points it loses: 100/50/50 → 75 against S2's 34.5/100/50
+    // → 57.25 under the 50/30/20 rubric. It is still two days against a one-day window.
+    seedBid(11, S1, "1000000", 2);
+    seedBid(11, S2, "2900000", 1);
+    const { memo } = await evaluator.evaluate(11);
+
+    expect(memo.decision.bidder).toBe(S2);
+    // The contract would happily award S1 — over-budget is the only thing it refuses — so the memo
+    // must not claim otherwise. Saying "the contract would reject" here would be a plain lie.
+    expect(memo.rationale).not.toContain("the contract would reject");
+    expect(memo.rationale).toContain("expire before it could be delivered");
+  });
+
+  it("recommends normally when the quote fits the window", async () => {
+    chainDeliveryWindow = 30 * 86_400;
+    seedRfq(12);
+    seedBid(12, S1, "2800000", 21);
+    const { memo } = await evaluator.evaluate(12);
+
+    expect(memo.decision.outcome).toBe("RECOMMEND");
+    expect(memo.scores[0].redFlags.join(" ")).not.toContain("this tender allows");
+  });
+
+  it("skips the delivery screen entirely when no window is known", async () => {
+    // A failed chain read degrades to zero. That must not quietly disqualify every bidder.
+    chainDeliveryWindow = 0;
+    seedRfq(13);
+    seedBid(13, S1, "2800000", 9999);
+    const { memo } = await evaluator.evaluate(13);
+
+    expect(memo.decision.outcome).toBe("RECOMMEND");
+    expect(memo.scores[0].redFlags.join(" ")).not.toContain("this tender allows");
   });
 
   it("recommends no award when every bid is over budget", async () => {
