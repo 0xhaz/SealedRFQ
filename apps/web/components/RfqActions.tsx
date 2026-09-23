@@ -38,6 +38,13 @@ type Props = {
     currentJobBudget: string;
     /** When this milestone's delivery window shuts. Past it the contract refuses a submission. */
     deliveryDeadline: number;
+    /**
+     * Everything `settleExpired` would hand the buyer if this milestone lapses, in 6-decimal units.
+     * Computed on the server from the same fields the contract's `_drain` adds up.
+     */
+    expiredPot: string;
+    /** The supplier's own stake inside that total — named separately because it is theirs. */
+    performanceStake: string;
     /** Hash of the submitted deliverable, for the buyer to check their copy against. */
     deliverable?: string;
   } | null;
@@ -199,6 +206,25 @@ export function RfqActions({
       });
     });
 
+  /**
+   * Resolve a milestone whose delivery window closed with nothing delivered.
+   *
+   * Permissionless in the contract, and offered to both parties here for that reason: a supplier who
+   * knows they cannot deliver should be able to close it themselves rather than wait to have it done
+   * to them. It is the only move left once the window shuts — no function can extend a delivery
+   * deadline — and it is irreversible, which is why the button states the figure and names the
+   * supplier's own stake inside it before anyone presses.
+   */
+  const settleExpired = () =>
+    run("Settling…", () =>
+      write({
+        abi: SealedRFQAdapterAbi,
+        address: contracts.SealedRFQAdapter,
+        functionName: "settleExpired",
+        args: [BigInt(rfqId)],
+      }),
+    );
+
   const autoRelease = () =>
     run("Releasing…", () =>
       write({
@@ -246,6 +272,15 @@ export function RfqActions({
    */
   const deliveryClosed = Boolean(
     engagement?.deliveryDeadline && Date.now() / 1000 > engagement.deliveryDeadline,
+  );
+  /**
+   * The ERC-8183 job outlives the delivery window by `2 × acceptanceWindow`, and `settleExpired`
+   * reverts `NotExpired` until that later moment. Between the two the contract permits nothing at
+   * all — so the panel says the window has shut but does not offer an exit that would fail.
+   */
+  const jobExpired = Boolean(
+    engagement &&
+      Date.now() / 1000 > engagement.deliveryDeadline + 2 * engagement.acceptanceWindow,
   );
 
   return (
@@ -393,7 +428,7 @@ export function RfqActions({
                 >
                   {busy ?? "Submit deliverable"}
                 </button>
-                {deliveryClosed && (
+                {deliveryClosed && !jobExpired && (
                   <div className="note warn" style={{ marginTop: 10 }}>
                     <b>The delivery window for this milestone closed on{" "}
                     {new Date((engagement?.deliveryDeadline ?? 0) * 1000)
@@ -409,6 +444,48 @@ export function RfqActions({
                 )}
               </div>
             </>
+          )}
+
+          {/*
+            Guarded three ways. `Active` because a settled engagement still carries a deadline in
+            the past and would otherwise keep offering a button that now reverts. `!awaitingReview`
+            because `settleExpired` pays the *supplier* when something was delivered, so the wording
+            below would be the wrong way round. And `jobExpired` because the call reverts until the
+            job's own expiry, which is later than the delivery window.
+          */}
+          {engagement?.status === "Active" && !awaitingReview && deliveryClosed && jobExpired && (
+            <div className="note warn" style={{ marginTop: 10 }}>
+              <b>This milestone can now be settled.</b> Nothing was delivered before the window
+              closed, so the contract hands the buyer{" "}
+              <b>{formatUsdc(BigInt(engagement?.expiredPot ?? "0"))} USDC</b> — the unpaid
+              price, the retention held back from milestones already accepted, this
+              milestone's escrow, and the supplier's{" "}
+              <b>{formatUsdc(BigInt(engagement?.performanceStake ?? "0"))} USDC</b>{" "}
+              performance stake. The engagement ends there and nothing about it can be undone.
+              <div style={{ marginTop: 10 }}>
+                <button
+                  type="button"
+                  className="btn-outline"
+                  disabled={!!busy}
+                  onClick={() => {
+                    if (
+                      confirm(
+                        `Settle RFQ ${rfqId}?\n\n` +
+                          `${formatUsdc(BigInt(engagement?.expiredPot ?? "0"))} USDC goes to the buyer, including the supplier's ${formatUsdc(BigInt(engagement?.performanceStake ?? "0"))} USDC stake.\n\n` +
+                          "The engagement ends and this cannot be reversed.",
+                      )
+                    ) {
+                      settleExpired();
+                    }
+                  }}
+                >
+                  {busy ?? "Settle the expired milestone"}
+                </button>
+                <span className="hint" style={{ marginLeft: 10 }}>
+                  Either party may do this; the contract decides where the money goes.
+                </span>
+              </div>
+            </div>
           )}
 
           {isBuyer && awaitingReview && deliverableOnChain && (
