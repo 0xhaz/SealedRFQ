@@ -21,6 +21,7 @@ import { DocumentsService } from "../documents/documents.service.js";
 import { EvaluatorService } from "../evaluator/evaluator.service.js";
 import { IndexerService } from "../indexer/indexer.service.js";
 import { DirectoryService } from "../reputation/directory.service.js";
+import { StatsService } from "../reputation/stats.service.js";
 import { ReputationService } from "../reputation/reputation.service.js";
 import { X402Middleware } from "../x402/x402.middleware.js";
 
@@ -36,6 +37,7 @@ export class ApiController {
     private readonly reputation: ReputationService,
     private readonly clarifications: ClarificationsService,
     private readonly directory: DirectoryService,
+    private readonly stats: StatsService,
   ) {}
 
   /** The clarification thread. Public by design: an answer only one bidder can read is a favour. */
@@ -61,6 +63,18 @@ export class ApiController {
     },
   ) {
     return this.clarifications.add({ rfqId: Number(id), ...body });
+  }
+
+  /**
+   * What has happened on this deployment, counted from indexed events.
+   *
+   * Open rather than token-gated: every figure is a count over events the chain already published,
+   * so gating it would protect nothing and would make the operator's own dashboard the one page on
+   * this site that cannot be independently checked.
+   */
+  @Get("stats")
+  overview() {
+    return this.stats.overview();
   }
 
   /**

@@ -218,6 +218,26 @@ export type ClarificationEntry = {
   ts: number;
 };
 
+export type DeploymentStats = {
+  rfqs: {
+    total: number;
+    awarded: number;
+    closedNoAward: number;
+    budgetTotal: string;
+    awardedValue: string;
+  };
+  bids: { total: number; revealed: number; abandoned: number; uniqueBidders: number };
+  engagements: {
+    total: number;
+    active: number;
+    completed: number;
+    abandoned: number;
+    disputed: number;
+  };
+  milestones: { total: number; accepted: number; rejected: number; automatic: number };
+  indexedBlock: number;
+};
+
 export type DirectoryEntry = {
   address: string;
   profile: {
@@ -294,6 +314,15 @@ export const agent = {
   /** A counterparty's record. An unreachable agent yields zeroes, never an invented figure. */
   record: (address: string) =>
     get<TrackRecord>(`/reputation/${address}`, { ...EMPTY_RECORD, address }),
+  /** Deployment totals for the operator view. Zeroes when unreachable, never invented figures. */
+  stats: () =>
+    get<DeploymentStats>("/stats", {
+      rfqs: { total: 0, awarded: 0, closedNoAward: 0, budgetTotal: "0", awardedValue: "0" },
+      bids: { total: 0, revealed: 0, abandoned: 0, uniqueBidders: 0 },
+      engagements: { total: 0, active: 0, completed: 0, abandoned: 0, disputed: 0 },
+      milestones: { total: 0, accepted: 0, rejected: 0, automatic: 0 },
+      indexedBlock: 0,
+    }),
   /**
    * The supplier directory: who the chain has seen bid, with what they say about themselves.
    *

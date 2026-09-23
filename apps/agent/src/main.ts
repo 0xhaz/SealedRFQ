@@ -18,6 +18,7 @@ import { EvaluatorService } from "./modules/evaluator/evaluator.service.js";
 import { IndexerService } from "./modules/indexer/indexer.service.js";
 import { DirectoryService } from "./modules/reputation/directory.service.js";
 import { ReputationService } from "./modules/reputation/reputation.service.js";
+import { StatsService } from "./modules/reputation/stats.service.js";
 import { X402Middleware } from "./modules/x402/x402.middleware.js";
 
 @Module({
@@ -33,6 +34,7 @@ import { X402Middleware } from "./modules/x402/x402.middleware.js";
     DocumentsSweeper,
     ReputationService,
     DirectoryService,
+    StatsService,
     ClarificationsService,
   ],
 })
