@@ -3,7 +3,7 @@
 import { chain, contracts } from "@/lib/chain";
 import { countdown } from "@/lib/rfq";
 import { type WorkRow, deriveWork } from "@/lib/work";
-import { RFQRegistryAbi } from "@sealedrfq/shared";
+import { RFQRegistryAbi, SealedRFQAdapterAbi } from "@sealedrfq/shared";
 import Link from "next/link";
 import { useAccount, useReadContracts } from "wagmi";
 
@@ -41,6 +41,9 @@ export function YourWork({ rfqs }: { rfqs: BoardRfq[] }) {
   // Only invite-only RFQs still taking bids need an invitation check.
   const inviteChecks = open.filter((r) => r.inviteOnly && r.phase === "Bidding");
   const bidChecks = open;
+  // An awarded RFQ has an engagement, and an engagement has the deadlines that actually cost money
+  // once the tender is over. Read them for the awarded ones only; the rest have nothing to carry.
+  const engChecks = rfqs.filter((r) => r.phase === "Awarded");
 
   const { data } = useReadContracts({
     contracts: [
@@ -56,6 +59,12 @@ export function YourWork({ rfqs }: { rfqs: BoardRfq[] }) {
         functionName: "getBid" as const,
         args: [BigInt(r.id), address as `0x${string}`],
       })),
+      ...engChecks.map((r) => ({
+        abi: SealedRFQAdapterAbi,
+        address: contracts.SealedRFQAdapter,
+        functionName: "getEngagement" as const,
+        args: [BigInt(r.id)],
+      })),
     ],
     query: { enabled: Boolean(address) && chainId === chain.id, refetchInterval: 30_000 },
   });
@@ -68,6 +77,41 @@ export function YourWork({ rfqs }: { rfqs: BoardRfq[] }) {
       | { commitHash?: string; revealed?: boolean }
       | undefined;
 
+  const ENGAGEMENT_STATES = [
+    "None",
+    "Active",
+    "Completed",
+    "Rejected",
+    "Disputed",
+    "Resolved",
+    "Abandoned",
+  ];
+  const engagementAt = (id: number) => {
+    const i = engChecks.findIndex((e) => e.id === id);
+    if (i < 0) return undefined;
+    const raw = data?.[inviteChecks.length + bidChecks.length + i]?.result as
+      | {
+          supplier: string;
+          status: number;
+          submittedAt: bigint;
+          deliveryDeadline: bigint;
+          acceptanceWindow: number;
+          currentMilestone: number;
+          milestoneCount: number;
+        }
+      | undefined;
+    if (!raw) return undefined;
+    return {
+      supplier: raw.supplier,
+      status: ENGAGEMENT_STATES[Number(raw.status)] ?? "None",
+      submittedAt: Number(raw.submittedAt),
+      deliveryDeadline: Number(raw.deliveryDeadline),
+      acceptanceWindow: Number(raw.acceptanceWindow),
+      currentMilestone: Number(raw.currentMilestone),
+      milestoneCount: Number(raw.milestoneCount),
+    };
+  };
+
   const rows: WorkRow[] = rfqs.map((r) => {
     const invited = inviteChecks.findIndex((x) => x.id === r.id);
     const bid = bidAt(r.id);
@@ -76,6 +120,7 @@ export function YourWork({ rfqs }: { rfqs: BoardRfq[] }) {
       invited: invited >= 0 ? data?.[invited]?.result === true : undefined,
       hasBid: Boolean(bid?.commitHash && bid.commitHash !== ZERO_HASH),
       revealed: Boolean(bid?.revealed),
+      engagement: engagementAt(r.id),
     };
   });
 
@@ -88,12 +133,18 @@ export function YourWork({ rfqs }: { rfqs: BoardRfq[] }) {
         return `Reveal your bid on RFQ № ${it.rfqId} within ${countdown(it.deadline)} — an unrevealed bid loses the tender and forfeits its deposit.`;
       case "award":
         return `Award RFQ № ${it.rfqId} within ${countdown(it.deadline)}, or it closes with no award.`;
+      case "deliver":
+        return `Deliver milestone ${it.milestone} of ${it.milestoneCount} on RFQ № ${it.rfqId} within ${countdown(it.deadline)} — after that the contract will not accept it.`;
+      case "lapsed":
+        return `The delivery window for milestone ${it.milestone} of ${it.milestoneCount} on RFQ № ${it.rfqId} has closed. Nothing can be submitted now; talk to the buyer before the escrow is settled.`;
+      case "accept":
+        return `Review the delivery on RFQ № ${it.rfqId} within ${countdown(it.deadline)}, or it is accepted automatically and the supplier is paid.`;
       default:
         return `You are invited to bid on RFQ № ${it.rfqId}. Bidding closes in ${countdown(it.deadline)}.`;
     }
   };
   const hrefFor = (it: (typeof items)[number]) =>
-    it.kind === "award" ? `/rfqs/${it.rfqId}` : `/rfqs/${it.rfqId}/bid`;
+    it.kind === "invited" || it.kind === "reveal" ? `/rfqs/${it.rfqId}/bid` : `/rfqs/${it.rfqId}`;
 
   return (
     <div className="panel">

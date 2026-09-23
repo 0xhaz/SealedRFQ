@@ -73,3 +73,82 @@ describe("deriveWork", () => {
     expect(items.map((i) => i.kind)).toEqual(["reveal", "invited"]);
   });
 });
+
+const NOW = 1_000_000;
+const DAY = 86_400;
+
+const engaged = (over: Record<string, unknown> = {}) =>
+  row({
+    id: 7,
+    phase: "Awarded",
+    winner: ME,
+    engagement: {
+      supplier: ME,
+      status: "Active",
+      submittedAt: 0,
+      deliveryDeadline: NOW + 10 * DAY,
+      acceptanceWindow: 3 * DAY,
+      currentMilestone: 1,
+      milestoneCount: 3,
+      ...over,
+    },
+  });
+
+describe("deriveWork — milestone deadlines", () => {
+  it("reminds the supplier to deliver, and names the milestone", () => {
+    const items = deriveWork([engaged()], ME, NOW);
+    expect(items).toHaveLength(1);
+    expect(items[0].kind).toBe("deliver");
+    // currentMilestone is 0-based on-chain; people count from one.
+    expect(items[0].milestone).toBe(2);
+    expect(items[0].milestoneCount).toBe(3);
+  });
+
+  it("stays quiet about a deadline ten days out, and shouts about one inside a day", () => {
+    expect(deriveWork([engaged()], ME, NOW)[0].urgent).toBe(false);
+    const soon = engaged({ deliveryDeadline: NOW + 3600 });
+    expect(deriveWork([soon], ME, NOW)[0].urgent).toBe(true);
+  });
+
+  it("says the window has closed rather than still inviting a delivery", () => {
+    // The RFQ 4 failure: the page read "awaiting delivery" long after the contract had stopped
+    // accepting one, so the first sign of trouble was a reverted transaction.
+    const late = engaged({ deliveryDeadline: NOW - 3600 });
+    const items = deriveWork([late], ME, NOW);
+    expect(items[0].kind).toBe("lapsed");
+    expect(items[0].urgent).toBe(true);
+  });
+
+  it("drops the delivery reminder once something has been submitted", () => {
+    const submitted = engaged({ submittedAt: NOW - 60 });
+    expect(deriveWork([submitted], ME, NOW)).toEqual([]);
+  });
+
+  it("asks the buyer to review, but does not call it urgent while there is time", () => {
+    const submitted = engaged({ submittedAt: NOW - 60 });
+    const asBuyer = { ...submitted, buyer: ME, engagement: { ...submitted.engagement!, supplier: OTHER } };
+    const items = deriveWork([asBuyer], ME, NOW);
+    expect(items).toHaveLength(1);
+    expect(items[0].kind).toBe("accept");
+    expect(items[0].urgent).toBe(false);
+    expect(items[0].deadline).toBe(NOW - 60 + 3 * DAY);
+  });
+
+  it("stops asking the buyer once the acceptance window has run out", () => {
+    // Past this the supplier can be paid by anyone calling autoRelease, so there is nothing to ask.
+    const stale = engaged({ submittedAt: NOW - 4 * DAY });
+    const asBuyer = { ...stale, buyer: ME, engagement: { ...stale.engagement!, supplier: OTHER } };
+    expect(deriveWork([asBuyer], ME, NOW)).toEqual([]);
+  });
+
+  it("says nothing to a wallet that is neither party", () => {
+    const other = engaged({ supplier: OTHER });
+    expect(deriveWork([other], ME, NOW)).toEqual([]);
+  });
+
+  it("ignores an engagement that is no longer active", () => {
+    for (const status of ["Completed", "Abandoned", "Disputed"]) {
+      expect(deriveWork([engaged({ status })], ME, NOW)).toEqual([]);
+    }
+  });
+});
