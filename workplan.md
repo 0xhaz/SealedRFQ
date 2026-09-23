@@ -532,6 +532,39 @@ disputes only. **We do not claim decentralised arbitration.**
    `2 × acceptanceWindow`) the supplier cannot submit, the buyer can neither accept nor reject for
    want of a submission, and `settleExpired` reverts `NotExpired`. Nothing at all can happen.
 
+5. **The acceptance clock starts at submission, not receipt.** `autoRelease` fires at
+   `submittedAt + acceptanceWindow`, and `submittedAt` is set when the supplier submits a *hash*.
+   For anything physical the goods may still be in transit when the window expires and the money
+   releases automatically. Alibaba's equivalent clock starts at **shipment** and runs 15–60 days by
+   shipping mode; ours starts at a hash and the demo default is 3 minutes.
+
+   **Proposed:** a second, buyer-settable `inspectionWindow` that begins on an on-chain
+   acknowledgement of receipt, with `autoRelease` gated on the later of the two — so a supplier is
+   still protected against a silent buyer, but silence cannot pay for a container nobody has seen.
+   Until then this is configuration: the acceptance window has no upper bound, so for bulk goods set
+   it to shipping time plus inspection. The form now says so against the 30/70 split.
+
+### Fit for bulk goods, honestly
+
+The bidding half transfers well: Alibaba's own flow is an RFQ, and sealed bids are better than a
+marketplace where a supplier can be shown a rival's price and invited to beat it. The milestone
+split takes arbitrary weights, so the trade convention of a deposit against production and the
+balance against shipping documents is just `30, 70`.
+
+The delivery half does not, and the reason is not fixable by us: **the contract verifies that a
+document matches a hash, not that goods arrived.** A supplier can hash a forged bill of lading. For
+a digital deliverable the hash *is* the thing and the guarantee is real; for physical goods the
+chain holds the money and runs a clock, and the actual protection is the buyer's inspection. The
+dual-deposit literature reaches the same conclusion — it is provably cheat-proof only because the
+good is a file and "delivered as promised" is a hash comparison.
+
+What is missing beyond that is a marketplace, not a contract: supplier discovery, inspection
+services, incoterms, multi-currency, and KYC for cross-border trade. **The strongest fit is a buyer
+who already has a supplier panel and whose problem is proving the award was fair** — repeat
+purchasing from qualified vendors, regulated buyers who must evidence fairness, and services or
+digital deliverables. For a one-off import from an unknown factory, Trade Assurance is the better
+tool and we should say so rather than compete with it.
+
 ### On excusable delay — settled, and it answers the question that started this
 
 *"My manufacturer was late"* is **not** an excuse, in every framework checked. FAR 52.249-8(c) opens

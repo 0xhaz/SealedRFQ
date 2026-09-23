@@ -601,6 +601,34 @@ export function NewRfqForm() {
               value={milestones}
               onChange={(e) => setMilestones(e.target.value)}
             />
+            {/*
+              Bulk goods are not bought in equal thirds. The trade convention is a deposit against
+              production and the balance against shipping documents, so it is offered rather than
+              left to be typed — and naming it is also the moment to say that a stage here releases
+              money against a hash, which is not the same as against goods.
+            */}
+            <div className="filter-row" style={{ marginTop: 6 }}>
+              <span className="hint">Common splits:</span>
+              <button type="button" className="chip" onClick={() => setMilestones("30, 30, 40")}>
+                thirds
+              </button>
+              <button type="button" className="chip" onClick={() => setMilestones("30, 70")}>
+                30 / 70 — bulk goods
+              </button>
+              <button type="button" className="chip" onClick={() => setMilestones("100")}>
+                single payment
+              </button>
+            </div>
+            {milestones.replace(/\s/g, "") === "30,70" && (
+              <div className="note warn" style={{ marginTop: 8 }}>
+                <b>Buying physical goods?</b> A milestone releases money when the supplier submits a
+                <i> hash</i> and you accept it, or when your acceptance window runs out. The contract
+                cannot see a container — it can only check that a document you were sent matches the
+                hash that was sealed. So set the acceptance window to cover{" "}
+                <b>shipping time plus inspection</b>, not just your own review, and treat the
+                deliverable hash as the bill of lading rather than as proof the goods are good.
+              </div>
+            )}
           </div>
         </div>
       </section>
