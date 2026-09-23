@@ -160,7 +160,9 @@ export class ApiController {
       chain: this.chain.chain.name,
       explorer: this.chain.chain.blockExplorers.default.url,
       contracts: this.chain.deployment,
-      llmProvider: process.env.LLM_PROVIDER ?? "mock",
+      // What actually signed the last decision, not the raw env value: `mock`, `rubric` and unset
+      // all mean the same deterministic scorer, and a caller should see which one it was.
+      llmProvider: EvaluatorService.modelId(),
       // Advertised so a buying agent can price the call before it makes one, rather than having to
       // provoke a 402 to find out. Absent when the endpoint is free.
       x402: this.x402.config

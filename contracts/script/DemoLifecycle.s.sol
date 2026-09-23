@@ -130,10 +130,10 @@ contract DemoLifecycle is Script {
         uint256 subject = registry.awardSubject(id, s3);
         vm.startBroadcast(evaluatorPk);
         attestationLog.attest(
-            AttestationKinds.BID_EVALUATION, id, sha256(bytes(evaluation)), "mock-rubric-v1"
+            AttestationKinds.BID_EVALUATION, id, sha256(bytes(evaluation)), "deterministic-rubric-v1"
         );
         attestationLog.attest(
-            AttestationKinds.AWARD_RECOMMENDATION, subject, sha256(bytes(rec)), "mock-rubric-v1"
+            AttestationKinds.AWARD_RECOMMENDATION, subject, sha256(bytes(rec)), "deterministic-rubric-v1"
         );
         vm.stopBroadcast();
 
@@ -155,7 +155,7 @@ contract DemoLifecycle is Script {
         uint256 subject = registry.awardSubject(id, s1);
         bytes32 rubric = RUBRIC_HASH;
         vm.startBroadcast(vm.envUint("EVALUATOR_PK"));
-        attestationLog.attest(AttestationKinds.AWARD_RECOMMENDATION, subject, memoHash, "mock-rubric-v1");
+        attestationLog.attest(AttestationKinds.AWARD_RECOMMENDATION, subject, memoHash, "deterministic-rubric-v1");
         vm.stopBroadcast();
         vm.startBroadcast(vm.envUint("AWARDER_PK"));
         registry.award(id, s1, memoHash, rubric);

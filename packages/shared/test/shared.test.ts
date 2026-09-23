@@ -66,7 +66,7 @@ const memo: DecisionMemo = {
   rfqId: "1",
   kind: "BID_EVALUATION",
   actor: "0x2222222222222222222222222222222222222222",
-  model: "mock-rubric-v1",
+  model: "deterministic-rubric-v1",
   ts: 1_789_835_952,
   inputsHash: HASH_A,
   rubricHash: HASH_B,

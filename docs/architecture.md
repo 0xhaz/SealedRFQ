@@ -116,7 +116,7 @@ Faktura's win came from its *agent governance* pattern, not the factoring produc
 ### Stretch / post-hackathon
 6. **MCP server** — see "Agent interface (MCP)" section below for the full design and sequencing.
 7. **Liquidity pool → surety pool.** LPs underwrite bid/performance bonds for SMEs who can't lock capital; yield accrues to share price. Or SME award-financing after award. Continuation story only — too heavy for 25 days.
-8. **Mock-LLM fallback** (`LLM_PROVIDER=mock`) so the pipeline demos without a key — cheap, worth keeping.
+8. **Deterministic rubric scorer** (`LLM_PROVIDER=rubric`, the default) so the pipeline runs without a key — and, more to the point, so an anchored decision can be recomputed by anyone.
 
 ### Cautions
 - Keep product identity firmly "sealed-bid procurement"; the agent layer is the *how*, not the *what*.
@@ -294,7 +294,7 @@ Direct ports from Faktura: `verify_decision_hash` (identical mechanism), `get_ev
 - **Days 23–24:** ship tools 1, 2, 5, 6 — reads + audit, zero signing risk. That alone is a complete "your agent talks to the RFQ desk" page.
 - **Only if time remains:** tool 3 (needs a signing key + commit-reveal) and tool 4 (x402). Otherwise list them as roadmap with sample-output cards; never ship a half-working writer.
 - **Hosted "run live" buttons are read-only tools only.** Faktura's budgeted signing judge mode (per-IP caps, daily gas budget, cleanup worker) is too much for a 25-day solo build; the demo video does that job.
-- Keep `LLM_PROVIDER=mock` so the evaluation pipeline runs without a key.
+- Keep `LLM_PROVIDER=rubric` so the evaluation pipeline runs without a key.
 
 ## Sources
 - DoraHacks — Arc Microgrants: https://dorahacks.io/hackathon/arc-microgrants

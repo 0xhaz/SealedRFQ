@@ -30,7 +30,7 @@
 | Backend / agent | NestJS | 11.x | REST + SSE; hosts evaluator, attestor, indexer, x402 endpoint |
 | DB | SQLite via Drizzle ORM | drizzle 0.36+ | single-node; Postgres swap is a config change if ever needed |
 | Indexing | viem `watchContractEvent` + backfill by block range | | no external indexer; write to SQLite |
-| LLM | Anthropic SDK (`@anthropic-ai/sdk`) behind `LLM_PROVIDER` | | `mock` (deterministic rubric scorer) is default; `anthropic` / `openai` swap-in |
+| LLM | Anthropic SDK (`@anthropic-ai/sdk`) behind `LLM_PROVIDER` | | `rubric` (deterministic, recorded as `deterministic-rubric-v1`) is the default and the intended scorer for awards; `anthropic` / `openai` swap in for reading unstructured proposals |
 | MCP | `@modelcontextprotocol/sdk` | 1.x | stdio server in `packages/mcp` |
 | x402 | native fetch + Arc Nanopayments | | HTTP 402 challenge/verify; only if time remains |
 | Testing (contracts) | Forge unit + fuzz + invariant | | `forge coverage` in CI |
@@ -166,7 +166,7 @@ ERC8004_IDENTITY=               # verify per network
 ERC8004_REPUTATION=
 ERC8004_VALIDATION=
 ADMIN_PK= EVALUATOR_PK= AWARDER_PK= VERIFIER_PK= ATTESTOR_PK= ARBITER_PK=
-LLM_PROVIDER=mock               # mock | anthropic | openai
+LLM_PROVIDER=rubric             # rubric (default, deterministic) | anthropic | openai
 ANTHROPIC_API_KEY=
 DATABASE_URL=file:./data/sealedrfq.db
 NEXT_PUBLIC_ARC_CHAIN_ID=

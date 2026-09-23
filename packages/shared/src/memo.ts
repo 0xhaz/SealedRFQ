@@ -52,7 +52,7 @@ export const DecisionMemo = z.object({
   kind: DecisionKind,
   /** Signing role key that produced the decision (EVALUATOR, AWARDER, VERIFIER, ATTESTOR). */
   actor: address,
-  /** Model id, or "mock-rubric-v1" for the deterministic scorer. */
+  /** Model id, or "deterministic-rubric-v1" for the rubric scorer. */
   model: z.string().min(1),
   /** Unix seconds. */
   ts: z.number().int().positive(),

@@ -16,9 +16,26 @@ import { loadMetadata } from "./metadata.js";
 export type Rubric = { price: number; delivery: number; quality: number };
 
 const DEFAULT_RUBRIC: Rubric = { price: 50, delivery: 30, quality: 20 };
+/**
+ * What the memo records as the thing that made the decision.
+ *
+ * Named for what it is rather than for what it is not. The default scorer is weighted rubric
+ * arithmetic over the published criteria, reproducible by anyone holding the same bids — and for a
+ * decision that moves money and is anchored on-chain, that reproducibility is the feature, not a
+ * gap waiting for a model. It was called `mock-rubric-v1`, which read as "unfinished" to everyone
+ * who saw it on a tender and undersold the one property the audit endpoint depends on.
+ *
+ * `mock` is still accepted as a value so existing deployments keep working; `rubric` says the same
+ * thing better. Anything else names a real provider and is recorded verbatim.
+ *
+ * Must fit in 31 bytes: the AttestationLog stores it as a `bytes32`.
+ */
+const DETERMINISTIC = "deterministic-rubric-v1";
 const MODEL =
-  process.env.LLM_PROVIDER === "mock" || !process.env.LLM_PROVIDER
-    ? "mock-rubric-v1"
+  !process.env.LLM_PROVIDER ||
+  process.env.LLM_PROVIDER === "mock" ||
+  process.env.LLM_PROVIDER === "rubric"
+    ? DETERMINISTIC
     : process.env.LLM_PROVIDER;
 
 /**
@@ -28,12 +45,21 @@ const MODEL =
  * reconstructs the rubric from the metadata and checks it against `rubricHash`; if it does not
  * match, it refuses to score rather than invent criteria after seeing the prices.
  *
- * `LLM_PROVIDER=mock` (the default) is a deterministic rubric scorer, so the pipeline and the
- * attestation path work with no API key. A model-backed scorer plugs in behind the same interface.
+ * The default scorer is deterministic rubric arithmetic and needs no API key. That is a deliberate
+ * choice rather than a stand-in: the memo is hash-anchored and `/audit/:id` re-hashes it, so a
+ * scorer that answers differently on a re-run would weaken the claim from "anyone can recompute
+ * this decision" to "this is what a model said once". A model-backed scorer plugs in behind the
+ * same interface, and where one earns its place — reading an unstructured proposal — it should
+ * extract facts for this scorer to weigh rather than emit a score of its own.
  */
 @Injectable()
 export class EvaluatorService {
   private readonly log = new Logger(EvaluatorService.name);
+
+  /** What the memo will record as the decider, so callers can read it without provoking one. */
+  static modelId(): string {
+    return MODEL;
+  }
 
   constructor(private readonly chain: ChainService) {}
 

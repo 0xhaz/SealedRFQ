@@ -26,7 +26,7 @@ abstract contract SealedRFQFixture is Test {
     uint32 internal constant DELIVERY = 1 days;
     uint32 internal constant ACCEPTANCE = 2 days;
     bytes32 internal constant RUBRIC = keccak256("rubric: price 50 / delivery 30 / quality 20");
-    bytes32 internal constant MODEL = "mock-rubric-v1";
+    bytes32 internal constant MODEL = "deterministic-rubric-v1";
 
     MockUSDC internal usdc;
     AgenticCommerce internal acp;
