@@ -137,7 +137,7 @@ export default async function RfqBoard({
                       <Link className="linklike" href={`/rfqs/${r.id}`}>
                         № {r.id}
                       </Link>
-                      {r.inviteOnly && <span className="badge"> invite</span>}
+                      {r.inviteOnly && <span className="badge badge-inline">invite</span>}
                     </td>
                     <td>{r.category ? labelFor(CATEGORIES, r.category) : "—"}</td>
                     <td className="num">{formatUsdc(r.budget)}</td>

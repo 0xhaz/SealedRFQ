@@ -548,6 +548,17 @@ td:first-child {
   background: transparent;
   white-space: nowrap;
 }
+/*
+ * A badge that sits after a label, rather than alone in its own cell.
+ *
+ * The gap has to be margin, not a space in the markup: `.badge` is an inline-block, so a leading
+ * space inside the span is laid out *within* its border — which reads as lopsided padding pushing
+ * the word off-centre, and leaves the badge touching the text it follows.
+ */
+.badge-inline {
+  margin-left: 8px;
+}
+
 /* RFQ phase badges (replaced the reference invoice statuses) */
 .badge.p-bidding {
   color: var(--blue);

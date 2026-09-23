@@ -126,7 +126,7 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
                         <td className="mono">
                           {short(b.bidder)}
                           {b.bidder.toLowerCase() === rfq.winner.toLowerCase() && (
-                            <span className="badge p-awarded"> WON</span>
+                            <span className="badge badge-inline p-awarded">WON</span>
                           )}
                         </td>
                         <td className="num">
@@ -252,7 +252,7 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
                           <tr key={l.index}>
                             <td>
                               {l.index + 1} of {ledger.lines.length}
-                              {current && <span className="badge"> current</span>}
+                              {current && <span className="badge badge-inline">current</span>}
                             </td>
                             <td className="num">{formatUsdc(l.gross)}</td>
                             <td className="num">{formatUsdc(l.retained)}</td>

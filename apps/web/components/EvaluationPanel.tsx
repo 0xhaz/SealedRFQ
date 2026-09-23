@@ -120,7 +120,9 @@ export function EvaluationPanel({
             <tr key={s.bidder}>
               <td className="mono">
                 {short(s.bidder)}
-                {s.bidder === recommended && <span className="badge p-awarded"> RECOMMENDED</span>}
+                {s.bidder === recommended && (
+                  <span className="badge badge-inline p-awarded">RECOMMENDED</span>
+                )}
               </td>
               <td className="num">{formatUsdc(BigInt(s.price))}</td>
               <td className="num">{s.deliveryDays}</td>
