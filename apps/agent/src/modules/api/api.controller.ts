@@ -21,8 +21,8 @@ import { DocumentsService } from "../documents/documents.service.js";
 import { EvaluatorService } from "../evaluator/evaluator.service.js";
 import { IndexerService } from "../indexer/indexer.service.js";
 import { DirectoryService } from "../reputation/directory.service.js";
-import { StatsService } from "../reputation/stats.service.js";
 import { ReputationService } from "../reputation/reputation.service.js";
+import { StatsService } from "../reputation/stats.service.js";
 import { X402Middleware } from "../x402/x402.middleware.js";
 
 @Controller()
