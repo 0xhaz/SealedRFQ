@@ -57,13 +57,14 @@ Keys live in `.env.testnet` / `.env.mainnet` (gitignored); see `.env.example`.
 
 | Contract | Address |
 |---|---|
-| `RFQRegistry` | [`0x4A8eda89d2956a66f7f47106Ebba5bcC3042C190`](https://explorer.testnet.arc.io/address/0x4A8eda89d2956a66f7f47106Ebba5bcC3042C190) |
-| `SealedRFQAdapter` | [`0xF15Bf4C1e1867fac67a96186b33f62732DEAAe19`](https://explorer.testnet.arc.io/address/0xF15Bf4C1e1867fac67a96186b33f62732DEAAe19) |
-| `AgenticCommerce` (ERC-8183) | [`0x995390f5bd1753C940567aAd1059504a9F76d7dE`](https://explorer.testnet.arc.io/address/0x995390f5bd1753C940567aAd1059504a9F76d7dE) |
-| `ProcurementPolicy` | [`0x85cF6B44A22dc4A1C0837d3200979412236D3A83`](https://explorer.testnet.arc.io/address/0x85cF6B44A22dc4A1C0837d3200979412236D3A83) |
-| `AttestationLog` | [`0x627Dcc589a204d663D6EF99B0E6dC6c55819A511`](https://explorer.testnet.arc.io/address/0x627Dcc589a204d663D6EF99B0E6dC6c55819A511) |
+| `RFQRegistry` | [`0x0D414d4547e0f4BFECa0A2788495404881004A82`](https://explorer.testnet.arc.io/address/0x0D414d4547e0f4BFECa0A2788495404881004A82) |
+| `SealedRFQAdapter` | [`0x75d8684dfE1bc61b9831Ff29501E69FF87986575`](https://explorer.testnet.arc.io/address/0x75d8684dfE1bc61b9831Ff29501E69FF87986575) |
+| `AgenticCommerce` (ERC-8183) | [`0x56e33104C2263eB266Dbc30b1a2C919Bf7515B28`](https://explorer.testnet.arc.io/address/0x56e33104C2263eB266Dbc30b1a2C919Bf7515B28) |
+| `ProcurementPolicy` | [`0xBb41F43798d89f5DACd38EFe87A1AE1F342b8Bc0`](https://explorer.testnet.arc.io/address/0xBb41F43798d89f5DACd38EFe87A1AE1F342b8Bc0) |
+| `AttestationLog` | [`0x452A2B65922D41d5ed6728f15e965A3F39B72AC2`](https://explorer.testnet.arc.io/address/0x452A2B65922D41d5ed6728f15e965A3F39B72AC2) |
 
-Redeployed **2026-09-24** to carry receipt confirmation, transit windows,
+Redeployed **2026-09-24** to carry open tenders, an enforced delivery window, a
+cap on what an agent may award unattended, receipt confirmation, transit windows,
 delivery extensions and compensatory settlement. The previous deployment is still on-chain and
 still works; its addresses are kept in `contracts/deployments/archive/` because the tenders run
 against it are part of the record and its explorer links remain valid for them.
