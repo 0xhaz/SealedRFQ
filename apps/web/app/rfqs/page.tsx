@@ -138,6 +138,11 @@ export default async function RfqBoard({
                         № {r.id}
                       </Link>
                       {r.inviteOnly && <span className="badge badge-inline">invite</span>}
+                      {r.bidMode === "open" && (
+                        <span className="badge badge-inline" title="Bids are public as they arrive">
+                          open bids
+                        </span>
+                      )}
                     </td>
                     <td>{r.category ? labelFor(CATEGORIES, r.category) : "—"}</td>
                     <td className="num">{formatUsdc(r.budget)}</td>

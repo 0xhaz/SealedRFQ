@@ -37,6 +37,8 @@ type Props = {
   budget: string;
   /** Seconds each milestone allows for delivery. The bid has to fit inside it. */
   deliveryWindow: number;
+  /** Sealed takes a commitment now and a reveal later; open publishes the price immediately. */
+  bidMode: "sealed" | "open";
   /** RFP mode: the bid must carry a proposal, not just a price. */
   requiresProposal: boolean;
 };
@@ -47,6 +49,7 @@ export function BidForm({
   deposit,
   budget,
   deliveryWindow,
+  bidMode,
   requiresProposal,
 }: Props) {
   const { address, isConnected, chainId } = useAccount();
@@ -109,8 +112,11 @@ export function BidForm({
   const notInvited = invited === false;
 
   const wrongChain = isConnected && chainId !== chain.id;
+  const isOpen = bidMode === "open";
   const bidding = phase === "Bidding";
-  const revealing = phase === "Reveal";
+  // An open tender has nothing to reveal: the price went public when it was placed. Offering a
+  // reveal step would invite a supplier to look for a second action that does not exist.
+  const revealing = phase === "Reveal" && !isOpen;
   const fail = (e: unknown) => {
     setBusy(null);
     setError(describeTxError(e));
@@ -181,6 +187,35 @@ export function BidForm({
         throw new Error("This RFQ is an RFP: attach a proposal document or write one");
       }
       const proposalHash = proposalHashOf(proposal);
+
+      /*
+       * An open tender takes the price in the clear, so everything below this — the salt, the
+       * commitment, the reveal file — has nothing to do. There is no secret to derive because
+       * there is no secret: the whole point of the mode is that rivals can read the bid and
+       * respond to it while bidding is still open.
+       */
+      if (isOpen) {
+        setBusy("Placing your bid…");
+        const hash = await writeContractAsync({
+          abi: RFQRegistryAbi,
+          address: contracts.RFQRegistry,
+          functionName: "placeOpenBid",
+          args: [BigInt(rfqId), priceUnits, deliveryDays, proposalHash],
+          chainId: chain.id,
+        });
+        setTxHash(hash);
+        setBusy("Waiting for the transaction…");
+        const receipt = await waitForTransactionReceipt(config, { hash });
+        setBusy(null);
+        if (receipt.status === "reverted") {
+          setError("The transaction was mined but the contract rejected it, so nothing changed.");
+          return;
+        }
+        setNotice(
+          "Your bid is placed and public. You can improve it while bidding is open — a better price replaces this one and costs no second deposit.",
+        );
+        return;
+      }
 
       setBusy("Deriving your bid secret (signature, not a transaction)…");
       const salt = await deriveSalt(address);
@@ -364,7 +399,13 @@ export function BidForm({
   return (
     <div className="panel">
       <div className="head">
-        {bidding ? "Submit a sealed bid" : revealing ? "Reveal your bid" : "Bidding closed"}
+        {bidding
+          ? isOpen
+            ? "Place an open bid"
+            : "Submit a sealed bid"
+          : revealing
+            ? "Reveal your bid"
+            : "Bidding closed"}
         <span className="hint">
           budget {formatUsdc(BigInt(budget))} · deposit {formatUsdc(BigInt(deposit))} USDC
           {deliveryWindow > 0 && ` · delivery within ${describeWindow(deliveryWindow)}`}
@@ -441,6 +482,16 @@ export function BidForm({
 
           {bidding ? (
             <>
+              {isOpen ? (
+                <div className="full note warn">
+                  <b>This is an open tender: your price is public the moment you place it.</b>{" "}
+                  Rivals can read it and undercut you, and you can read theirs and improve yours —
+                  as often as you like while bidding is open, with no second deposit. There is no
+                  reveal step and no secret to keep, so nothing here can be forfeited for failing
+                  to reveal. If you would rather not have competitors see your number, this is not
+                  a tender to bid on.
+                </div>
+              ) : (
               <div className="full note">
                 <b>Your secret is derived from your wallet.</b> The price
                 {requiresProposal ? " and proposal are" : " is"} hidden on-chain behind a hash, so
@@ -449,6 +500,7 @@ export function BidForm({
                 downloads as a backup. Keep at least one: after bidding closes, a bid that cannot be
                 revealed forfeits its deposit.
               </div>
+              )}
               {notInvited && (
                 <div className="full note warn">
                   <b>This tender is invite-only.</b> The buyer listed the suppliers who may bid and

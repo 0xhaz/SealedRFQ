@@ -62,6 +62,7 @@ export default async function BidPage({ params }: { params: Promise<{ id: string
             deposit={rfq.depositAmount.toString()}
             budget={rfq.budget.toString()}
             deliveryWindow={rfq.deliveryWindow}
+            bidMode={rfq.bidMode}
             requiresProposal={rfq.requiresProposal}
           />
         </div>

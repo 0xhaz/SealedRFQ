@@ -11,7 +11,12 @@ import {
   phraseMatches,
 } from "@/lib/admin";
 import { describeTxError } from "@/lib/txError";
-import { AgenticCommerceAbi, SealedRFQAdapterAbi, formatUsdc } from "@sealedrfq/shared";
+import {
+  AgenticCommerceAbi,
+  ProcurementPolicyAbi,
+  SealedRFQAdapterAbi,
+  formatUsdc,
+} from "@sealedrfq/shared";
 import { useState } from "react";
 import { useAccount, useConfig, useReadContracts, useWriteContract } from "wagmi";
 import { simulateContract, waitForTransactionReceipt } from "wagmi/actions";
@@ -79,6 +84,11 @@ export function AdminPanel() {
         address: contracts.SealedRFQAdapter,
         functionName: "totalWithdrawable" as const,
       },
+      {
+        abi: ProcurementPolicyAbi,
+        address: contracts.ProcurementPolicy,
+        functionName: "policy" as const,
+      },
     ],
     query: { enabled: Boolean(address) && onChain, refetchInterval: 30_000 },
   });
@@ -90,6 +100,7 @@ export function AdminPanel() {
   const treasury = at(2) as string | undefined;
   const totalHeld = at(3) as bigint | undefined;
   const totalWithdrawable = at(4) as bigint | undefined;
+  const agentCap = (at(5) as { agentAwardCap?: bigint } | undefined)?.agentAwardCap;
   const isAdmin = held(0);
 
   async function run(label: string, fn: () => Promise<`0x${string}`>) {
@@ -206,6 +217,30 @@ export function AdminPanel() {
             anyone. Those funds cannot be withdrawn by you or by anybody else.
           </div>
         )}
+      </div>
+
+      <div className="panel">
+        <div className="head">
+          What the agent may decide alone
+          <span className="hint">policy · applies to the AWARDER, never to a buyer</span>
+        </div>
+        <div className="kv">
+          <span>Agent award cap</span>
+          <b className={agentCap === 0n ? "warn-text" : ""}>
+            {agentCap === undefined
+              ? "—"
+              : agentCap === 0n
+                ? "0 — agent awards disabled"
+                : `${formatUsdc(agentCap)} USDC`}
+          </b>
+        </div>
+        <div className="note">
+          Above this figure an award has to be sent by the buyer themselves. It is the line between
+          a machine recommending and a machine committing: without it, an evaluation the buyer never
+          read could bind a supplier to any sum at all. A buyer is never capped by it — this bounds
+          what is decided unattended, not what may be spent. Zero disables agent awards entirely,
+          which is the safe reading rather than a misconfiguration.
+        </div>
       </div>
 
       <div className="panel">

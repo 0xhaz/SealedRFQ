@@ -61,6 +61,8 @@ export async function getRfq(id: number) {
   return {
     id,
     phase: PHASES[Number(phase)] ?? "None",
+    /** Sealed (0) or open (1). Decides which bid path the form offers and what the audit claims. */
+    bidMode: Number(rfq.bidMode) === 1 ? ("open" as const) : ("sealed" as const),
     milestoneBps: [...milestones],
     buyer: rfq.buyer,
     status: Number(rfq.status),

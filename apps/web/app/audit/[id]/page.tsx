@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { MemoVerifier } from "@/components/MemoVerifier";
 import { agent } from "@/lib/agent";
+import { getRfq } from "@/lib/rfq";
 import { explorerAddress, explorerTx } from "@/lib/chain";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +24,11 @@ const BADGE = {
 export default async function AuditPage({ params }: { params: Promise<{ id: string }> }) {
   const id = Number((await params).id);
   const audit = await agent.audit(id);
+  // What this page can claim depends on how the bids were taken, and it must say which. The memo
+  // check is identical either way — it proves the reasoning was not rewritten. What differs is
+  // whether the prices it reasoned over were concealed from the people who submitted them.
+  const rfq = await getRfq(id).catch(() => null);
+  const openTender = rfq?.bidMode === "open";
   const state = (audit.state ?? (audit.verified ? "verified" : "none")) as keyof typeof BADGE;
   const badge = BADGE[state] ?? BADGE.none;
 
@@ -39,6 +45,22 @@ export default async function AuditPage({ params }: { params: Promise<{ id: stri
           the check instead of simply reading well. Anyone can repeat it: canonicalise the memo
           (RFC 8785), take its SHA-256, and read the attestation from the contract.
         </p>
+        {rfq &&
+          (openTender ? (
+            <div className="note warn">
+              <b>This was an open tender.</b> Every bid was public from the moment it was placed, so
+              suppliers could see each other's prices and respond to them. The memo check below is
+              unaffected — it still proves the reasoning was not rewritten after the fact — but this
+              page cannot tell you that nobody priced against a rival, because on an open tender
+              everybody could. For that guarantee, look at a sealed one.
+            </div>
+          ) : (
+            <div className="note">
+              <b>This was a sealed tender.</b> No bidder could see another's price before the reveal
+              window opened, so no bid was priced against a rival's. That, together with the memo
+              check below, is the whole of what this page claims.
+            </div>
+          ))}
       </section>
 
       <div className="grid">
