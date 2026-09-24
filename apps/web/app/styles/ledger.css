@@ -6268,14 +6268,25 @@ button.field-wallet {
 .doc-body h2 {
   font-family: var(--serif);
   font-size: 20px;
-  margin: 30px 0 10px;
-  padding-top: 14px;
+  /*
+   * The rule needs room on both sides, and it had 30px above against 14px below — which reads as
+   * the heading crowding the line it sits under rather than the line introducing the heading.
+   * Near-even, still favouring the break from the section above.
+   */
+  margin: 34px 0 12px;
+  padding-top: 26px;
   border-top: 1px solid var(--line);
+}
+/* No rule above the first heading: there is nothing yet to separate it from. */
+.doc-body > h2:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
 }
 .doc-body h3 {
   font-family: var(--serif);
   font-size: 16px;
-  margin: 22px 0 8px;
+  margin: 26px 0 8px;
 }
 .doc-body p {
   margin: 0 0 14px;
