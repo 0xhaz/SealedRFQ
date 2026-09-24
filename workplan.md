@@ -782,10 +782,15 @@ the side effect: with real inference behind it, the $0.05 x402 price finally cov
 
 ## 6f. Open tenders and agent-to-agent negotiation (assessed 2026-09-24)
 
-### What exists today
+### What existed when this was written — superseded, open mode shipped 2026-09-24
 
-Sealing is not a setting. `visibility` chooses **who may bid** — public or invited — and every bid
-goes through commit–reveal regardless. There is no open-bid path in the contracts at all.
+Sealing was not a setting. `visibility` chose **who may bid** — public or invited — and every bid
+went through commit–reveal regardless. There was no open-bid path in the contracts at all.
+
+That is no longer true. `BidMode { Sealed, Open }` is on the RFQ and `SealedBid.placeOpenBid` takes
+a price in the clear, marks the bid revealed in the same call and emits `BidPlaced`. The deposit
+rules are unchanged, and so is everything downstream of the award. The rest of this section is kept
+as the reasoning that led there; where it says "would", read "does".
 
 ### The case for adding one
 
@@ -836,13 +841,14 @@ it structurally: you cannot signal to someone who cannot see you.
 That is the strongest argument for keeping sealed as the default even where participation is open,
 and it is the reason a `bidMode` flag should not be presented as a free choice between equals.
 
-### What it would take
+### What it took — all but one line shipped
 
-- `bidMode` on the RFQ: `sealed` (today's commit–reveal) or `open` (price in the clear on submission)
-- An open path in the contracts that does not require a reveal, with the deposit rules unchanged
-- Negotiation off-chain — supplier agent endpoints, or signed messages in the clarifications pattern
-- Award unchanged: still an attested decision memo, so the record works the same way
-- The audit page and the tender pack labelled with the mode
+- ✅ `bidMode` on the RFQ: `sealed` (commit–reveal) or `open` (price in the clear on submission)
+- ✅ An open path in the contracts that does not require a reveal, deposit rules unchanged
+- ✅ Award unchanged: still an attested decision memo, so the record works the same way
+- ✅ The audit page and the tender pack labelled with the mode
+- ⬜ Negotiation off-chain — supplier agent endpoints, or signed messages in the clarifications
+  pattern. **Not built, and the subsection below argues most of it should not be.**
 
 ### Testing discipline — and why testnet is necessary but not sufficient here
 
@@ -898,6 +904,55 @@ conclusion §6c and §6e reached independently, by different routes. Three arriv
 the deliverable is something a hash can prove* is a strong signal, and it keeps pointing away from
 the physical-goods layer rather than towards it.
 
+### Can two agents negotiate the way the examples show? (assessed 2026-09-24)
+
+Prompted by a worked example: an agent weighs a rival's quote — 4.7% cheaper, 18-day lead time, 97%
+on-time, 82% fulfilment probability — and then counter-offers, *"Supplier A, would you accept $9.80
+per unit for 10,000 units with delivery within 14 days?"* Three separate capabilities are bundled
+there, and they have three different answers.
+
+**1. The evaluation is built.** The evaluator already performs that comparison: price, delivery and
+quality weighted by the published rubric, with red flags for over-budget, over-window, no proposal
+and no track record. Two deliberate differences from the example, and both are improvements:
+
+- **No "82% fulfilment probability."** That is the one derived number the reputation service refuses
+  to produce, because nobody could recompute it. The raw counts it would be built from are there —
+  bids, wins, completions, milestones rejected, bids never revealed — and a buyer can check those.
+  A confident percentage that cannot be reproduced is the thing this project exists not to ship.
+- **Certifications return `unverified`, not a tick.** Nothing on-chain can confirm one, and
+  `checkRequirements` separating `failed` from `unverified` is what keeps that honest.
+
+**2. The counter-offer dialogue cannot happen on a sealed tender, and that is enforced, not merely
+discouraged.** The private XMTP channel renders only once an engagement exists — `{engagement &&
+<DirectMessages …>}` in `apps/web/app/rfqs/[id]/page.tsx` — so it **opens after award**. During
+bidding the only channel is `Clarifications`, and answers there go to every bidder. "Would you
+accept $9.80?" is a number derived from rivals' bids, handed privately to one supplier. There is no
+surface on which to send it mid-tender, by design.
+
+**3. On an open tender, agents can already negotiate — in bids rather than sentences.**
+`placeOpenBid` lets a supplier agent watch rivals and re-bid lower, repeatedly, with no second
+deposit. That is a descending auction: it reaches the same place as the haggling in the example and
+leaves a public record that a private conversation would not. No further contract work is needed for
+it.
+
+**So the gap is narrower than "negotiation".** Ask what bilateral dialogue adds over iterative
+bidding and the answer is one thing: moving several terms at once — price *and* quantity *and*
+delivery. Bids already carry price and delivery days. Quantity is fixed by the tender. So the
+genuinely missing capability is not negotiation at all, it is **changing the tender's scope after it
+opens** — a variation order, which is a different mechanism with its own problem (a re-scoped tender
+was not the tender the losing bidders priced against). That belongs in §6g, not here.
+
+**What keeps the agentic story safe either way:** `agentAwardCap` in `IProcurementPolicy.Policy`,
+checked in `RFQRegistry.award` whenever `msg.sender != r.buyer`. Two agents can agree any number
+they like; above the cap, a person still has to award it. That is the line between a machine
+recommending and a machine committing, and it is enforced by the contract rather than by the agent's
+own restraint.
+
+**Position: do not build counter-offer dialogue.** On sealed tenders it destroys the guarantee that
+is the product's identity. On open tenders it is redundant — an agent that wants a lower price can
+simply bid one. Revisit only if scope variation is taken on, and then as a variation-order
+mechanism, not as chat.
+
 ### Position (revised 2026-09-24 — deadline pressure lifted)
 
 Sealed stays the **default and the identity**. Escrow with milestones is a crowded space and §6c
@@ -910,13 +965,18 @@ Sequencing, now that the schedule is not the binding constraint:
 1. Walk the current deployment end to end. Nothing else matters until the thing that is live is
    known to work.
 2. Verification, `CORS_ORIGIN`, custom domain, repo public.
-3. **One bundled redeploy**, not three. A redeploy costs re-verification and breaks evidence links,
-   so everything that needs one should go together: open `bidMode`, §6b's contract-level
-   delivery-window check, and §6c gap 4's dead zone.
+3. ✅ **One bundled redeploy**, not three. A redeploy costs re-verification and breaks evidence
+   links, so everything that needed one went together: open `bidMode`, §6b's contract-level
+   delivery-window check, and §6c gap 4's dead zone. Done 2026-09-24, testnet.
 4. Spending tiers and evidence requirements (§6g) — no contract change, can land any time.
 5. **Discovery** — matching an intent to suppliers who could supply it. The one link in the chain
    above that nothing here addresses, and the prerequisite for any agent-to-agent story: a supplier
    agent cannot bid on a tender it never saw.
+
+Note that steps 1 and 2 are still open, and step 3 landing ahead of them inverts the intended order
+— the redeploy happened because the fixes were ready, not because the live path had been walked.
+Step 1 is therefore now against the *new* deployment and is still the thing nothing else should
+precede.
 
 *The buyer chooses: sealed when integrity matters, open with agents when speed does, and the same
 escrow settles both.* That is the positioning line, and it is stronger than the physical-goods one.
@@ -1097,7 +1157,16 @@ add a second service before the post-grant bundle, not now.
 
 ### Deliberately not before submission
 
-Open `bidMode` (§6f), the contract-level delivery-window check (§6b), gap 4's dead zone, spending
-tiers and evidence requirements (§6g), discovery (§6f). All recorded, none on the critical path. A
-submission judged on *"the quality of what you built and whether it is worth taking further"* is
-better served by one thing that demonstrably works than by five that are new.
+Written when the schedule was the binding constraint; it no longer is, and three of these have since
+shipped in one bundled redeploy: open `bidMode` (§6f), the contract-level delivery-window check
+(§6b) and gap 4's dead zone. What remains deferred:
+
+- **Discovery** (§6f) — matching an intent to suppliers who could supply it. Still the one link in
+  the chain that nothing here addresses, and the prerequisite for any agent-to-agent story.
+- **Spending tiers and evidence requirements** (§6g) — no contract change, can land any time.
+- **Agent-to-agent counter-offer dialogue** — now assessed and **declined** rather than deferred;
+  see §6f above for why it is incompatible with sealed and redundant on open.
+
+The original reasoning still holds for what is left: a submission judged on *"the quality of what
+you built and whether it is worth taking further"* is better served by one thing that demonstrably
+works than by five that are new.
