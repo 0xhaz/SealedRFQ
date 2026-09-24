@@ -607,6 +607,14 @@ escrow-agent profile, which is the thing this project says it does not need.
 **Testnet keeps the roles**, because policy and qualifier still need tuning and a frozen testnet is
 useless.
 
+**Deploy-day gotcha, learned on the 2026-09-24 testnet redeploy — check this on mainnet too:**
+`Deploy.s.sol` writes `deployments/<chainId>.json` during its simulation pass, and forge re-simulates
+before broadcasting. On that run it wrote **five addresses that hold no code** — predicted from a
+different nonce than the CREATEs actually broadcast. Every app reads that file, so nothing would
+have worked while each address in it looked entirely plausible. **The broadcast receipts are the
+authority.** After any deploy, read `broadcast/Deploy.s.sol/<chainId>/run-latest.json`, confirm
+`eth_getCode` returns bytecode at each address, and only then trust the JSON.
+
 **Mainnet, before the first real tender:**
 - [ ] Confirm `platformFeeBP` and `evaluatorFeeBP` are `0`
 - [ ] Decide `AWARDER` deliberately. Holding it means the agent can award unattended — convenient,
@@ -620,6 +628,10 @@ useless.
       `setQualifier` and `setKindRole` freeze permanently, so a policy bug becomes unfixable — which
       argues for a timelock or multisig rather than renunciation if there is any doubt
 - [ ] README's *What the operator can and cannot do* table updated to match whatever is actually held
+- [ ] Deployed addresses taken from the broadcast receipts and confirmed to hold code (see above)
+- [ ] Agent pointed at a **fresh** `DATABASE_URL`. The indexer inserts RFQs with
+      `onConflictDoNothing`, so an old database silently drops the new deployment's RFQ 1 — it never
+      appears on the board and nothing reports an error
 
 **Migration contingency.** Nothing is upgradeable, so v2 is a new deployment and there is
 deliberately no admin path to move in-flight escrow into it. Retirement is a drain, not a migration:
