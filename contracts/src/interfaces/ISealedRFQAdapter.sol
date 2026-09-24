@@ -38,6 +38,9 @@ interface ISealedRFQAdapter {
         /// @dev Allowance for goods to reach the buyer when they never confirm receipt. Zero for
         ///      anything delivered as a file, which makes the release timing identical to before.
         uint32 transitWindow;
+        /// @dev What re-procuring would have cost above this award, measured from the next
+        ///      cheapest revealed bid. Zero when no cheaper alternative existed to measure against.
+        uint128 excessCost;
         uint16[] milestoneBps;
     }
 
@@ -57,6 +60,11 @@ interface ISealedRFQAdapter {
         uint128 performanceStake;
         uint128 retentionHeld;
         uint128 currentJobBudget;
+        /// @dev Retention withheld from the milestone currently open. Tracked apart from
+        ///      `retentionHeld` because that total includes it, and retention on a milestone
+        ///      nobody delivered is not money the supplier earned.
+        uint128 currentRetention;
+        uint128 excessCost;
         uint256 currentJobId;
         uint64 deliveryDeadline;
         uint64 submittedAt;
@@ -105,7 +113,9 @@ interface ISealedRFQAdapter {
     /// @notice The buyer gave the supplier more time, before the original window ran out.
     event DeliveryExtended(uint256 indexed rfqId, uint8 indexed milestone, uint64 newDeadline);
     event EngagementCompleted(uint256 indexed rfqId, uint256 toSupplier, uint256 toBuyer);
-    event EngagementAbandoned(uint256 indexed rfqId, uint256 toBuyer);
+    /// @notice Nothing was delivered in time. `toBuyer` covers their loss; `toSupplier` is what
+    ///         was at risk and not needed to cover it.
+    event EngagementAbandoned(uint256 indexed rfqId, uint256 toBuyer, uint256 toSupplier);
 
     error NotFound(uint256 rfqId);
     error AlreadyStarted(uint256 rfqId);

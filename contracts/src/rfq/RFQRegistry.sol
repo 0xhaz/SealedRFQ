@@ -144,6 +144,13 @@ contract RFQRegistry is SealedBid {
                 deliveryWindow: r.deliveryWindow,
                 acceptanceWindow: r.acceptanceWindow,
                 transitWindow: r.transitWindow,
+                // The next higher acceptable offer, which is the measure FAR uses for what a
+                // default actually costs a buyer. Zero unless this award was the cheapest revealed
+                // bid: if the buyer chose a dearer one on other criteria, a cheaper compliant
+                // alternative existed, so re-procuring costs them nothing extra.
+                excessCost: (price == r.lowestRevealed && r.secondLowestRevealed > r.lowestRevealed)
+                    ? r.secondLowestRevealed - uint128(price)
+                    : 0,
                 milestoneBps: _milestones[rfqId]
             })
         );

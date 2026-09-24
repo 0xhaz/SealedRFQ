@@ -506,12 +506,19 @@ disputes only. **We do not claim decentralised arbitration.**
    to offset the difference"* in re-procurement cost, and FAR 11.501(b) requires liquidated damages be
    *"not punitive"* and *"a reasonable forecast of just compensation."*
 
-   **Proposed:** damages measured as `nextBestBid − awardPrice`, capped at the performance stake,
-   with the remainder returned to the supplier. A sealed-bid tender is the one setting where this is
-   directly computable, because the auction already revealed every price. Bids live in a nested
-   mapping so the contract cannot enumerate them, but the runner-up price can be passed at award and
-   bound to the evaluation memo already anchored in the `AttestationLog` — the same mechanism
-   `award()` uses to refuse an unattested evaluation.
+   **Done, 2026-09-24.** The registry keeps the two cheapest revealed prices as reveals arrive, so
+   the next-best alternative is known without ever looping over bidders and without anyone being
+   trusted to supply it — an earlier sketch passed the runner-up into `award()`, which would have
+   let whoever awards understate it. At abandonment the supplier's at-risk fund (performance stake
+   plus retention earned on accepted milestones) covers `secondLowest − awardPrice`, and the surplus
+   is returned. Where the award was not the cheapest revealed bid there was a cheaper compliant
+   alternative, so the excess is zero; where nothing cheaper was revealed at all there is no
+   measure, and the fund is forfeited whole.
+
+   One correction worth recording: retention is withheld when a milestone *opens*, not when it is
+   accepted, so the running total includes the milestone nobody delivered. Returning that would have
+   handed the supplier money they never earned. Only retention from accepted milestones counts as
+   theirs.
 
 2. **No extension.** **Proposed:** `extendDelivery(rfqId, newDeadline)`, buyer-only, before the
    current deadline passes, capped at `job.expiredAt − acceptanceWindow` so the acceptance window

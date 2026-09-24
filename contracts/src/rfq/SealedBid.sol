@@ -61,6 +61,15 @@ abstract contract SealedBid is BidDeposit {
         b.deliveryDays = deliveryDays;
         b.proposalHash = proposalHash;
         r.revealCount++;
+        // Two running minima, updated in place. Bids live in a mapping and the contract refuses to
+        // loop over bidders anywhere, so the cheapest alternative to the winner has to be known by
+        // the time it is needed rather than searched for afterwards.
+        if (r.lowestRevealed == 0 || price < r.lowestRevealed) {
+            r.secondLowestRevealed = r.lowestRevealed;
+            r.lowestRevealed = price;
+        } else if (r.secondLowestRevealed == 0 || price < r.secondLowestRevealed) {
+            r.secondLowestRevealed = price;
+        }
         emit BidRevealed(rfqId, msg.sender, price, deliveryDays, proposalHash);
     }
 

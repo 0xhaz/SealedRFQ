@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {IACPHook} from "../core/IACPHook.sol";
 import {IAgenticCommerce} from "../core/IAgenticCommerce.sol";
@@ -71,6 +72,7 @@ contract SealedRFQAdapter is ISealedRFQAdapter, IACPHook, PullPayments, AccessCo
         e.deliveryWindow = t.deliveryWindow;
         e.acceptanceWindow = t.acceptanceWindow;
         e.transitWindow = t.transitWindow;
+        e.excessCost = t.excessCost;
         e.price = t.price;
         e.buyerStake = t.buyerStake;
         e.performanceStake = t.performanceStake;
@@ -203,9 +205,10 @@ contract SealedRFQAdapter is ISealedRFQAdapter, IACPHook, PullPayments, AccessCo
             _advance(rfqId, e);
         } else {
             e.status = EngagementStatus.Abandoned;
-            uint256 pot = _drain(e);
-            _credit(e.buyer, pot);
-            emit EngagementAbandoned(rfqId, pot);
+            (uint256 toBuyer, uint256 toSupplier) = _abandon(e);
+            _credit(e.buyer, toBuyer);
+            if (toSupplier > 0) _credit(e.supplier, toSupplier);
+            emit EngagementAbandoned(rfqId, toBuyer, toSupplier);
         }
     }
 
@@ -320,6 +323,7 @@ contract SealedRFQAdapter is ISealedRFQAdapter, IACPHook, PullPayments, AccessCo
 
         e.allocated += gross;
         e.retentionHeld += retention;
+        e.currentRetention = retention;
         e.currentJobBudget = budget;
         e.submittedAt = 0;
         e.receivedAt = 0;
@@ -376,6 +380,39 @@ contract SealedRFQAdapter is ISealedRFQAdapter, IACPHook, PullPayments, AccessCo
     }
 
     /// @dev Everything still escrowed for the engagement (current job budget must be back here).
+    /**
+     * Split an abandoned engagement between the two sides.
+     *
+     * Money that was never earned goes back to the buyer without argument: milestones not opened,
+     * the milestone not delivered, and their own stake. The question is what happens to the money
+     * the supplier put at risk — their performance stake, and the retention withheld from
+     * milestones the buyer already accepted.
+     *
+     * Taking all of it, whatever the buyer actually lost, is what this did before and it has no
+     * precedent anywhere we could find. Every comparable instrument — liquidated damages, a bid
+     * guarantee, a performance bond, retainage — is compensatory and capped: the security is
+     * *available to offset* a real loss, and the surplus returns. FAR states the measure outright
+     * as the difference between the offer price and the next higher acceptable offer, which is
+     * exactly what a sealed-bid tender is in a position to know.
+     *
+     * So the at-risk fund covers what re-procuring would really have cost, and the remainder is
+     * returned. Where nothing cheaper was ever revealed there is no alternative to measure against,
+     * and the fund is forfeited whole — a security that evaporates because the loss is hard to
+     * quantify would not be a security.
+     */
+    function _abandon(Engagement storage e) internal returns (uint256 toBuyer, uint256 toSupplier) {
+        // Retention is withheld when a milestone opens, not when it is accepted, so the running
+        // total includes the milestone that was never delivered. Only the part held back from work
+        // the buyer actually accepted is the supplier's to have returned; the rest belongs with the
+        // milestone it was taken from, and that milestone's money goes back to the buyer.
+        uint256 earnedRetention = uint256(e.retentionHeld) - e.currentRetention;
+        uint256 atRisk = uint256(e.performanceStake) + earnedRetention;
+        uint256 damages = e.excessCost == 0 ? atRisk : Math.min(atRisk, uint256(e.excessCost));
+        uint256 pot = _drain(e);
+        toBuyer = pot - (atRisk - damages);
+        toSupplier = atRisk - damages;
+    }
+
     function _drain(Engagement storage e) internal returns (uint256 pot) {
         pot = uint256(e.price - e.allocated) + e.retentionHeld + e.currentJobBudget + e.performanceStake
             + e.buyerStake;

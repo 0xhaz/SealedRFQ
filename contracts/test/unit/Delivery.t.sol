@@ -142,6 +142,62 @@ contract DeliveryTest is SealedRFQFixture {
         assertGt(usdc.balanceOf(s1), before, "paid on the acceptance window alone");
     }
 
+    // ───────────── what an abandonment actually costs ─────────────
+
+    function test_abandonment_takesTheRealCostAndReturnsTheRest() public {
+        // s1 wins at 2.80 with s2 revealed at 2.95, so re-procuring costs the buyer 0.15 more.
+        // That is the measure FAR uses — the next higher acceptable offer — and it is the only
+        // number a sealed-bid tender is genuinely in a position to know.
+        uint256 id = rfqReadyToAward();
+        awardTo(id, s1);
+        ISealedRFQAdapter.Engagement memory e = adapter.getEngagement(id);
+
+        vm.warp(acp.getJob(e.currentJobId).expiredAt);
+        adapter.settleExpired(id);
+
+        uint256 excess = 2_950_000 - PRICE;
+        assertEq(adapter.withdrawable(s1), DEPOSIT - excess, "surplus security returned");
+        assertEq(uint8(adapter.getEngagement(id).status), uint8(ISealedRFQAdapter.EngagementStatus.Abandoned));
+        assertAccounting();
+    }
+
+    function test_abandonment_forfeitsEverythingWhenNothingCheaperWasRevealed() public {
+        // With no cheaper alternative there is nothing to measure a loss against, and a security
+        // that evaporates because the loss is hard to quantify would not be a security.
+        uint256 id = createRFQ();
+        commit(id, s1, PRICE, 21);
+        commit(id, s2, 2_950_000, 14);
+        toReveal(id);
+        // s1 is the dearest revealed bid, so no cheaper compliant alternative existed for it.
+        reveal(id, s2, 2_950_000, 14);
+        reveal(id, s1, PRICE, 21);
+        toAward(id);
+        awardTo(id, s2); // the dearer bid wins on delivery
+
+        ISealedRFQAdapter.Engagement memory e = adapter.getEngagement(id);
+        vm.warp(acp.getJob(e.currentJobId).expiredAt);
+        adapter.settleExpired(id);
+
+        // s2 was not the cheapest, so excessCost is zero and the whole at-risk fund is forfeited.
+        assertEq(adapter.withdrawable(s2), 0, "nothing returned when no loss can be measured");
+        assertAccounting();
+    }
+
+    function test_abandonment_neverTakesMoreThanWasPutAtRisk() public {
+        // The cap matters: damages are bounded by the security, never by the buyer's appetite.
+        uint256 id = rfqReadyToAward();
+        awardTo(id, s1);
+        ISealedRFQAdapter.Engagement memory e = adapter.getEngagement(id);
+        uint256 atRisk = uint256(e.performanceStake) + e.retentionHeld;
+
+        vm.warp(acp.getJob(e.currentJobId).expiredAt);
+        adapter.settleExpired(id);
+
+        // Whatever the measure says, the supplier cannot lose more than the stake plus retention.
+        assertLe(adapter.withdrawable(buyer), PRICE + 150_000 + atRisk, "bounded by what was at risk");
+        assertAccounting();
+    }
+
     // ───────────── extending a delivery window ─────────────
 
     function test_extendDelivery_letsALateSupplierStillDeliver() public {

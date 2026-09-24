@@ -88,6 +88,11 @@ interface IRFQRegistry {
         uint32 transitWindow;
         uint32 commitCount;
         uint32 revealCount;
+        /// @dev The two cheapest revealed prices, kept as reveals arrive so the next-best
+        ///      alternative is known without ever looping over bidders. Used to measure what
+        ///      re-procuring would actually have cost if the winner walks away.
+        uint128 lowestRevealed;
+        uint128 secondLowestRevealed;
         address winner;
         uint128 awardPrice;
         bytes32 evaluationHash;

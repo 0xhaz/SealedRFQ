@@ -196,7 +196,18 @@ contract SealedRFQAdapterTest is SealedRFQFixture {
         vm.warp(acp.getJob(e.currentJobId).expiredAt);
         adapter.settleExpired(id);
         assertEq(uint8(adapter.getEngagement(id).status), uint8(ISealedRFQAdapter.EngagementStatus.Abandoned));
-        assertEq(adapter.withdrawable(buyer), PRICE + 150_000 + DEPOSIT, "performance stake slashed to buyer");
+        // The buyer is made whole, not enriched. They get every penny that was never earned — the
+        // whole price, their own stake — plus damages measured at what re-procuring would actually
+        // have cost: s2 revealed 2.95 against the 2.80 awarded, so 0.15. The rest of the supplier's
+        // 0.25 stake is returned, because a security is available to offset a loss rather than
+        // forfeited for its own sake.
+        uint256 excess = 2_950_000 - PRICE;
+        assertEq(
+            adapter.withdrawable(buyer),
+            PRICE + 150_000 + excess,
+            "buyer covered for the real cost of re-procuring"
+        );
+        assertEq(adapter.withdrawable(s1), DEPOSIT - excess, "unneeded stake returned");
         assertAccounting();
     }
 
