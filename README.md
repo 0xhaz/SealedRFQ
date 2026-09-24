@@ -57,11 +57,16 @@ Keys live in `.env.testnet` / `.env.mainnet` (gitignored); see `.env.example`.
 
 | Contract | Address |
 |---|---|
-| `RFQRegistry` | [`0xb727F5A8031591bc7e1ed0E626f5cE1108626D61`](https://explorer.testnet.arc.io/address/0xb727F5A8031591bc7e1ed0E626f5cE1108626D61) |
-| `SealedRFQAdapter` | [`0xC72B8a49020a9B9dACb384b88CDB9580770fA9C0`](https://explorer.testnet.arc.io/address/0xC72B8a49020a9B9dACb384b88CDB9580770fA9C0) |
-| `AgenticCommerce` (ERC-8183) | [`0xe98D25AB2ED549E699B8ECf40e03817bfA83e36b`](https://explorer.testnet.arc.io/address/0xe98D25AB2ED549E699B8ECf40e03817bfA83e36b) |
-| `ProcurementPolicy` | [`0xC3B99CaEa00A4f8918DDf44Be4DB257853B101F0`](https://explorer.testnet.arc.io/address/0xC3B99CaEa00A4f8918DDf44Be4DB257853B101F0) |
-| `AttestationLog` | [`0xF79126bdBE73d023Fd6FA57fB05E746a839a6096`](https://explorer.testnet.arc.io/address/0xF79126bdBE73d023Fd6FA57fB05E746a839a6096) |
+| `RFQRegistry` | [`0x4A8eda89d2956a66f7f47106Ebba5bcC3042C190`](https://explorer.testnet.arc.io/address/0x4A8eda89d2956a66f7f47106Ebba5bcC3042C190) |
+| `SealedRFQAdapter` | [`0xF15Bf4C1e1867fac67a96186b33f62732DEAAe19`](https://explorer.testnet.arc.io/address/0xF15Bf4C1e1867fac67a96186b33f62732DEAAe19) |
+| `AgenticCommerce` (ERC-8183) | [`0x995390f5bd1753C940567aAd1059504a9F76d7dE`](https://explorer.testnet.arc.io/address/0x995390f5bd1753C940567aAd1059504a9F76d7dE) |
+| `ProcurementPolicy` | [`0x85cF6B44A22dc4A1C0837d3200979412236D3A83`](https://explorer.testnet.arc.io/address/0x85cF6B44A22dc4A1C0837d3200979412236D3A83) |
+| `AttestationLog` | [`0x627Dcc589a204d663D6EF99B0E6dC6c55819A511`](https://explorer.testnet.arc.io/address/0x627Dcc589a204d663D6EF99B0E6dC6c55819A511) |
+
+Redeployed **2026-09-24** to carry receipt confirmation, transit windows,
+delivery extensions and compensatory settlement. The previous deployment is still on-chain and
+still works; its addresses are kept in `contracts/deployments/archive/` because the tenders run
+against it are part of the record and its explorer links remain valid for them.
 
 `contracts/deployments/evidence-5042002.json` lists one explorer link per lifecycle step of the last
 full run, including the policy firewall rejecting an AI-recommended over-budget award.

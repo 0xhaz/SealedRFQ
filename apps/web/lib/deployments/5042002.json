@@ -1,11 +1,11 @@
 {
-  "AgenticCommerce": "0xe98D25AB2ED549E699B8ECf40e03817bfA83e36b",
-  "AttestationLog": "0xF79126bdBE73d023Fd6FA57fB05E746a839a6096",
-  "ProcurementPolicy": "0xC3B99CaEa00A4f8918DDf44Be4DB257853B101F0",
-  "RFQRegistry": "0xb727F5A8031591bc7e1ed0E626f5cE1108626D61",
-  "SealedRFQAdapter": "0xC72B8a49020a9B9dACb384b88CDB9580770fA9C0",
+  "AgenticCommerce": "0x995390f5bd1753c940567aad1059504a9f76d7de",
+  "AttestationLog": "0x627dcc589a204d663d6ef99b0e6dc6c55819a511",
+  "ProcurementPolicy": "0x85cf6b44a22dc4a1c0837d3200979412236d3a83",
+  "RFQRegistry": "0x4a8eda89d2956a66f7f47106ebba5bcc3042c190",
+  "SealedRFQAdapter": "0xf15bf4c1e1867fac67a96186b33f62732deaae19",
   "admin": "0x7a3c60eBB395bE2E3a4fb4e3356B7ba9FA8360c9",
   "chainId": 5042002,
-  "startBlock": 63207583,
+  "startBlock": 63699590,
   "usdc": "0x3600000000000000000000000000000000000000"
 }
