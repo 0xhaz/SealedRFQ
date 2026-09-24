@@ -45,6 +45,10 @@ type Props = {
     expiredPot: string;
     /** The supplier's own stake inside that total — named separately because it is theirs. */
     performanceStake: string;
+    /** When the buyer said the goods arrived. Zero until they do. */
+    receivedAt: number;
+    /** Allowance for goods in transit when receipt is never confirmed. Zero for a file. */
+    transitWindow: number;
     /** Hash of the submitted deliverable, for the buyer to check their copy against. */
     deliverable?: string;
   } | null;
@@ -257,8 +261,39 @@ export function RfqActions({
     );
   }
 
+  /**
+   * Receipt is not acceptance, and the panel has to keep them apart.
+   *
+   * Confirming says the shipment arrived and starts the inspection clock from that moment; it
+   * decides nothing about whether the goods are right, and a buyer who confirms still has their
+   * whole window to reject. Worth offering prominently because it is also in the buyer's interest:
+   * the alternative clock runs from a transit allowance they may not have needed.
+   */
+  const confirmReceipt = () =>
+    run("Confirming…", () =>
+      write({
+        abi: SealedRFQAdapterAbi,
+        address: contracts.SealedRFQAdapter,
+        functionName: "confirmReceipt",
+        args: [BigInt(rfqId)],
+      }),
+    );
+
+  const shipsGoods = Boolean(engagement?.transitWindow);
+  const awaitingReceipt = Boolean(
+    shipsGoods && engagement?.submittedAt && engagement?.receivedAt === 0,
+  );
+
+  /**
+   * Mirrors `_releasesAt` in the adapter, and has to stay mirrored.
+   *
+   * A countdown that disagrees with the contract is worse than none: it either promises money that
+   * is not due yet, or tells a buyer their window has shut while they still have time to reject.
+   */
   const releasesAt = engagement?.submittedAt
-    ? engagement.submittedAt + engagement.acceptanceWindow
+    ? (engagement.receivedAt > 0
+        ? engagement.receivedAt
+        : engagement.submittedAt + engagement.transitWindow) + engagement.acceptanceWindow
     : 0;
   const canAutoRelease = releasesAt > 0 && Date.now() / 1000 >= releasesAt;
   const deliverableOnChain = engagement?.deliverable as Hex | undefined;
@@ -484,6 +519,26 @@ export function RfqActions({
                 <span className="hint" style={{ marginLeft: 10 }}>
                   Either party may do this; the contract decides where the money goes.
                 </span>
+              </div>
+            </div>
+          )}
+
+          {isBuyer && awaitingReceipt && (
+            <div className="full note warn">
+              <b>Have the goods arrived?</b> Confirming starts your inspection window from now,
+              which is usually sooner than waiting — the alternative clock runs from a{" "}
+              {Math.round((engagement?.transitWindow ?? 0) / 86400)}-day transit allowance instead.
+              It is <i>not</i> an acceptance: you keep the full window to reject after confirming,
+              and the supplier is not paid by this.
+              <div style={{ marginTop: 10 }}>
+                <button
+                  type="button"
+                  className="btn-outline"
+                  disabled={!!busy}
+                  onClick={confirmReceipt}
+                >
+                  {busy ?? "Confirm the shipment arrived"}
+                </button>
               </div>
             </div>
           )}

@@ -55,6 +55,9 @@ interface IRFQRegistry {
         uint16 retentionBps; // holdback per milestone, released on final acceptance
         uint32 deliveryWindow; // seconds per milestone to submit
         uint32 acceptanceWindow; // seconds for the buyer to accept/reject before auto-release
+        // Allowance for goods to reach the buyer when they never confirm receipt. Zero for a
+        // deliverable that is a file, which leaves release timing exactly as it was.
+        uint32 transitWindow;
         uint16[] milestoneBps; // split of the award price, sums to 10000
         /// RFP mode: every bid must carry a proposal document hash, not just a price.
         bool requiresProposal;
@@ -82,6 +85,7 @@ interface IRFQRegistry {
         uint16 retentionBps;
         uint32 deliveryWindow;
         uint32 acceptanceWindow;
+        uint32 transitWindow;
         uint32 commitCount;
         uint32 revealCount;
         address winner;

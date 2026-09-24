@@ -35,6 +35,9 @@ interface ISealedRFQAdapter {
         uint16 retentionBps;
         uint32 deliveryWindow;
         uint32 acceptanceWindow;
+        /// @dev Allowance for goods to reach the buyer when they never confirm receipt. Zero for
+        ///      anything delivered as a file, which makes the release timing identical to before.
+        uint32 transitWindow;
         uint16[] milestoneBps;
     }
 
@@ -47,6 +50,7 @@ interface ISealedRFQAdapter {
         uint16 retentionBps;
         uint32 deliveryWindow;
         uint32 acceptanceWindow;
+        uint32 transitWindow;
         uint128 price;
         uint128 allocated; // gross amount of milestones opened so far
         uint128 buyerStake;
@@ -56,6 +60,10 @@ interface ISealedRFQAdapter {
         uint256 currentJobId;
         uint64 deliveryDeadline;
         uint64 submittedAt;
+        /// @dev When the buyer acknowledged the goods arrived. Zero until they do; the inspection
+        ///      clock runs from here when it is set, and from `submittedAt + transitWindow` when
+        ///      it never is, so a silent buyer delays payment but cannot withhold it.
+        uint64 receivedAt;
         uint64 disputeDeadline;
         bytes32 deliverable;
     }
@@ -92,6 +100,10 @@ interface ISealedRFQAdapter {
     event DisputeRaised(uint256 indexed rfqId, address indexed by);
     event DisputeResolved(uint256 indexed rfqId, uint256 toSupplier, uint256 toBuyer, bytes32 reason);
     event RejectionFinalized(uint256 indexed rfqId, uint256 toBuyer);
+    /// @notice The buyer says the goods arrived. Starts the inspection clock; decides nothing.
+    event ReceiptConfirmed(uint256 indexed rfqId, uint8 indexed milestone, uint64 at);
+    /// @notice The buyer gave the supplier more time, before the original window ran out.
+    event DeliveryExtended(uint256 indexed rfqId, uint8 indexed milestone, uint64 newDeadline);
     event EngagementCompleted(uint256 indexed rfqId, uint256 toSupplier, uint256 toBuyer);
     event EngagementAbandoned(uint256 indexed rfqId, uint256 toBuyer);
 
@@ -109,6 +121,11 @@ interface ISealedRFQAdapter {
     error DisputeWindowClosed(uint64 deadline);
     error DisputeWindowOpen(uint64 deadline);
     error NotExpired();
+    error NotBuyer(address caller);
+    error AlreadyReceived();
+    error NothingSubmitted();
+    /// @dev An extension must move the deadline forward, and not past the job's own expiry.
+    error BadExtension(uint64 latest);
     error OnlyAgenticCommerce();
     error InvalidBps();
 

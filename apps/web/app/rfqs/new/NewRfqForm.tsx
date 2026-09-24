@@ -10,6 +10,7 @@ import { MAX_INVITEES, parseInvitees } from "@/lib/invitees";
 import { type LineItemRow, emptyRow, toLineItems } from "@/lib/lineItems";
 import { signUsdcPermit } from "@/lib/permit";
 import { CATEGORIES, REGIONS, labelFor } from "@/lib/taxonomy";
+import { INCOTERMS, incotermNote, riskPassesAt } from "@sealedrfq/shared";
 import { generateTerms } from "@/lib/terms";
 import { describeTxError } from "@/lib/txError";
 import {
@@ -55,6 +56,11 @@ export function NewRfqForm() {
   const [acceptMin, setAcceptMin] = useState("3");
   const [retentionPct, setRetentionPct] = useState("10");
   const [milestones, setMilestones] = useState("30, 30, 40");
+  // Shipment terms. Empty incoterm means "not a goods tender", which leaves transit at zero and
+  // release timing exactly as it is for anything delivered as a file.
+  const [incoterm, setIncoterm] = useState("");
+  const [namedPlace, setNamedPlace] = useState("");
+  const [transitDays, setTransitDays] = useState("0");
   const [weights, setWeights] = useState({ price: "50", delivery: "30", quality: "20" });
   /** RFQ = priced line items. RFP = proposals judged on method as well as price. */
   const [mode, setMode] = useState<"RFQ" | "RFP">("RFQ");
@@ -217,6 +223,11 @@ export function NewRfqForm() {
       if (bps.reduce((a, b) => a + b, 0) !== 10_000)
         throw new Error("Milestone percentages must add up to 100");
       if (Number(deliveryMin) < 5) throw new Error("Delivery window must be at least 5 minutes");
+      if (incoterm && !namedPlace.trim()) {
+        throw new Error(
+          "Name the place the incoterm refers to — a port, a city or an address. Without it the term says who pays but not to where.",
+        );
+      }
       if (Number(acceptMin) < 1) throw new Error("Acceptance window must be at least 1 minute");
 
       // The rubric is hashed before bids open, so it cannot be rewritten to fit a favoured bid.
@@ -264,6 +275,17 @@ export function NewRfqForm() {
         ...(Object.keys(requirements).length ? { requirements } : {}),
         ...(lineItems.length ? { lineItems } : {}),
         ...(contact.trim() ? { contact: contact.trim() } : {}),
+        // Published with the tender and fixed by metadataHash before bidding, so the delivery
+        // obligation is a term suppliers price against rather than something settled later.
+        ...(incoterm
+          ? {
+              shipment: {
+                incoterm,
+                namedPlace: namedPlace.trim(),
+                transitDays: Math.max(0, Number(transitDays) || 0),
+              },
+            }
+          : {}),
       });
       const metadataHash = sha256(stringToBytes(metadata));
 
@@ -292,6 +314,9 @@ export function NewRfqForm() {
         retentionBps: Math.round(Number(retentionPct) * 100),
         deliveryWindow: Number(deliveryMin) * 60,
         acceptanceWindow: Number(acceptMin) * 60,
+        // Zero unless this tender ships something. It is what stops a silent buyer paying for a
+        // container still at sea, and what stops that protection becoming a way to never pay.
+        transitWindow: incoterm ? Math.max(0, Number(transitDays) || 0) * 86_400 : 0,
         milestoneBps: bps,
         invitees: visibility === "invited" ? invitees : ([] as `0x${string}`[]),
         requiresQualification: false,
@@ -594,6 +619,63 @@ export function NewRfqForm() {
               </span>
             )}
           </div>
+
+          {/*
+            Shipment terms. Optional, and absent for anything delivered as a file — but once an
+            incoterm is set the tender has actually said what "delivered" means, which is the
+            single thing most often left undefined in a goods contract and the first thing argued
+            about when something goes wrong.
+          */}
+          <div className="field">
+            <label htmlFor="incoterm">Delivery terms (physical goods only)</label>
+            <select
+              id="incoterm"
+              value={incoterm}
+              onChange={(e) => setIncoterm(e.target.value)}
+            >
+              <option value="">Not a goods tender — delivered as a file</option>
+              {INCOTERMS.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+            {incoterm && <span className="field-hint">{incotermNote(incoterm)}</span>}
+          </div>
+
+          {incoterm && (
+            <>
+              <div className="field">
+                <label htmlFor="namedplace">Named place</label>
+                <input
+                  id="namedplace"
+                  value={namedPlace}
+                  placeholder="Port Klang · Rotterdam · our Shah Alam warehouse"
+                  onChange={(e) => setNamedPlace(e.target.value)}
+                />
+                <span className="field-hint">
+                  Risk passes <b>{riskPassesAt(incoterm)}</b> under {incoterm}.
+                </span>
+              </div>
+              <div className="field">
+                <label htmlFor="transit">Transit allowance (days)</label>
+                <input
+                  id="transit"
+                  inputMode="numeric"
+                  value={transitDays}
+                  onChange={(e) => setTransitDays(e.target.value)}
+                />
+              </div>
+              <div className="field full note">
+                A milestone releases money against a <i>hash</i>, not against goods — the contract
+                cannot see a container. The transit allowance is what stops that paying for a
+                shipment still at sea: if you confirm receipt, your inspection window starts then;
+                if you say nothing, it starts only after this many days. It cannot be used to
+                withhold payment indefinitely, because silence eventually pays the supplier either
+                way. Set it to the realistic door-to-door time for {incoterm || "this route"}.
+              </div>
+            </>
+          )}
           <div className="field">
             <label htmlFor="milestones">Milestones (% split)</label>
             <input

@@ -182,6 +182,8 @@ export async function getEngagement(id: number) {
     currentJobId: e.currentJobId,
     deliveryDeadline: Number(e.deliveryDeadline),
     submittedAt: Number(e.submittedAt),
+    receivedAt: Number(e.receivedAt),
+    transitWindow: Number(e.transitWindow),
     deliverable: e.deliverable,
   };
 }

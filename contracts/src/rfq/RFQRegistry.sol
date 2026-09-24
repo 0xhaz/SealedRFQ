@@ -143,6 +143,7 @@ contract RFQRegistry is SealedBid {
                 retentionBps: r.retentionBps,
                 deliveryWindow: r.deliveryWindow,
                 acceptanceWindow: r.acceptanceWindow,
+                transitWindow: r.transitWindow,
                 milestoneBps: _milestones[rfqId]
             })
         );
@@ -214,6 +215,7 @@ contract RFQRegistry is SealedBid {
         r.retentionBps = p.retentionBps;
         r.deliveryWindow = p.deliveryWindow;
         r.acceptanceWindow = p.acceptanceWindow;
+        r.transitWindow = p.transitWindow;
         _milestones[rfqId] = p.milestoneBps;
         for (uint256 i; i < p.invitees.length; ++i) {
             _invited[rfqId][p.invitees[i]] = true;

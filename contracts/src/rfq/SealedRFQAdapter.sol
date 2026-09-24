@@ -70,6 +70,7 @@ contract SealedRFQAdapter is ISealedRFQAdapter, IACPHook, PullPayments, AccessCo
         e.retentionBps = t.retentionBps;
         e.deliveryWindow = t.deliveryWindow;
         e.acceptanceWindow = t.acceptanceWindow;
+        e.transitWindow = t.transitWindow;
         e.price = t.price;
         e.buyerStake = t.buyerStake;
         e.performanceStake = t.performanceStake;
@@ -112,9 +113,68 @@ contract SealedRFQAdapter is ISealedRFQAdapter, IACPHook, PullPayments, AccessCo
     function autoRelease(uint256 rfqId) external nonReentrant {
         Engagement storage e = _active(rfqId);
         if (e.submittedAt == 0) revert WrongJobStatus();
-        uint64 releasesAt = e.submittedAt + e.acceptanceWindow;
+        uint64 releasesAt = _releasesAt(e);
         if (block.timestamp < releasesAt) revert AcceptanceWindowOpen(releasesAt);
         _release(rfqId, e, AUTO_RELEASE, true);
+    }
+
+    /**
+     * When silence starts paying the supplier.
+     *
+     * Two paths, and the difference matters for anything with a shipping container behind it. A
+     * buyer who confirms receipt starts the inspection clock at that moment, so they get their full
+     * window to examine what arrived. A buyer who says nothing is not allowed to block payment
+     * forever — that would hand them the hostage position this contract exists to remove — so the
+     * clock starts anyway once the transit allowance has run, as though the goods had arrived on
+     * the last day they plausibly could.
+     *
+     * `transitWindow` is zero for anything delivered as a file, which makes this exactly the rule
+     * it replaced.
+     */
+    function _releasesAt(Engagement storage e) internal view returns (uint64) {
+        uint64 from = e.receivedAt == 0 ? e.submittedAt + e.transitWindow : e.receivedAt;
+        return from + e.acceptanceWindow;
+    }
+
+    /**
+     * @notice Buyer. Records that the goods arrived, which starts the inspection window.
+     * @dev Deliberately not an acceptance and not a rejection: it says the shipment is here, not
+     *      that it is right. A buyer who confirms receipt and then finds a problem still has their
+     *      whole inspection window to reject, and confirming early is in their own interest because
+     *      the alternative clock runs from a transit allowance they did not need.
+     */
+    function confirmReceipt(uint256 rfqId) external {
+        Engagement storage e = _active(rfqId);
+        if (msg.sender != e.buyer) revert NotBuyer(msg.sender);
+        if (e.submittedAt == 0) revert NothingSubmitted();
+        if (e.receivedAt != 0) revert AlreadyReceived();
+        e.receivedAt = uint64(block.timestamp);
+        emit ReceiptConfirmed(rfqId, e.currentMilestone, e.receivedAt);
+    }
+
+    /**
+     * @notice Buyer. Gives the supplier more time to deliver the current milestone.
+     * @dev The answer to a manufacturer slipping, and the only one the contract can give: nothing
+     *      else anywhere can move a delivery deadline. Buyer-only because it relaxes the buyer's
+     *      own term, and only before the window shuts — an extension granted afterwards would be
+     *      re-opening a forfeiture rather than preventing one, which is a different decision with
+     *      a different remedy. Capped so the acceptance window still fits inside the job's life.
+     */
+    function extendDelivery(uint256 rfqId, uint64 newDeadline) external {
+        Engagement storage e = _active(rfqId);
+        if (msg.sender != e.buyer) revert NotBuyer(msg.sender);
+        if (block.timestamp > e.deliveryDeadline) revert DeliveryWindowClosed(e.deliveryDeadline);
+        IAgenticCommerce.Job memory job = acp.getJob(e.currentJobId);
+        // The job has to outlive the extended deadline plus a full transit and inspection, or the
+        // supplier would be given time to deliver into a job that expires before they can be paid.
+        // Subtracting only one acceptance window rather than two is deliberate: the second was
+        // grace for someone to call autoRelease, and spending it on the extension is the trade the
+        // buyer is making. Subtracting both leaves `latest` equal to the current deadline, which
+        // makes every extension impossible — which is what it did before this comment existed.
+        uint64 latest = uint64(job.expiredAt) - e.transitWindow - e.acceptanceWindow;
+        if (newDeadline <= e.deliveryDeadline || newDeadline > latest) revert BadExtension(latest);
+        e.deliveryDeadline = newDeadline;
+        emit DeliveryExtended(rfqId, e.currentMilestone, newDeadline);
     }
 
     /// @notice Anyone. Resolves a job past `expiredAt` (ERC-8183 refunds it to this contract):
@@ -262,13 +322,18 @@ contract SealedRFQAdapter is ISealedRFQAdapter, IACPHook, PullPayments, AccessCo
         e.retentionHeld += retention;
         e.currentJobBudget = budget;
         e.submittedAt = 0;
+        e.receivedAt = 0;
         e.deliverable = bytes32(0);
         uint64 deadline = uint64(block.timestamp + e.deliveryWindow);
         e.deliveryDeadline = deadline;
 
-        // Expiry leaves a full acceptance window after the latest possible submission, plus the
-        // same again as grace for someone to call autoRelease before a refund becomes possible.
-        uint256 expiredAt = uint256(deadline) + 2 * uint256(e.acceptanceWindow);
+        // Expiry leaves room for the longest legitimate path to payment: deliver on the last
+        // permitted day, goods spend the whole transit allowance in freight, then a full inspection
+        // window — plus the same window again as grace for someone to call autoRelease before a
+        // refund becomes possible. Without the transit term the job would expire while the buyer
+        // was still entitled to be inspecting.
+        uint256 expiredAt =
+            uint256(deadline) + uint256(e.transitWindow) + 2 * uint256(e.acceptanceWindow);
         uint256 jobId =
             acp.createJob(e.supplier, address(this), expiredAt, _description(rfqId, i), address(this));
         jobToRfq[jobId] = rfqId;

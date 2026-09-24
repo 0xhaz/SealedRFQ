@@ -402,6 +402,8 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
                     acceptanceWindow: engagement.acceptanceWindow,
                     currentJobBudget: engagement.currentJobBudget.toString(),
                     deliveryDeadline: engagement.deliveryDeadline,
+                    receivedAt: engagement.receivedAt,
+                    transitWindow: engagement.transitWindow,
                     // The same sum `_drain` computes, so the warning quotes the real figure
                     // rather than an approximation of it.
                     expiredPot: (
