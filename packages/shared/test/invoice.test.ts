@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { type InvoiceInput, buildInvoice, invoiceNumber, renderInvoice } from "../src/invoice.js";
+import {
+  type InvoiceInput,
+  type ProformaInput,
+  buildInvoice,
+  buildProforma,
+  invoiceNumber,
+  renderInvoice,
+  renderProforma,
+} from "../src/invoice.js";
 
 const input: InvoiceInput = {
   rfqId: 5,
@@ -66,5 +74,71 @@ describe("renderInvoice", () => {
     expect(bare).not.toContain("GOODS");
     expect(bare).not.toContain("Delivery terms");
     expect(bare).not.toContain("Reference");
+  });
+});
+
+describe("buildProforma", () => {
+  const input: ProformaInput = {
+    rfqId: 5,
+    seller: { name: "Acme Instruments", address: "0xC6FD…851D", country: "MY" },
+    buyer: { address: "0x3a9a…C88E" },
+    awardPrice: "2800000",
+    incoterm: "FOB",
+    namedPlace: "Port Klang",
+    issuedAt: "2026-09-24",
+    validUntil: "2026-10-24",
+    lines: [{ description: "Barcode scanner, 2D, USB-C", quantity: 500, unit: "ea" }],
+    milestones: [
+      { index: 1, label: "Deposit against production", amount: "840000" },
+      { index: 2, label: "Balance against shipping documents", amount: "1960000" },
+    ],
+  };
+
+  it("numbers in a series distinct from the commercial invoice", () => {
+    // The two documents mean different things and must never be mistaken for one another.
+    expect(buildProforma(input).number).toBe("RFQ-0005-PI");
+    expect(buildProforma(input).number).not.toBe(invoiceNumber(5, 1));
+  });
+
+  it("covers the whole award, not one milestone", () => {
+    expect(renderProforma(buildProforma(input))).toContain("2.80 USDC");
+  });
+
+  it("refuses to expire before it was issued", () => {
+    expect(() => buildProforma({ ...input, validUntil: "2026-09-01" })).toThrow(/expire before/i);
+  });
+
+  it("says it is not a demand for payment", () => {
+    // The one sentence that distinguishes it from the commercial invoice. A proforma read as a
+    // bill is how a buyer pays twice.
+    const text = renderProforma(buildProforma(input));
+    expect(text).toMatch(/not a demand for payment/i);
+    expect(text).toContain("PROFORMA INVOICE");
+  });
+
+  it("names what customs will want and this document does not carry", () => {
+    // Silence here would be worse than the omission: a buyer presents it, it is refused, and
+    // nothing told them why.
+    const text = renderProforma(buildProforma(input));
+    expect(text).toMatch(/tariff classification/i);
+    expect(text).toMatch(/country of origin/i);
+  });
+
+  it("stops warning once the seller supplies them", () => {
+    const withCustoms = buildProforma({
+      ...input,
+      lines: [{ ...input.lines![0], hsCode: "8471.60", countryOfOrigin: "CN" }],
+    });
+    const text = renderProforma(withCustoms);
+    expect(text).toContain("HS 8471.60");
+    expect(text).toContain("origin CN");
+    expect(text).not.toMatch(/Not stated on this document/i);
+  });
+
+  it("shows the payment schedule, which is what a bank or an authority asks for", () => {
+    const text = renderProforma(buildProforma(input));
+    expect(text).toContain("PAYMENT SCHEDULE");
+    expect(text).toContain("0.84 USDC");
+    expect(text).toContain("1.96 USDC");
   });
 });

@@ -1,4 +1,5 @@
 import { DirectMessages } from "@/components/DirectMessages";
+import { Proforma } from "@/components/Proforma";
 import { DocumentCheck } from "@/components/DocumentCheck";
 import { EvaluationPanel } from "@/components/EvaluationPanel";
 import { Header } from "@/components/Header";
@@ -9,6 +10,7 @@ import { RfqActions } from "@/components/RfqActions";
 import { SettleDeposit } from "@/components/SettleDeposit";
 import { agent } from "@/lib/agent";
 import { chain, contracts, explorerAddress } from "@/lib/chain";
+import { readLineItems } from "@/lib/lineItems";
 import { milestoneLedger, milestoneMeaning } from "@/lib/milestones";
 import { countdown, getBid, getBidders, getEngagement, getRfq, getRfqCount } from "@/lib/rfq";
 import { CATEGORIES, REGIONS, labelFor } from "@/lib/taxonomy";
@@ -39,6 +41,20 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
     agent.rfq(id),
   ]);
   const indexedMilestones = "milestones" in indexed ? (indexed.milestones ?? []) : [];
+
+  // The published document, for the line items and shipment terms a proforma needs. A bare URI
+  // rather than an inline document is not an error here — the proforma simply carries the totals.
+  let published: Record<string, unknown> | null = null;
+  try {
+    const uri = "rfq" in indexed ? (indexed.rfq?.metadataURI ?? null) : null;
+    published = uri ? (JSON.parse(uri) as Record<string, unknown>) : null;
+  } catch {
+    published = null;
+  }
+  const shipment = (published?.shipment ?? null) as {
+    incoterm?: string;
+    namedPlace?: string;
+  } | null;
   const sealed = rfq.phase === "Bidding";
   // A quotation can now ride on a plain RFQ, not only an RFP, so the column follows the bids
   // rather than the mode: show it whenever any revealed bid actually carries a document.
@@ -314,6 +330,20 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
                 </div>
               )}
             </div>
+          )}
+
+          {engagement && (
+            <Proforma
+              rfqId={id}
+              buyer={rfq.buyer}
+              supplier={engagement.supplier}
+              awardPrice={engagement.price.toString()}
+              retentionBps={rfq.retentionBps}
+              milestoneBps={[...rfq.milestoneBps]}
+              incoterm={shipment?.incoterm}
+              namedPlace={shipment?.namedPlace}
+              lineItems={readLineItems(published)}
+            />
           )}
 
           {engagement && <DirectMessages buyer={rfq.buyer} supplier={engagement.supplier} />}
