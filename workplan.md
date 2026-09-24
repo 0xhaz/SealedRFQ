@@ -1057,6 +1057,161 @@ replace it. Everything in §6c about hashes versus containers still applies.
 
 ---
 
+## 6h. "Why wouldn't everyone just use Ariba?" — the competitive read (assessed 2026-09-24)
+
+Prompted by a critique listing what Ariba / Coupa / SAP / Alibaba already have and this does not:
+supplier relationships, credit terms, legal contracts, compliance, tax handling, logistics, dispute
+resolution, purchase orders, ERP integration, identity, human support, supplier onboarding,
+financing. Then a second list arguing decentralisation makes things *worse*: who handles disputes,
+verifies suppliers, is liable for fraud, handles returns, taxes, sanctions/KYC, bad deliveries, is
+legally the counterparty, and what happens when an agent makes a $500k mistake.
+
+Most of it is correct. Recorded here so the answer is written down once rather than improvised.
+
+### Concede: genuinely absent, genuinely expensive
+
+ERP integration, purchase orders, tax handling, financing, supplier onboarding, human support,
+identity, returns, liability for fraud. None exist. This is the real moat and it is unglamorous —
+Ariba's advantage is not technology, it is already being wired into the buyer's general ledger.
+
+Add one the critique omits: **nobody has heard of us**, in a function where the buyer personally
+carries the consequence of a bad vendor choice.
+
+### Correct: three items are mis-framed
+
+**Dispute resolution is parity, not their advantage.** §6c found no enterprise suite adjudicates
+anything. Ariba, Coupa and SAP are buyer-licensed: the buyer decides and the supplier's recourse is
+a lawsuit. They have dispute *workflow*, not dispute *resolution*. Ours is better on one axis only —
+the outcome is bounded by contract and damages are measured against the revealed runner-up.
+
+**"Who is legally the counterparty?" is the design claim, not a gap.** Buyer and supplier contract
+directly; no intermediary inserts itself. That is the stated goal, not an oversight.
+
+**The $500k agent mistake already has an answer.** `agentAwardCap` in `IProcurementPolicy.Policy`,
+checked in `RFQRegistry.award` whenever `msg.sender != r.buyer`. Above the cap a person awards it or
+nobody does. No incumbent has an equivalent, because no incumbent has agents committing funds. One
+of the few places where being new is an advantage rather than a liability.
+
+**Sanctions is half-answered below us.** Arc screens native USDC transfers at protocol level, so
+that obligation sits with Circle and the chain. The pull-payment design already survives a
+blocklisted recipient without bricking a milestone.
+
+### The objection that actually matters, and is understated in the list
+
+**Credit terms.** It appears second with no emphasis and it is sufficient on its own to prevent
+enterprise adoption.
+
+B2B runs on net-30/60/90. Escrow inverts it: the buyer funds budget *and* stake before a single
+supplier sees the tender. That is not a missing feature to ship later, it is a working-capital cost,
+and for a buyer with a treasury function it is a reason never to adopt. No amount of ERP integration
+fixes it.
+
+**And it cannot be removed.** Pre-funding is what makes a sealed bid credible enough for a supplier
+to risk a deposit against it, and what makes forfeiting that deposit fair. It is load-bearing — see
+§6f on why generalising to unfunded "intents" collapses the same way.
+
+### The reframe: the competitor is not SAP
+
+A buyer willing to pre-fund is a buyer who **cannot get credit terms in the first place** — a
+first-time counterparty, usually cross-border. There the alternative is not net-60, it is a
+**letter of credit**: roughly 0.75–1.5% of contract value, days to issue, a bank relationship both
+sides can reach, and a documentary-compliance process with a high first-presentation rejection rate.
+*(Figures from memory — verify before they appear in any pitch or deck.)*
+
+Against that, escrow at ~0.0025 USDC per tender is not an incremental improvement.
+
+So the answer to "why wouldn't they just use Ariba" is: **for what Ariba is good at, they should, and
+they will.** Ariba serves repeat purchases from suppliers the buyer already has credit with. It
+serves first-time cross-border trade badly, and charges *suppliers* to be on the network to do it.
+
+The competitor worth naming is **Alibaba Trade Assurance** — escrow for cross-border B2B that
+already works at scale. What it is not: sealed bidding with a re-checkable award. And Alibaba
+adjudicates its own disputes while taking a cut of the transaction, which is the conflict this
+design removes rather than manages.
+
+This also explains why §6c, §6e and §6f each drifted independently toward digital deliverables.
+Same shape every time: cross-border, first-time counterparty, no credit relationship, and a
+deliverable a hash can actually prove.
+
+### Live exposure worth fixing before real money
+
+The qualification hook exists — `requiresQualification` enforced via `qualifier.isQualified()` in
+`SealedBid._screenBidder` — but `NewRfqForm.tsx` hardcodes it to `false` and no qualifier is set.
+So there is currently **no KYB path at all** for a real supplier, only a dormant mechanism. A UI
+change, not a contract one.
+
+### Assurance, modelled on Alibaba Trade Assurance (2026-09-24)
+
+Raised as a way to close the "who is liable for fraud" gap, and deliberately pointed at Trade
+Assurance rather than at insurance **because Trade Assurance is proven at scale**. That choice
+matters more than it first appears.
+
+**Trade Assurance is not insurance, and that is the whole trick.** Decomposed, it is four things:
+
+1. Escrow — the buyer pays Alibaba, not the supplier, and funds release on satisfactory delivery.
+2. A **per-supplier coverage limit**, earned from that supplier's trading history on the platform.
+3. **Mediation** by Alibaba when the buyer files a claim, within a window after delivery.
+4. **Free to the buyer**, bundled, funded out of the platform's take rate.
+
+Because no premium is charged for risk transfer, it is a platform guarantee rather than a policy,
+and it needs no insurance licence. Keeping points 1 and 4 keeps us on the same side of that line.
+Charging a per-tender fee *for the coverage itself* would turn it into a premium and drag the whole
+thing into regulated territory — so if this ships, it ships bundled and free, funded from the fixed
+platform fee in §6e. **That is a hard design constraint, not a preference.**
+
+**What we already have, and it is most of it.** Escrow: yes, and stronger — funded before the
+tender opens rather than on order placement. Recovery on default: yes, and §6c's compensatory
+settlement is a better damages measure than a refund, because it is sized against the revealed
+runner-up. Release on acceptance, with auto-release protecting a supplier against a silent buyer:
+yes.
+
+**What is missing is exactly two things.**
+
+- **A per-supplier coverage limit.** Alibaba derives this from data it holds privately. We can
+  derive it from data anyone can recount — bids, awards, completions, milestone rejections, bids
+  never revealed, abandonments — which is a better version of the same thing and already indexed
+  for the operator page.
+- **Coverage above the supplier's own stake.** Today recovery caps at performance stake plus earned
+  retention. Trade Assurance's assurance is precisely that the platform stands behind a figure
+  larger than what the seller posted. That requires a pool, and a pool requires capital — which is
+  where grant funding is the right instrument and 500 USDC is not.
+
+**Where we diverge, and it cuts both ways.** Alibaba mediates; we refuse to, for the reasons in
+§6c — and note Alibaba mediating its own marketplace while earning on its GMV is the conflict this
+design removes rather than manages.
+
+The consequence is a **narrower but automatic** product:
+
+- **Non-delivery and late delivery can be covered with no adjudication at all.** The contract
+  already determines abandonment objectively and already computes excess cost. Nothing to claim,
+  nobody to convince, no window to miss.
+- **"Goods not as described" cannot.** That needs judgement, it is the bulk of real Trade Assurance
+  claims, and §6c's conclusion stands: a hash cannot see a container. An assurance that quietly
+  failed to cover the most common claim type would be worse than none.
+
+So the honest framing is *delivery assurance*, not trade assurance — and it must say so plainly, or
+it inherits an expectation it cannot meet.
+
+**Sequencing, if funding arrives:**
+
+1. **Instrument the loss data now.** Abandonment rate, excess cost versus the revealed runner-up,
+   milestone rejection rate, time-to-acceptance — by category and value band. Free, independently
+   useful to buyers, and the prerequisite for any coverage limit being anything but a guess.
+2. **Publish a per-supplier assurance limit** computed from that history. Useful on its own even
+   with no pool behind it: it is a reputation figure a buyer can recompute, which nothing on
+   Alibaba is.
+3. **Capitalise a pool and back the limit**, bundled and free, covering delivery failure only,
+   triggered by the contract rather than by a claim.
+4. **Contract risk is a separate purchase** — an audit, then dedicated smart-contract cover. A
+   buyer asking "what if the code is wrong" is not answered by a pool that pays when a *supplier*
+   fails, and conflating them would be the dishonest version of this.
+
+**Position: the right model, and reachable.** Steps 1 and 2 need no capital and no licence and
+should be built regardless. Step 3 is what a grant is for. Take advice before step 3 ships, and do
+not use the word "insurance" anywhere in the product.
+
+---
+
 ## 7. Submission checklist
 
 **Programme terms, read 2026-09-24 — four of these change the plan.**
