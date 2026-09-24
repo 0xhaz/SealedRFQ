@@ -38,7 +38,11 @@ contract Deploy is Script {
             minDepositBps: uint16(vm.envOr("POLICY_MIN_DEPOSIT_BPS", uint256(500))),
             minBuyerStakeBps: uint16(vm.envOr("POLICY_MIN_BUYER_STAKE_BPS", uint256(500))),
             maxSupplierShareBps: uint16(vm.envOr("POLICY_MAX_SUPPLIER_SHARE_BPS", uint256(4_000))),
-            concentrationFloor: uint128(vm.envOr("POLICY_CONCENTRATION_FLOOR", uint256(100 * ArcUsdc.ONE)))
+            concentrationFloor: uint128(vm.envOr("POLICY_CONCENTRATION_FLOOR", uint256(100 * ArcUsdc.ONE))),
+            // What an agent may award without a person. Deliberately finite: zero would disable
+            // agent awards altogether and break the unattended path the demo relies on, while an
+            // unbounded cap is the thing §6d objects to. Set it for the deployment you are running.
+            agentAwardCap: uint128(vm.envOr("POLICY_AGENT_AWARD_CAP", uint256(100 * ArcUsdc.ONE)))
         });
 
         uint256 startBlock = block.number;

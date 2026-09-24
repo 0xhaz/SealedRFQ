@@ -190,10 +190,17 @@ contract SealedRFQAdapterTest is SealedRFQFixture {
 
     function test_neverDelivered_abandonedToBuyer() public {
         ISealedRFQAdapter.Engagement memory e = adapter.getEngagement(id);
-        vm.expectRevert(ISealedRFQAdapter.NotExpired.selector);
+        // While the supplier still has time, settling is refused — the deadline, not the job's
+        // expiry, is what gates it now.
+        vm.expectRevert(
+            abi.encodeWithSelector(ISealedRFQAdapter.DeliveryWindowOpen.selector, e.deliveryDeadline)
+        );
         adapter.settleExpired(id);
 
-        vm.warp(acp.getJob(e.currentJobId).expiredAt);
+        // And the moment it passes, settlement works. It used to wait a further transit and two
+        // acceptance windows, a stretch in which the contract permitted nothing at all.
+        vm.warp(uint256(e.deliveryDeadline) + 1);
+        assertLt(block.timestamp, acp.getJob(e.currentJobId).expiredAt, "still inside the old gap");
         adapter.settleExpired(id);
         assertEq(uint8(adapter.getEngagement(id).status), uint8(ISealedRFQAdapter.EngagementStatus.Abandoned));
         // The buyer is made whole, not enriched. They get every penny that was never earned — the

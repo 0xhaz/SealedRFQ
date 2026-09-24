@@ -85,7 +85,8 @@ contract ProcurementPolicyTest is Test {
                 minDepositBps: 500,
                 minBuyerStakeBps: 500,
                 maxSupplierShareBps: 5_000,
-                concentrationFloor: 10e6
+                concentrationFloor: 10e6,
+                agentAwardCap: type(uint128).max
             })
         );
     }

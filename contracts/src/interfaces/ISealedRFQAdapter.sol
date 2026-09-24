@@ -131,6 +131,8 @@ interface ISealedRFQAdapter {
     error DisputeWindowClosed(uint64 deadline);
     error DisputeWindowOpen(uint64 deadline);
     error NotExpired();
+    /// @dev Settlement was asked for while the supplier still had time to deliver.
+    error DeliveryWindowOpen(uint64 deadline);
     error NotBuyer(address caller);
     error AlreadyReceived();
     error NothingSubmitted();

@@ -61,23 +61,65 @@ abstract contract SealedBid is BidDeposit {
         b.deliveryDays = deliveryDays;
         b.proposalHash = proposalHash;
         r.revealCount++;
-        // Two running minima, updated in place. Bids live in a mapping and the contract refuses to
-        // loop over bidders anywhere, so the cheapest alternative to the winner has to be known by
-        // the time it is needed rather than searched for afterwards.
+        _trackCheapest(r, price);
+        emit BidRevealed(rfqId, msg.sender, price, deliveryDays, proposalHash);
+    }
+
+    /**
+     * @notice Bid on an open tender, in the clear.
+     * @dev The whole of the difference between the two modes. There is no commitment and nothing to
+     *      reveal later: the price is public the moment it is placed, which is what makes an open
+     *      tender open and what costs it the integrity claim a sealed one carries. A bidder may
+     *      improve their own bid while bidding is open — that is the point of an open auction — and
+     *      the deposit is taken once, exactly as `_commit` does.
+     */
+    function placeOpenBid(uint256 rfqId, uint128 price, uint32 deliveryDays, bytes32 proposalHash)
+        external
+        nonReentrant
+    {
+        RFQ storage r = _rfq(rfqId);
+        if (r.bidMode != BidMode.Open) revert WrongBidMode();
+        _requirePhase(r, Phase.Bidding);
+        if (price == 0) revert ZeroPrice();
+        if (r.requiresProposal && proposalHash == bytes32(0)) revert ProposalRequired();
+        _screenBidder(r, rfqId);
+
+        Bid storage b = _bids[rfqId][msg.sender];
+        if (b.deposit == DepositState.None) {
+            b.deposit = DepositState.Held;
+            r.commitCount++;
+            r.revealCount++;
+            _takeDeposit(r, msg.sender);
+        }
+        b.price = price;
+        b.deliveryDays = deliveryDays;
+        b.proposalHash = proposalHash;
+        b.revealed = true;
+        _trackCheapest(r, price);
+        emit BidPlaced(rfqId, msg.sender, price, deliveryDays, proposalHash, r.depositAmount);
+    }
+
+    /**
+     * @dev The two cheapest revealed prices, updated in place as bids arrive.
+     *
+     * Bids live in a mapping and this contract refuses to loop over bidders anywhere, so the
+     * cheapest alternative to a winner has to be known by the time it is needed rather than
+     * searched for afterwards. Used to measure what a default actually costs the buyer.
+     *
+     * A bidder improving their own open bid can only lower these, never raise them, so the figure
+     * stays a floor on what re-procuring would have cost.
+     */
+    function _trackCheapest(RFQ storage r, uint128 price) internal {
         if (r.lowestRevealed == 0 || price < r.lowestRevealed) {
             r.secondLowestRevealed = r.lowestRevealed;
             r.lowestRevealed = price;
         } else if (r.secondLowestRevealed == 0 || price < r.secondLowestRevealed) {
             r.secondLowestRevealed = price;
         }
-        emit BidRevealed(rfqId, msg.sender, price, deliveryDays, proposalHash);
     }
 
-    /// @dev Re-committing before the deadline replaces the hash without a second deposit.
-    function _commit(uint256 rfqId, bytes32 commitHash) internal {
-        RFQ storage r = _rfq(rfqId);
-        _requirePhase(r, Phase.Bidding);
-        if (commitHash == bytes32(0)) revert CommitmentMismatch();
+    /// @dev Who may bid at all: not the buyer, invited if invite-only, qualified if required.
+    function _screenBidder(RFQ storage r, uint256 rfqId) internal view {
         if (msg.sender == r.buyer) revert BuyerCannotBid();
         if (r.inviteOnly && !_invited[rfqId][msg.sender]) revert NotInvited(msg.sender);
         if (
@@ -86,6 +128,15 @@ abstract contract SealedBid is BidDeposit {
         ) {
             revert NotQualified(msg.sender);
         }
+    }
+
+    /// @dev Re-committing before the deadline replaces the hash without a second deposit.
+    function _commit(uint256 rfqId, bytes32 commitHash) internal {
+        RFQ storage r = _rfq(rfqId);
+        if (r.bidMode != BidMode.Sealed) revert WrongBidMode();
+        _requirePhase(r, Phase.Bidding);
+        if (commitHash == bytes32(0)) revert CommitmentMismatch();
+        _screenBidder(r, rfqId);
 
         Bid storage b = _bids[rfqId][msg.sender];
         if (b.deposit == DepositState.None) {

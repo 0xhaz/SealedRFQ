@@ -69,6 +69,12 @@ export function NewRfqForm() {
    * controls who is let in, sealing controls what they can see once they are.
    */
   const [visibility, setVisibility] = useState<"public" | "invited">("public");
+  /**
+   * Sealed or open. Sealed is the default and stays the default: it is the mode that carries the
+   * integrity claim, and a buyer who has not thought about it should get the one that cannot be
+   * gamed by watching rivals.
+   */
+  const [bidMode, setBidMode] = useState<"sealed" | "open">("sealed");
   const [inviteeText, setInviteeText] = useState("");
   /** Suppliers this buyer has already finished a job with, offered as one-click invitations. */
   const [partners, setPartners] = useState<
@@ -271,6 +277,7 @@ export function NewRfqForm() {
         rubric: rubric.criteria,
         mode,
         visibility,
+        bidMode,
         ...(terms ? { terms } : {}),
         ...(Object.keys(requirements).length ? { requirements } : {}),
         ...(lineItems.length ? { lineItems } : {}),
@@ -317,6 +324,7 @@ export function NewRfqForm() {
         // Zero unless this tender ships something. It is what stops a silent buyer paying for a
         // container still at sea, and what stops that protection becoming a way to never pay.
         transitWindow: incoterm ? Math.max(0, Number(transitDays) || 0) * 86_400 : 0,
+        bidMode: bidMode === "open" ? 1 : 0,
         milestoneBps: bps,
         invitees: visibility === "invited" ? invitees : ([] as `0x${string}`[]),
         requiresQualification: false,
@@ -399,8 +407,40 @@ export function NewRfqForm() {
               <option value="invited">Invited — only listed suppliers may bid</option>
             </select>
             <span className="hint">
-              Bids stay sealed either way. This decides who is let in, not what they can see.
+              This decides who is let in, not what they can see — that is the next field.
             </span>
+          </div>
+
+          {/*
+            Two genuinely different products sharing one settlement layer, and the choice is the
+            buyer's per tender. The copy has to be straight about what open costs, because the
+            audit page will say it too: a tender whose prices were visible cannot claim nobody
+            could see them.
+          */}
+          <div className="field full">
+            <label htmlFor="bidmode">How bids are taken</label>
+            <select
+              id="bidmode"
+              value={bidMode}
+              onChange={(e) => setBidMode(e.target.value as "sealed" | "open")}
+            >
+              <option value="sealed">Sealed — nobody sees a price until the reveal window</option>
+              <option value="open">Open — every bid is public the moment it is placed</option>
+            </select>
+            {bidMode === "sealed" ? (
+              <span className="field-hint">
+                No supplier can price against a rival, and the award can be re-checked by anyone
+                against the sealed bids. This is the mode the integrity claim rests on.
+              </span>
+            ) : (
+              <div className="note warn">
+                <b>Open forfeits the sealed-bid guarantee, and the audit page will say so.</b>{" "}
+                Suppliers can watch each other and undercut, which is the point when speed and price
+                decide — and it also means they can watch each other and <i>hold</i> a price, which
+                a sealed round makes impossible. Suits commodity buying. For anything contestable,
+                or where you may have to show the award was fair, use sealed.
+              </div>
+            )}
           </div>
           {visibility === "invited" && (
             <div className="field full">

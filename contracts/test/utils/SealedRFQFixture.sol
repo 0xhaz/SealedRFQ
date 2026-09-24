@@ -23,7 +23,10 @@ abstract contract SealedRFQFixture is Test {
     uint128 internal constant DEPOSIT = 250_000;
     uint16 internal constant STAKE_BPS = 500; // 5% -> 0.15
     uint16 internal constant RETENTION_BPS = 1_000; // 10%
-    uint32 internal constant DELIVERY = 1 days;
+    /// Long enough for the bids this fixture places (21, 14 and 10 days). It was 1 day, which
+    /// nothing objected to while the window was unenforced — a tender whose winner could not
+    /// possibly have delivered inside it. The award-time check makes that incoherence visible.
+    uint32 internal constant DELIVERY = 30 days;
     uint32 internal constant ACCEPTANCE = 2 days;
     bytes32 internal constant RUBRIC = keccak256("rubric: price 50 / delivery 30 / quality 20");
     bytes32 internal constant MODEL = "deterministic-rubric-v1";
@@ -87,7 +90,8 @@ abstract contract SealedRFQFixture is Test {
             minDepositBps: 500, // deposit >= 5% of the bid price
             minBuyerStakeBps: 500,
             maxSupplierShareBps: 4_000,
-            concentrationFloor: 100 * USDC
+            concentrationFloor: 100 * USDC,
+            agentAwardCap: type(uint128).max
         });
     }
 

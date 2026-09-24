@@ -96,6 +96,14 @@ contract RFQRegistry is SealedBid {
 
         Bid storage b = _bids[rfqId][winner];
         if (!b.revealed) revert WinnerNotRevealed(winner);
+        // Checked here rather than at reveal, deliberately. A bid quoting more days than the tender
+        // allows is unawardable, but the supplier who placed it did so against a window they could
+        // read and should not lose their deposit for it — and reverting their reveal would leave
+        // them recorded as never having revealed, which is exactly how a deposit is forfeited.
+        // Refusing the award instead makes the bid worthless without making it costly.
+        if (r.deliveryWindow > 0 && uint256(b.deliveryDays) * 1 days > r.deliveryWindow) {
+            revert DeliveryExceedsWindow(b.deliveryDays, r.deliveryWindow);
+        }
         if (!attestationLog.isAttested(
                 awardSubject(rfqId, winner), evaluationHash, AttestationKinds.AWARD_RECOMMENDATION
             )) {
@@ -104,6 +112,14 @@ contract RFQRegistry is SealedBid {
 
         address buyer = r.buyer;
         uint256 price = b.price;
+        // A person spending their own money is not capped. An agent deciding unattended is: this is
+        // the line between "the machine recommends" and "the machine commits", and it is the only
+        // thing standing between an automated evaluation and a binding award on a supplier who
+        // never dealt with a human. §6d and §6g of the work plan.
+        if (msg.sender != r.buyer) {
+            uint128 cap = policy.policy().agentAwardCap;
+            if (price > cap) revert AgentAwardCapExceeded(price, cap);
+        }
         policy.checkAward(
             IProcurementPolicy.AwardCheck({
                 budget: r.budget,
@@ -223,6 +239,7 @@ contract RFQRegistry is SealedBid {
         r.deliveryWindow = p.deliveryWindow;
         r.acceptanceWindow = p.acceptanceWindow;
         r.transitWindow = p.transitWindow;
+        r.bidMode = p.bidMode;
         _milestones[rfqId] = p.milestoneBps;
         for (uint256 i; i < p.invitees.length; ++i) {
             _invited[rfqId][p.invitees[i]] = true;

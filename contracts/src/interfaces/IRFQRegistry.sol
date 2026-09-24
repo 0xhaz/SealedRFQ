@@ -33,6 +33,13 @@ interface IRFQRegistry {
         Cancelled
     }
 
+    /// @dev Sealed is zero, so anything that does not say is sealed — the safe default, and the
+    ///      mode that carries the integrity claim.
+    enum BidMode {
+        Sealed,
+        Open
+    }
+
     enum DepositState {
         None,
         Held,
@@ -58,6 +65,11 @@ interface IRFQRegistry {
         // Allowance for goods to reach the buyer when they never confirm receipt. Zero for a
         // deliverable that is a file, which leaves release timing exactly as it was.
         uint32 transitWindow;
+        /// Sealed is the default and the one that carries the integrity claim: no bidder ever
+        /// sees another's price. Open publishes each bid as it arrives, which suits commodity
+        /// buying where speed decides — and forfeits that claim, so an open tender says so on its
+        /// own audit page rather than inheriting language it has not earned.
+        BidMode bidMode;
         uint16[] milestoneBps; // split of the award price, sums to 10000
         /// RFP mode: every bid must carry a proposal document hash, not just a price.
         bool requiresProposal;
@@ -86,6 +98,7 @@ interface IRFQRegistry {
         uint32 deliveryWindow;
         uint32 acceptanceWindow;
         uint32 transitWindow;
+        BidMode bidMode;
         uint32 commitCount;
         uint32 revealCount;
         /// @dev The two cheapest revealed prices, kept as reveals arrive so the next-best
@@ -124,6 +137,15 @@ interface IRFQRegistry {
     );
     event InviteesAdded(uint256 indexed rfqId, address[] invitees);
     event RFQCancelled(uint256 indexed rfqId);
+    /// @notice An open-tender bid, published in the clear as it arrives.
+    event BidPlaced(
+        uint256 indexed rfqId,
+        address indexed bidder,
+        uint256 price,
+        uint32 deliveryDays,
+        bytes32 proposalHash,
+        uint256 deposit
+    );
     event BidCommitted(uint256 indexed rfqId, address indexed bidder, bytes32 commitHash, uint256 deposit);
     event BidRevealed(
         uint256 indexed rfqId,
@@ -163,6 +185,12 @@ interface IRFQRegistry {
     error AlreadyRevealed(address bidder);
     error CommitmentMismatch();
     error ZeroPrice();
+    /// @dev A sealed action on an open tender, or the reverse.
+    error WrongBidMode();
+    /// @dev The winning bid promised more days than the tender allows per milestone.
+    error DeliveryExceedsWindow(uint32 deliveryDays, uint32 windowSeconds);
+    /// @dev An agent awarded above what policy lets it decide without a person.
+    error AgentAwardCapExceeded(uint256 price, uint128 cap);
     error NotAuthorizedToAward(address caller);
     error WinnerNotRevealed(address winner);
     error EvaluationNotAttested(bytes32 evaluationHash);

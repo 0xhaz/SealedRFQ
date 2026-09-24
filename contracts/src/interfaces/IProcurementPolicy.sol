@@ -19,6 +19,12 @@ interface IProcurementPolicy {
         uint16 maxSupplierShareBps;
         /// Concentration cap only applies once the buyer's cumulative spend reaches this (6d USDC).
         uint128 concentrationFloor;
+        /// Most an AWARDER may commit without the buyer pressing the button themselves (6d USDC).
+        ///
+        /// The buyer is never capped — this bounds what an agent decides unattended. Zero disables
+        /// agent awards entirely, which is the fail-safe reading: a deployment that forgets to set
+        /// this gets a human in the loop rather than an uncapped robot. Set it deliberately.
+        uint128 agentAwardCap;
     }
 
     struct AwardCheck {

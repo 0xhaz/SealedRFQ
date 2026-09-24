@@ -32,6 +32,8 @@ contract SealedRFQAdapter is ISealedRFQAdapter, IACPHook, PullPayments, AccessCo
     bytes32 public constant AUTO_RELEASE = "AUTO_RELEASE";
     /// @notice `reason` recorded when a delivered milestone's job expired unreviewed.
     bytes32 public constant EXPIRED_AFTER_SUBMIT = "EXPIRED_AFTER_SUBMIT";
+    /// @notice Recorded when a delivery window closed with nothing submitted.
+    bytes32 public constant NOT_DELIVERED = "NOT_DELIVERED";
 
     IAgenticCommerce public immutable acp;
     IAttestationLog public immutable attestationLog;
@@ -185,13 +187,33 @@ contract SealedRFQAdapter is ISealedRFQAdapter, IACPHook, PullPayments, AccessCo
         Engagement storage e = _active(rfqId);
         uint256 jobId = e.currentJobId;
         IAgenticCommerce.Job memory job = acp.getJob(jobId);
-        if (
+        if (job.status == IAgenticCommerce.JobStatus.Funded && e.submittedAt == 0) {
+            /*
+             * Nothing was delivered and the window has shut, so there is nothing left to wait for.
+             *
+             * This used to wait out `job.expiredAt`, which sits a transit and two acceptance windows
+             * beyond the delivery deadline — and in that gap the supplier could not submit, the
+             * buyer could not accept or reject for want of a submission, and this reverted
+             * `NotExpired`. A stretch of time in which the contract permitted nothing at all.
+             *
+             * `reject` closes it without touching ERC-8183: on a funded job it is the *evaluator's*
+             * call, the adapter is its own evaluator, and it refunds the budget to the client, which
+             * is also the adapter. So the money comes back the moment the deadline passes.
+             */
+            if (block.timestamp <= e.deliveryDeadline) {
+                revert DeliveryWindowOpen(e.deliveryDeadline);
+            }
+            acp.reject(jobId, NOT_DELIVERED, "");
+        } else if (
             job.status == IAgenticCommerce.JobStatus.Funded
                 || job.status == IAgenticCommerce.JobStatus.Submitted
         ) {
             if (block.timestamp < job.expiredAt) revert NotExpired();
             acp.claimRefund(jobId);
-        } else if (job.status != IAgenticCommerce.JobStatus.Expired) {
+        } else if (
+            job.status != IAgenticCommerce.JobStatus.Expired
+                && job.status != IAgenticCommerce.JobStatus.Rejected
+        ) {
             revert WrongJobStatus();
         }
         uint128 refunded = e.currentJobBudget;
