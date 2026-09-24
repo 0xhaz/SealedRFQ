@@ -26,7 +26,7 @@ export default function DocsIndex() {
         </p>
       </section>
 
-      <div className="supplier-list">
+      <div className="panel-stack">
         {docs.map((d) => (
           <Link className="panel doc-card" href={`/docs/${d.slug}`} key={d.slug}>
             <div className="head">{d.title}</div>

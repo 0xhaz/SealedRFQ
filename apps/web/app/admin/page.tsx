@@ -36,7 +36,7 @@ export default async function AdminPage() {
         </p>
       </section>
 
-      <div className="supplier-list">
+      <div className="panel-stack">
         <div className="panel">
           <div className="head">
             Tenders

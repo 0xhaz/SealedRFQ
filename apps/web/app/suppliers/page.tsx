@@ -36,7 +36,7 @@ export default async function SupplierDirectory() {
         </p>
       </section>
 
-      <div className="supplier-list">
+      <div className="panel-stack">
         {suppliers.length === 0 && (
           <div className="panel">
             <div className="note">

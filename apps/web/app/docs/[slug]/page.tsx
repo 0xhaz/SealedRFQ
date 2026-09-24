@@ -21,7 +21,13 @@ export default async function DocPage({ params }: { params: Promise<{ slug: stri
       <Header />
       <div className="grid">
         <div className="col">
-          <article className="panel doc">
+          {/*
+            Not `doc`: that class is the landing page's decorative tender illustration — absolutely
+            positioned, 330px wide and tilted — so borrowing the name lifted this article out of
+            the layout and dropped it on top of the sidebar. The page-specific styles live under
+            `doc-body` and `doc-link`, which are unique.
+          */}
+          <article className="panel">
             <div className="head">{doc.title}</div>
             {/*
               The content is a file from this repository, read at build time — not anything a
