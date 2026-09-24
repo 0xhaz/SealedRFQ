@@ -998,13 +998,63 @@ replace it. Everything in §6c about hashes versus containers still applies.
 ---
 
 ## 7. Submission checklist
-- [ ] Contracts live and verified on Arc mainnet (chain 5042), addresses in the README
-- [ ] Mainnet role hardening done and the README table matches what is actually held (§6d)
-- [ ] Public GitHub repo; README covers what it does and what it uses Arc for
-- [ ] Live app link that opens (Vercel)
+
+**Programme terms, read 2026-09-24 — four of these change the plan.**
+
+Twenty microgrants of 500 USDC from a 10,000 pool. Submissions close **14 Oct 2026, 23:59 ET**,
+reviewed **on a rolling basis**, every decision issued by 21 Oct. Earlier submissions get earlier
+answers.
+
+1. **Testnet-only builds are explicitly ineligible.** A working mainnet deployment is now a hard
+   requirement, not a later milestone. §6d moves from optional hardening to blocking work.
+2. **Mainnet is a separate deployment, not an overwrite.** Chain 5042, its own addresses, its own
+   `5042.json`, and `lib/chain.ts` must register it — the build throws a deliberate error otherwise.
+   That guard exists because pointing the build at mainnet once gave it mainnet chain settings with
+   *testnet addresses*: a wallet on real money calling contracts that do not hold it. The testnet
+   deployment stays live and keeps its explorer links.
+3. **Rolling review with a fixed pool.** Submitting early has real value beyond comfort — slots may
+   go as they are reviewed. The bar is *"something real that runs"* and *"promise counts for more
+   than traction"*, so submit when it genuinely works, not when it is complete.
+4. **The bundle does not go to mainnet.** Earlier sequencing said one bundled redeploy carrying open
+   mode, §6b and gap 4. That was written when the schedule was not binding and mainnet was optional.
+   It is now reversed: **deploy to mainnet only what has been walked end to end on testnet.**
+   Unproven features on a chain that moves real money, days before a judged submission, is the worst
+   possible time to find a bug. The bundle goes to testnet after the grant decision.
+
+**Do not renounce admin before the decision on 21 Oct.** §6e's fee lock and §6d's role renunciation
+are irreversible by design. Between submitting and being judged, the ability to fix something is
+worth more than the trust claim is at that moment. Deploy mainnet with `platformFeeBP = 0`, keep the
+keys, and lock the fee once the product has been exercised by someone other than us. The README
+table must say what is *actually* held at the time it is read.
+
+### Order of work
+
+- [ ] **Walk the current testnet deployment end to end.** Nothing else counts until what is already
+      live is known to work — first real exercise of receipt confirmation, transit windows,
+      extensions and compensatory settlement
+- [ ] `DATABASE_URL=file:./data/sealedrfq-v2.db` on Railway, `/stats` reporting zero RFQs first
+- [ ] Testnet contracts verified — blocked on the explorer, retry `verify-testnet.sh`
+- [ ] `CORS_ORIGIN` set to the web domain
+- [ ] Custom domain, to clear the MetaMask `vercel.app` flag
+- [ ] **Repo public** — a hard requirement, and currently private
+- [ ] Fund the mainnet deployer with USDC on Arc for gas (~0.63 USDC at testnet rates; check mainnet)
+- [ ] Deploy to mainnet, **addresses taken from the broadcast receipts and confirmed to hold code**
+      (§6d — the testnet deploy wrote five addresses that held nothing)
+- [ ] `5042.json` into `apps/web/lib/deployments/` and registered in `lib/chain.ts`
+- [ ] Agent pointed at mainnet with a fresh `DATABASE_URL`
+- [ ] Contracts verified on mainnet, addresses in the README
+- [ ] **One real tender end to end on mainnet.** "Deployed and working" is the bar, and a deployment
+      nobody has transacted against is not evidence of either
+- [ ] README covers what it does and what it uses Arc for
+- [ ] Live app link that opens
 - [ ] `DORAHACKS.md` evidence pack with one explorer link per lifecycle step
-- [ ] Public builder profile (GitHub / X)
-- [ ] BUIDL page: short description + links + video
-- [ ] 2–3 min demo video
+- [ ] Public builder profile (GitHub / X / Farcaster)
 - [ ] No Faktura/Casper strings or assets left anywhere: `grep -ri "faktura\|casper\|cspr" apps/web` returns nothing
-- [ ] Submitted by **Oct 12**
+- [ ] Submit — **as soon as it works**, not on the closing date
+
+### Deliberately not before submission
+
+Open `bidMode` (§6f), the contract-level delivery-window check (§6b), gap 4's dead zone, spending
+tiers and evidence requirements (§6g), discovery (§6f). All recorded, none on the critical path. A
+submission judged on *"the quality of what you built and whether it is worth taking further"* is
+better served by one thing that demonstrably works than by five that are new.
