@@ -16,9 +16,14 @@ export function Header() {
       <Link className="chip" href="/suppliers">
         Suppliers
       </Link>
-      <a className="chip" href="https://github.com/0xhaz/SealedTender" target="_blank" rel="noreferrer">
-        ⭐ GitHub
-      </a>
+      {/*
+        Documentation rather than the repository. Someone asking how a tender works should not be
+        sent to a source tree to find out; the source is for people who want to check the answer,
+        and that link belongs in the footer where they will look for it.
+      */}
+      <Link className="chip" href="/docs">
+        Docs
+      </Link>
     </header>
   );
 }

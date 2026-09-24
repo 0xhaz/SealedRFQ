@@ -6251,3 +6251,117 @@ button.field-wallet {
   flex-direction: column;
   gap: 18px;
 }
+
+/*
+ * Documentation rendered from the repository's own markdown.
+ *
+ * Deliberately narrower than the tender pages. A tender is a table of figures that wants width; a
+ * paragraph of prose read at full width makes the eye lose its place returning to the next line,
+ * which is why every publication that cares settles somewhere near 70 characters.
+ */
+.doc-body {
+  padding: 18px 26px 26px;
+  max-width: 74ch;
+  font-size: 14.5px;
+  line-height: 1.7;
+}
+.doc-body h2 {
+  font-family: var(--serif);
+  font-size: 20px;
+  margin: 30px 0 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.doc-body h3 {
+  font-family: var(--serif);
+  font-size: 16px;
+  margin: 22px 0 8px;
+}
+.doc-body p {
+  margin: 0 0 14px;
+}
+.doc-body ul,
+.doc-body ol {
+  margin: 0 0 14px;
+  padding-left: 22px;
+}
+.doc-body li {
+  margin-bottom: 6px;
+}
+.doc-body code {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.doc-body pre {
+  background: var(--ink);
+  color: #f4f1e8;
+  padding: 14px 16px;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+.doc-body pre code {
+  background: none;
+  color: inherit;
+  padding: 0;
+}
+.doc-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 16px;
+  font-size: 13.5px;
+}
+.doc-body th,
+.doc-body td {
+  text-align: left;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.doc-body th {
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.doc-body blockquote {
+  margin: 0 0 14px;
+  padding: 2px 0 2px 14px;
+  border-left: 3px solid var(--line);
+  color: var(--muted);
+}
+
+/* The index: whole cards are the target, so the cursor should say so. */
+.doc-card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+.doc-card:hover {
+  border-color: var(--amber);
+}
+
+.doc-link {
+  display: block;
+  padding: 9px 20px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13.5px;
+  text-decoration: none;
+  color: inherit;
+}
+.doc-link:last-child {
+  border-bottom: none;
+}
+.doc-link:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+.doc-link.current {
+  font-weight: 700;
+  border-left: 3px solid var(--ink);
+  padding-left: 17px;
+}
