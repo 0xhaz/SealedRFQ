@@ -396,20 +396,41 @@ export function NewRfqForm() {
               <option value="RFP">RFP — suppliers propose a solution; method is judged too</option>
             </select>
           </div>
-          <div className="field full">
-            <label htmlFor="visibility">Visibility</label>
-            <select
-              id="visibility"
-              value={visibility}
-              onChange={(e) => setVisibility(e.target.value as "public" | "invited")}
-            >
-              <option value="public">Open — any supplier may bid</option>
-              <option value="invited">Invited — only listed suppliers may bid</option>
-            </select>
+          {/*
+            Two options each, and both are decisions rather than settings — a dropdown hides the
+            alternative behind a click and reads as a default nobody chose. Radios put the choice
+            and its consequence side by side, which is what these two need.
+          */}
+          <fieldset className="field full choice">
+            <legend>Visibility</legend>
+            <label className={visibility === "public" ? "opt selected" : "opt"}>
+              <input
+                type="radio"
+                name="visibility"
+                checked={visibility === "public"}
+                onChange={() => setVisibility("public")}
+              />
+              <span>
+                <b>Open to all</b>
+                <em>Any supplier may bid.</em>
+              </span>
+            </label>
+            <label className={visibility === "invited" ? "opt selected" : "opt"}>
+              <input
+                type="radio"
+                name="visibility"
+                checked={visibility === "invited"}
+                onChange={() => setVisibility("invited")}
+              />
+              <span>
+                <b>Invited only</b>
+                <em>Only the suppliers you list can bid. Enforced by the contract.</em>
+              </span>
+            </label>
             <span className="hint">
-              This decides who is let in, not what they can see — that is the next field.
+              This decides who is let in, not what they can see — that is the next choice.
             </span>
-          </div>
+          </fieldset>
 
           {/*
             Two genuinely different products sharing one settlement layer, and the choice is the
@@ -417,31 +438,47 @@ export function NewRfqForm() {
             audit page will say it too: a tender whose prices were visible cannot claim nobody
             could see them.
           */}
-          <div className="field full">
-            <label htmlFor="bidmode">How bids are taken</label>
-            <select
-              id="bidmode"
-              value={bidMode}
-              onChange={(e) => setBidMode(e.target.value as "sealed" | "open")}
-            >
-              <option value="sealed">Sealed — nobody sees a price until the reveal window</option>
-              <option value="open">Open — every bid is public the moment it is placed</option>
-            </select>
-            {bidMode === "sealed" ? (
-              <span className="field-hint">
-                No supplier can price against a rival, and the award can be re-checked by anyone
-                against the sealed bids. This is the mode the integrity claim rests on.
+          <fieldset className="field full choice">
+            <legend>How bids are taken</legend>
+            <label className={bidMode === "sealed" ? "opt selected" : "opt"}>
+              <input
+                type="radio"
+                name="bidmode"
+                checked={bidMode === "sealed"}
+                onChange={() => setBidMode("sealed")}
+              />
+              <span>
+                <b>Sealed</b>
+                <em>
+                  Nobody sees a price until the reveal window. No supplier can price against a
+                  rival, and the award can be re-checked against the sealed bids afterwards.
+                </em>
               </span>
-            ) : (
+            </label>
+            <label className={bidMode === "open" ? "opt selected" : "opt"}>
+              <input
+                type="radio"
+                name="bidmode"
+                checked={bidMode === "open"}
+                onChange={() => setBidMode("open")}
+              />
+              <span>
+                <b>Open</b>
+                <em>
+                  Every bid is public the moment it is placed. Suits commodity buying where price
+                  and speed decide.
+                </em>
+              </span>
+            </label>
+            {bidMode === "open" && (
               <div className="note warn">
                 <b>Open forfeits the sealed-bid guarantee, and the audit page will say so.</b>{" "}
-                Suppliers can watch each other and undercut, which is the point when speed and price
-                decide — and it also means they can watch each other and <i>hold</i> a price, which
-                a sealed round makes impossible. Suits commodity buying. For anything contestable,
-                or where you may have to show the award was fair, use sealed.
+                Suppliers who can watch each other to undercut can also watch each other to{" "}
+                <i>hold</i> a price, which a sealed round makes impossible. For anything
+                contestable, or where you may have to show the award was fair, use sealed.
               </div>
             )}
-          </div>
+          </fieldset>
           {visibility === "invited" && (
             <div className="field full">
               <label htmlFor="invitees">Invited suppliers</label>

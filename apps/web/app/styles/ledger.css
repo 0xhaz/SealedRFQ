@@ -6365,3 +6365,62 @@ button.field-wallet {
   border-left: 3px solid var(--ink);
   padding-left: 17px;
 }
+
+/*
+ * A binary choice, shown as two labelled options rather than a dropdown.
+ *
+ * Both places this is used — who may bid, and whether bids are sealed — are decisions with
+ * consequences, not preferences. A dropdown hides the alternative behind a click and presents
+ * whatever is selected as a default nobody chose; two rows put each option beside what it means and
+ * make the choice look like one.
+ */
+.choice {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+.choice legend {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0;
+  margin-bottom: 8px;
+}
+.choice .opt {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  background: var(--card);
+}
+.choice .opt:hover {
+  border-color: var(--ink);
+}
+/* The selected option carries a heavier edge, so the choice survives being printed or read in
+   greyscale rather than depending on the radio dot alone. */
+.choice .opt.selected {
+  border-color: var(--ink);
+  box-shadow: inset 3px 0 0 var(--ink);
+}
+.choice .opt input {
+  margin-top: 3px;
+  flex: none;
+}
+.choice .opt b {
+  display: block;
+  font-size: 13.5px;
+}
+.choice .opt em {
+  display: block;
+  font-style: normal;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+  margin-top: 2px;
+}

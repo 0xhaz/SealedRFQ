@@ -25,19 +25,22 @@ export type DocMeta = {
 };
 
 /**
- * The order pages appear in, and the reason it is fixed here rather than alphabetical.
+ * Which pages appear in the app, and in what order.
  *
- * Someone arriving cold needs the lifecycle before the architecture, and a supplier deciding
- * whether to bid needs their own page before either. Alphabetical would open on "architecture",
- * which is the right page for perhaps one reader in twenty.
+ * An explicit list rather than "whatever is in the folder", for two reasons. Order matters:
+ * someone arriving cold needs the lifecycle before anything else, and alphabetical would open on
+ * whichever file happens to sort first. And membership matters more — `docs/` also holds notes
+ * written for contributors, and a file landing there should not publish itself to every visitor
+ * because nobody remembered it would.
+ *
+ * Adding a page here is the deliberate act of publishing it.
  */
-const ORDER = [
+const PUBLISHED = [
   "how-it-works",
   "for-buyers",
   "for-suppliers",
+  "building-a-supplier-agent",
   "verifying-a-decision",
-  "architecture",
-  "techstack",
 ];
 
 function titleOf(markdown: string, slug: string): string {
@@ -57,24 +60,23 @@ function summaryOf(markdown: string): string {
 }
 
 export function listDocs(): DocMeta[] {
-  const files = readdirSync(DOCS_DIR).filter((f) => f.endsWith(".md"));
-  const metas = files.map((f) => {
-    const slug = f.replace(/\.md$/, "");
-    const md = readFileSync(join(DOCS_DIR, f), "utf8");
+  const present = new Set(
+    readdirSync(DOCS_DIR)
+      .filter((f) => f.endsWith(".md"))
+      .map((f) => f.replace(/\.md$/, "")),
+  );
+  // A published page naming a file that no longer exists would render an empty panel, so it is
+  // dropped here and the missing file shows up as a shorter sidebar rather than a broken link.
+  return PUBLISHED.filter((slug) => present.has(slug)).map((slug) => {
+    const md = readFileSync(join(DOCS_DIR, `${slug}.md`), "utf8");
     return { slug, title: titleOf(md, slug), summary: summaryOf(md) };
-  });
-  return metas.sort((a, b) => {
-    const ia = ORDER.indexOf(a.slug);
-    const ib = ORDER.indexOf(b.slug);
-    // Anything not named in ORDER sorts after everything that is, then alphabetically — so a new
-    // file appears rather than silently vanishing from the sidebar.
-    return (ia < 0 ? ORDER.length : ia) - (ib < 0 ? ORDER.length : ib) || a.slug.localeCompare(b.slug);
   });
 }
 
 export function readDoc(slug: string): { title: string; html: string } | null {
-  // The slug comes from a URL, so it must not be able to walk out of the docs directory.
-  if (!/^[a-z0-9-]+$/.test(slug)) return null;
+  // The slug comes from a URL, so it must not be able to walk out of the docs directory — and it
+  // must not reach a file that was deliberately left unpublished either.
+  if (!/^[a-z0-9-]+$/.test(slug) || !PUBLISHED.includes(slug)) return null;
   let md: string;
   try {
     md = readFileSync(join(DOCS_DIR, `${slug}.md`), "utf8");

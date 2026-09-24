@@ -12,11 +12,16 @@ describe("docs index", () => {
   });
 
   it("orders for someone arriving cold, not alphabetically", () => {
-    // Alphabetical opens on "architecture", which is the right page for about one reader in
-    // twenty. The lifecycle comes first, then the two guides.
     const slugs = docs.map((d) => d.slug);
     expect(slugs[0]).toBe("how-it-works");
-    expect(slugs.indexOf("for-buyers")).toBeLessThan(slugs.indexOf("architecture"));
+    expect(slugs.indexOf("for-buyers")).toBeLessThan(slugs.indexOf("verifying-a-decision"));
+  });
+
+  it("publishes only what is named, so a contributor note cannot leak into the app", () => {
+    const slugs = docs.map((d) => d.slug);
+    expect(slugs).not.toContain("architecture");
+    expect(slugs).not.toContain("techstack");
+    expect(readDoc("architecture")).toBeNull();
   });
 
   it("gives every page a title and a summary line", () => {
