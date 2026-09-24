@@ -723,6 +723,83 @@ the side effect: with real inference behind it, the $0.05 x402 price finally cov
 
 ---
 
+## 6f. Open tenders and agent-to-agent negotiation (assessed 2026-09-24)
+
+### What exists today
+
+Sealing is not a setting. `visibility` chooses **who may bid** — public or invited — and every bid
+goes through commit–reveal regardless. There is no open-bid path in the contracts at all.
+
+### The case for adding one
+
+Agent-to-agent negotiation is incompatible with a *sealed* tender, and not marginally: asking
+"would you accept 9.80?" is showing one supplier a number derived from rivals' bids and inviting
+them to beat it. That is the favour sealed bidding exists to prevent, and the clarification round
+already refuses it in those terms.
+
+But that objection is specific to sealing. In an **open** tender nothing is concealed, so nothing
+leaks, and agents on both sides are genuinely symmetric: the supplier's agent holds a floor and
+cannot be worn down at two in the morning the way a salesperson can, and the buyer's holds a ceiling
+and does not overpay out of fatigue. Neither side needs a human present for a commodity order.
+
+**It is also cheaper to build than it first appears.** Negotiation can happen entirely off-chain —
+the chain needs the agreed price and the award, not the haggling. Escrow, milestones, receipt
+confirmation, transit windows, compensatory settlement and auto-release all carry over untouched.
+Only price discovery changes.
+
+### What actually changes: the claim
+
+| | Sealed | Open with agents |
+|---|---|---|
+| What the chain proves | the award matches the sealed bids and the published rubric | the award matches what the parties agreed |
+| Suits | contestable purchases, regulated buyers who must evidence fairness | commodity buying where speed and price decide |
+
+Both are honest, and `/audit/:id` currently makes the sealed claim **unconditionally**. A second mode
+means the audit page has to state which mode a tender ran in, or it overclaims on half of them.
+
+So this is not sealed-or-negotiated as a product. It is a **mode the buyer picks per tender**, and
+the settlement layer is shared.
+
+### The risk worth weighing before building it
+
+In an open reverse auction where supplier agents can observe each other's prices, agents can tacitly
+collude — signal a floor and hold it. This is well documented in algorithmic pricing, and it is
+*worse* with agents than with people because they iterate quickly and converge. Sealed bids resist
+it structurally: you cannot signal to someone who cannot see you.
+
+That is the strongest argument for keeping sealed as the default even where participation is open,
+and it is the reason a `bidMode` flag should not be presented as a free choice between equals.
+
+### What it would take
+
+- `bidMode` on the RFQ: `sealed` (today's commit–reveal) or `open` (price in the clear on submission)
+- An open path in the contracts that does not require a reveal, with the deposit rules unchanged
+- Negotiation off-chain — supplier agent endpoints, or signed messages in the clarifications pattern
+- Award unchanged: still an attested decision memo, so the record works the same way
+- The audit page and the tender pack labelled with the mode
+
+### Testing discipline — and why testnet is necessary but not sufficient here
+
+Testnet first, obviously, and nothing reaches mainnet that has not been walked end to end there.
+That is already the rule and §6d's checklist enforces it.
+
+**But this feature has a failure mode testnet cannot surface.** Tacit collusion only appears between
+*independent, adversarial* agents. Three personas whose keys we hold will do exactly what we tell
+them, so a clean testnet run proves the mechanics work and says nothing about whether the auction is
+collusion-resistant. Treat a successful testnet walkthrough of open mode as evidence the plumbing is
+sound and **not** as evidence the market design is. The honest way to test the latter is adversarial
+simulation — agents with private floors, run many times — before it touches real money.
+
+### Position
+
+Not before **Oct 12**. There is a live deployment nobody has walked end to end, contracts pending
+verification, and a repo still private. Recorded here because it is a better positioning story than
+the physical-goods one — *the buyer chooses: sealed when integrity matters, open with agents when
+speed does, and the same escrow settles both* — and because the collusion caveat should be written
+down while the reasoning is fresh rather than rediscovered later.
+
+---
+
 ## 7. Submission checklist
 - [ ] Contracts live and verified on Arc mainnet (chain 5042), addresses in the README
 - [ ] Mainnet role hardening done and the README table matches what is actually held (§6d)
