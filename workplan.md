@@ -1027,6 +1027,45 @@ worth more than the trust claim is at that moment. Deploy mainnet with `platform
 keys, and lock the fee once the product has been exercised by someone other than us. The README
 table must say what is *actually* held at the time it is read.
 
+### Hosting: reuse the existing deployment, do not build a second one (decided 2026-09-24)
+
+The same Vercel project and the same Railway service carry mainnet. Switching chain is **purely
+environment variables** — there is no new infrastructure to stand up, and standing one up would buy
+less than it costs.
+
+| | Change for mainnet |
+|---|---|
+| Vercel | `NEXT_PUBLIC_ARC_CHAIN_ID=5042`, commit `5042.json`, register it in `lib/chain.ts` |
+| Railway | `ARC_CHAIN_ID=5042`, `ARC_RPC_URL=<mainnet>`, a **third** `DATABASE_URL` |
+
+**The sequencing trap: walk the testnet deployment before flipping.** The moment it is switched
+there is no hosted testnet, and the walkthrough is what proves receipt confirmation, transit windows
+and compensatory settlement work at all. Flip first and those are exercised for the first time on a
+chain that moves real money.
+
+**What flipping costs, stated honestly.** Afterwards "test on testnet first" becomes "test locally
+first". `tools/local.sh` runs the whole stack on a throwaway chain with a clock that fast-forwards,
+which is better than testnet for contract logic. But the bugs this project has actually hit were
+none of them contract logic: a Railway port mismatch, a blank `NEXT_PUBLIC_AGENT_URL` turning every
+agent call into a same-origin 404, a gitignored file that broke the Vercel build, Blockscout rate
+limits reported as build failures. **Local reproduces none of that class.** Accept the trade
+knowingly rather than discovering it.
+
+Cheap partial mitigation: a Vercel preview deployment on a branch pinned to
+`NEXT_PUBLIC_ARC_CHAIN_ID=5042002` gives a testnet frontend for nothing. Railway is the harder half;
+add a second service before the post-grant bundle, not now.
+
+**Three things not to lose in the flip:**
+
+- **The testnet contracts stay on-chain.** Switching the hosted apps destroys nothing. Tenders run
+  against them and their explorer links remain valid, so the evidence already built survives.
+- **A third database.** v1 held the retired contracts, v2 holds the current testnet, mainnet needs
+  its own. Reusing v2 silently drops mainnet's RFQ 1 — `onConflictDoNothing`, no error, never
+  appears on the board.
+- **Role keys need USDC on mainnet.** `ADMIN_PK`, `EVALUATOR_PK`, `AWARDER_PK`, `VERIFIER_PK` and
+  `ARBITER_PK` are funded on testnet only. Without gas the agent cannot attest or award, and that
+  failure presents as the evaluator quietly not running rather than as an error.
+
 ### Order of work
 
 - [ ] **Walk the current testnet deployment end to end.** Nothing else counts until what is already
@@ -1037,11 +1076,15 @@ table must say what is *actually* held at the time it is read.
 - [ ] `CORS_ORIGIN` set to the web domain
 - [ ] Custom domain, to clear the MetaMask `vercel.app` flag
 - [ ] **Repo public** — a hard requirement, and currently private
-- [ ] Fund the mainnet deployer with USDC on Arc for gas (~0.63 USDC at testnet rates; check mainnet)
+- [ ] Fund the mainnet deployer **and all four role keys** with USDC on Arc mainnet (~0.63 USDC for
+      the deploy at testnet rates; check mainnet). An unfunded EVALUATOR looks like the scheduler
+      silently not running
 - [ ] Deploy to mainnet, **addresses taken from the broadcast receipts and confirmed to hold code**
       (§6d — the testnet deploy wrote five addresses that held nothing)
 - [ ] `5042.json` into `apps/web/lib/deployments/` and registered in `lib/chain.ts`
-- [ ] Agent pointed at mainnet with a fresh `DATABASE_URL`
+- [ ] Flip the existing Vercel project and Railway service to mainnet — `NEXT_PUBLIC_ARC_CHAIN_ID`,
+      `ARC_CHAIN_ID`, `ARC_RPC_URL`, and a third `DATABASE_URL`. Only after the testnet walkthrough
+      is done, because the hosted testnet goes away with it
 - [ ] Contracts verified on mainnet, addresses in the README
 - [ ] **One real tender end to end on mainnet.** "Deployed and working" is the bar, and a deployment
       nobody has transacted against is not evidence of either
