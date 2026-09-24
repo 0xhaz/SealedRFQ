@@ -799,6 +799,48 @@ collusion-resistant. Treat a successful testnet walkthrough of open mode as evid
 sound and **not** as evidence the market design is. The honest way to test the latter is adversarial
 simulation — agents with private floors, run many times — before it touches real money.
 
+### "Machine-readable economic intent" — assessed 2026-09-24
+
+A proposal to generalise the primitive from an RFQ to an *intent*: a JSON object stating what is
+wanted and under what constraints, with the network finding counterparties. **Intent → discovery →
+competition → negotiation → execution → payment → reputation.**
+
+**Most of this already exists, in a better-typed form than the proposal.** The RFQ metadata is
+machine-readable intent — scope, rubric, line items, shipment terms and a zod-validated
+`Requirements` schema, all fixed by `metadataHash` before bidding so it cannot drift afterwards.
+
+The encoding in the proposal is a step backwards. It writes constraints as strings containing
+predicates — `"price": "< $0.002/request"` — which something has to parse and both sides have to
+agree the meaning of. Ours are typed: `maxDeliveryDays: number`, checked against the revealed bid.
+That matters because `checkRequirements` returns `{ failed, unverified }`, separating what it can
+actually verify from what needs a person. A string predicate cannot make that distinction; it is
+either parsed, fragilely and wrongly in silence, or ignored. Do not adopt it.
+
+**The genuinely missing link is discovery.** Of that chain we have competition, execution, payment
+and reputation, and §6f covers negotiation. Nothing matches an intent to suppliers — the directory
+lists who has bid, it does not answer "who could supply this?". That is the real gap, and naming it
+as a gap is more useful than treating the whole thing as a reframe.
+
+**Why the primitive stays an RFQ.** An intent is cheap to emit. An RFQ here is deliberately
+expensive: **funded before it opens**, with budget and buyer stake escrowed at the moment of
+posting. That is what makes it credible enough for a supplier to risk a deposit bidding on it, and
+what makes forfeiting that deposit fair when they do not reveal.
+
+Generalise to "intent" and one of two things follows. Either intents carry no money — in which case
+no supplier has reason to post a deposit against one, and sealed bidding collapses along with the
+deposit forfeiture that makes a sealed bid binding rather than a free option. Or they do carry
+money, in which case it is an RFQ with a different name. The funding commitment is not packaging
+around the intent; it is the thing that makes everything downstream work.
+
+**On the positioning — decline it.** "An economic coordination layer for AI agents" is grander and
+vaguer, and it does not contain the differentiator. *Sealed bids nobody can peek at, with an award
+anyone can re-check* is narrower and far harder for a competitor to claim.
+
+Worth noting the worked example is GPU compute and API requests — the same digital-services
+conclusion §6c and §6e reached independently, by different routes. Three arrivals at *start where
+the deliverable is something a hash can prove* is a strong signal, and it keeps pointing away from
+the physical-goods layer rather than towards it.
+
 ### Position (revised 2026-09-24 — deadline pressure lifted)
 
 Sealed stays the **default and the identity**. Escrow with milestones is a crowded space and §6c
@@ -815,6 +857,9 @@ Sequencing, now that the schedule is not the binding constraint:
    so everything that needs one should go together: open `bidMode`, §6b's contract-level
    delivery-window check, and §6c gap 4's dead zone.
 4. Spending tiers and evidence requirements (§6g) — no contract change, can land any time.
+5. **Discovery** — matching an intent to suppliers who could supply it. The one link in the chain
+   above that nothing here addresses, and the prerequisite for any agent-to-agent story: a supplier
+   agent cannot bid on a tender it never saw.
 
 *The buyer chooses: sealed when integrity matters, open with agents when speed does, and the same
 escrow settles both.* That is the positioning line, and it is stronger than the physical-goods one.
