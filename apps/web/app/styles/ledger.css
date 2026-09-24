@@ -6260,7 +6260,12 @@ button.field-wallet {
  * which is why every publication that cares settles somewhere near 70 characters.
  */
 .doc-body {
-  padding: 18px 26px 26px;
+  /*
+   * Generous at the top because the panel header's rule above it is 2px and dark. A hairline can
+   * be sat close to; a heavy rule reads as crowded at the same distance, and prose starting
+   * immediately under one looks like it is being pressed down on.
+   */
+  padding: 30px 26px 30px;
   max-width: 74ch;
   font-size: 14.5px;
   line-height: 1.7;
@@ -6359,7 +6364,7 @@ button.field-wallet {
 
 .doc-link {
   display: block;
-  padding: 9px 20px;
+  padding: 10px 20px;
   border-bottom: 1px solid var(--line);
   font-size: 13.5px;
   text-decoration: none;
@@ -6367,6 +6372,10 @@ button.field-wallet {
 }
 .doc-link:last-child {
   border-bottom: none;
+}
+/* Same reasoning as the body: the first entry sits under the panel's heavy rule, not a hairline. */
+.doc-link:first-of-type {
+  padding-top: 16px;
 }
 .doc-link:hover {
   background: rgba(0, 0, 0, 0.03);
