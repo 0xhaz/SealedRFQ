@@ -616,7 +616,10 @@ authority.** After any deploy, read `broadcast/Deploy.s.sol/<chainId>/run-latest
 `eth_getCode` returns bytecode at each address, and only then trust the JSON.
 
 **Mainnet, before the first real tender:**
-- [ ] Confirm `platformFeeBP` and `evaluatorFeeBP` are `0`
+- [ ] `setPlatformFee(rate, treasury)` at the rate decided in §6e — treasury address confirmed twice
+- [ ] Confirm `evaluatorFeeBP` is `0` and will stay there (stuck-funds bug, §6e)
+- [ ] Renounce **both** `ADMIN_ROLE` and `DEFAULT_ADMIN_ROLE` on AgenticCommerce, in that order, and
+      read both back as false — renouncing only the first leaves the second able to grant it back
 - [ ] Decide `AWARDER` deliberately. Holding it means the agent can award unattended — convenient,
       and also fully automated decision-making binding a supplier, which is GDPR Art 22 territory
       and contrary to the procurement norm of a human award. A buyer can always award themselves,
@@ -688,6 +691,60 @@ that makes our directory credible, which is that it refuses to certify what it h
 
 **Position for submission:** do not monetise. Near-zero marginal cost because users pay their own
 gas is the interesting finding, and it is a stronger claim than invented revenue.
+
+### Decision, 2026-09-24: a fixed transaction fee, locked by renouncing the power to change it
+
+**Primary — transaction fee.** `platformFeeBP`, set once at a published rate, **then made immutable
+by giving up the ability to change it.** That last step is what makes this work rather than being
+the compromise §6d warned about.
+
+Set the fee and keep the keys, and the README table has to admit the operator can raise it to 100%
+on escrow already funded. Set it and then renounce, and the claim becomes something no procurement
+platform can match: *this rate is in the contract, it cannot be raised, and you can check that
+yourself with `hasRole`.* The tension in §6d was never the fee — it was the discretion.
+
+**Both roles must go, and this is easy to get half-right.** On `AgenticCommerce`,
+`ADMIN_ROLE = keccak256("ADMIN_ROLE")` is a *separate* role from `DEFAULT_ADMIN_ROLE`; the
+constructor grants both. `setPlatformFee` is gated on the former, but the latter can grant it back.
+Renouncing only `ADMIN_ROLE` produces a guarantee that is not one. Renounce both, in that order,
+and verify with `hasRole` for each before announcing anything.
+
+**Order of operations, once and irreversibly:**
+1. `setPlatformFee(rate, treasury)` — confirm the treasury address twice; it cannot be changed after
+2. Confirm `evaluatorFeeBP` is `0`. It must stay zero permanently: jobs are created with the adapter
+   as their own evaluator, so that fee transfers USDC to a contract that never credits it to anyone
+   and it is unrecoverable by us or by anybody
+3. `renounceRole(ADMIN_ROLE, self)`
+4. `renounceRole(DEFAULT_ADMIN_ROLE, self)`
+5. Read both back as `false`, and update the README table
+
+**The fee comes out of the supplier's payment, and that must be disclosed.** It is deducted from
+each milestone at release, not added on top, so a supplier awarded 2.80 receives 2.80 less the fee.
+Publishing the rate in the generated terms and showing the net figure on the bid form is not
+optional politeness — an undisclosed deduction from a sealed bid is the kind of thing that makes
+the fairness claim worthless. Both surfaces already quote figures; this is one more.
+
+**The arithmetic.** Marginal cost is one attestation, about 0.0025 USDC, so at 0.1% a tender pays
+for itself above roughly $2.50 of value. Fixed hosting dominates: at a plausible $25/month, it takes
+on the order of $25,000 of monthly tender value to break even. That is the number to watch, not the
+per-transaction margin.
+
+**Secondary — the hosted agent (Option C), priced separately.** Indexing, the document store,
+discovery, quote normalisation. It touches no escrow and needs no privileged role, so it stays clean
+alongside a locked fee. Take the infrastructure, **not** the "risk scoring": that is the single
+number §6c and §6g both refuse, for the same reason.
+
+**Rejected — supplier pays for RFQ access (Option B).** It creates a tier of suppliers who see
+tenders others do not, which is the opposite of open competition and corrodes the only claim that
+distinguishes this product. A supplier who never saw a tender could not bid on it, and no amount of
+audit trail repairs that. It is also Alibaba's Gold Supplier model, which §6e already ruled out for
+the directory on the same grounds.
+
+**Rejected — settlement fee via x402 (Option D).** It does not exist in this architecture. x402 is
+the paywall on the evaluator endpoint; settlement runs through the escrow contract and x402 never
+touches it. A fee on settlement here *is* Option A. The warning attached to the proposal — that x402
+is an open standard with zero protocol fees and should not be anyone's moat — is right, and is
+already the position in this section: x402 demonstrates the rail and earns nothing.
 
 ### Does the evaluator need a model? Mostly no — and `mock` is a misleading name
 
