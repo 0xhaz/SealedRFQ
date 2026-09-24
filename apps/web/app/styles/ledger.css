@@ -70,6 +70,19 @@ body::before {
   padding: 6px 0 16px;
   border-bottom: 2px solid var(--ink);
 }
+/*
+ * Content that follows the header directly needs the space a section heading would have supplied.
+ *
+ * `.header` ends in a 2px rule and carries no bottom margin, which is right on the pages that put
+ * a `.desk-head` underneath — its own padding does the work. A page that goes straight to its
+ * content had panels sitting flush against that rule, touching a heavy line with nothing between.
+ */
+.header + .grid,
+.header + .panel-stack,
+.header + .panel {
+  margin-top: 26px;
+}
+
 .wordmark {
   font-family: var(--serif);
   font-weight: 900;
