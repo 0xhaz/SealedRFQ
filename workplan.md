@@ -742,10 +742,19 @@ leaks, and agents on both sides are genuinely symmetric: the supplier's agent ho
 cannot be worn down at two in the morning the way a salesperson can, and the buyer's holds a ceiling
 and does not overpay out of fatigue. Neither side needs a human present for a commodity order.
 
-**It is also cheaper to build than it first appears.** Negotiation can happen entirely off-chain —
-the chain needs the agreed price and the award, not the haggling. Escrow, milestones, receipt
-confirmation, transit windows, compensatory settlement and auto-release all carry over untouched.
-Only price discovery changes.
+**It is cheaper to build than first estimated, and the first estimate here was too high.**
+Negotiation stays off-chain — the chain needs the agreed price and the award, not the haggling — so
+escrow, milestones, receipt confirmation, transit windows, compensatory settlement and auto-release
+all carry over untouched. The contract change is one function that commits and reveals atomically
+when the RFQ is in open mode: price stored, `revealed` set, event emitted. Roughly thirty lines and
+its tests. Everything downstream is unchanged, including `award`.
+
+**And the advantage users actually get is not x402.** x402 here is the paywall on the evaluator
+endpoint — a demonstration of the rail, and by §6e essentially no revenue. What benefits a buyer and
+a supplier is the settlement layer: funded-before-open, retention, auto-release against a silent
+buyer, receipt-gated transit, and damages measured against the runner-up instead of total
+forfeiture. That layer does not care how the price was discovered, which is the real argument for
+open mode: restricting it to sealed tenders narrows the market for no technical reason.
 
 ### What actually changes: the claim
 
@@ -790,13 +799,99 @@ collusion-resistant. Treat a successful testnet walkthrough of open mode as evid
 sound and **not** as evidence the market design is. The honest way to test the latter is adversarial
 simulation — agents with private floors, run many times — before it touches real money.
 
-### Position
+### Position (revised 2026-09-24 — deadline pressure lifted)
 
-Not before **Oct 12**. There is a live deployment nobody has walked end to end, contracts pending
-verification, and a repo still private. Recorded here because it is a better positioning story than
-the physical-goods one — *the buyer chooses: sealed when integrity matters, open with agents when
-speed does, and the same escrow settles both* — and because the collusion caveat should be written
-down while the reasoning is fresh rather than rediscovered later.
+Sealed stays the **default and the identity**. Escrow with milestones is a crowded space and §6c
+found no enterprise suite that holds escrow but plenty of escrow products that do; sealed bidding
+with a re-verifiable award is what makes this not another one. Open is a supported mode, not a
+rebrand — lead with the differentiator, support the common case.
+
+Sequencing, now that the schedule is not the binding constraint:
+
+1. Walk the current deployment end to end. Nothing else matters until the thing that is live is
+   known to work.
+2. Verification, `CORS_ORIGIN`, custom domain, repo public.
+3. **One bundled redeploy**, not three. A redeploy costs re-verification and breaks evidence links,
+   so everything that needs one should go together: open `bidMode`, §6b's contract-level
+   delivery-window check, and §6c gap 4's dead zone.
+4. Spending tiers and evidence requirements (§6g) — no contract change, can land any time.
+
+*The buyer chooses: sealed when integrity matters, open with agents when speed does, and the same
+escrow settles both.* That is the positioning line, and it is stronger than the physical-goods one.
+
+---
+
+## 6g. Human-in-the-loop procurement: what is already built, and what is missing (2026-09-24)
+
+### The sentence to adopt
+
+> **AI recommends; humans authorize; protocol enforces.**
+
+That is a better statement of this project than anything currently in the README, and it is already
+true of the code rather than an aspiration. Three parties hold three different powers and none can
+take another's: the evaluator scores and anchors a memo but **cannot award**; the buyer awards but
+**cannot award a bidder the attested evaluation did not name**; and the contract refuses an award
+the policy forbids regardless of who asks — the reverted `AwardExceedsBudget` in the evidence pack
+is that firewall working. Worth putting at the top of the README.
+
+### Already built, and worth saying so rather than re-planning
+
+| Proposed | Status |
+|---|---|
+| Milestone payments to cap capital exposure | Built — retention, per-milestone escrow, `_openMilestone` |
+| Unreleased milestone stays locked on a dispute | Built — `rejectMilestone` → `Rejected` → `disputeDeadline` |
+| Partial settlement of a dispute | Built — `resolveDispute(rfqId, supplierBps, reason)` splits by basis points |
+| Evidence attached to a milestone | Built — deliverable hash, document store, and the shipment record from §6c |
+| Deposit / production / shipment / delivery split | Built — `milestoneBps` takes any weights summing to 10000 |
+| Payment released by the workflow, not the payment rail | Built — the adapter is the state machine; x402 never touches settlement |
+
+### Genuinely missing, and worth building
+
+**1. Spending tiers — the strongest idea in the whole set.** A company defines what the agent may do
+alone: under some figure it acts, above it recommends, above another a human approves each milestone.
+`ProcurementPolicy` already carries deployment-wide limits (`maxAwardBps`, `minRevealedBids`,
+`minBuyerStakeBps`), but nothing is per-buyer or per-tier.
+
+This is also the missing mitigation from §6d. That section worries that `AWARDER` lets the agent
+award with no human — fully automated decision-making binding a supplier, GDPR Art 22 territory. A
+spend threshold answers it precisely: the agent may close a £400 order unattended and may not close
+a £40,000 one. Better than renouncing `AWARDER` outright, because it keeps the useful case.
+
+**2. Required evidence per milestone.** Today a milestone carries one deliverable hash. A buyer
+should be able to say *this* milestone needs photographs, serial numbers, a batch number and an
+inspection report — published in the RFQ metadata before bidding, so a supplier prices the work of
+producing it. Metadata plus UI; no contract change.
+
+**3. A dispute state that collects evidence.** `Disputed` exists and `resolveDispute` settles it, but
+nothing structures what either side files. Evidence belongs in the document store, hashed, with the
+thread attached — the clarifications pattern applied to a dispute.
+
+### What to refuse, and why
+
+**"Supplier reputation: 96/100" on the approval screen.** The reputation service deliberately refuses
+to produce a score: *a reputation figure derived by a formula only we know would be exactly the
+unaccountable judgement the project argues against.* A buyer approving a £73,500 order should see
+the counts — tenders won, engagements completed, milestones rejected, bids never revealed — not a
+number whose derivation they cannot check. Same objection as §6c's arbiter reputation, for the same
+reason.
+
+**"AI analysis" deciding a dispute.** §6e's rule holds and matters more here than anywhere: the model
+extracts, the rubric or the human decides. A model reading inspection photographs and listing what
+it sees is useful. A model concluding who is right about a £73,500 shipment is the adjudication §6c
+established we should not be doing at all.
+
+**Third-party inspection as a protocol primitive.** "Require an inspection report from an accredited
+inspector" runs straight into §6c's identity problem: the inspector is an address, and a supplier
+cannot assess whether it is neutral. Treat an inspection report as *evidence a human weighs*, never
+as an oracle the contract trusts — the moment the contract keys money to an inspector's signature,
+that inspector is an arbiter chosen by whoever named them.
+
+### The honest limit that does not go away
+
+None of this makes the chain able to see goods. A verification checkpoint is a *document* hashed and
+timestamped; the buyer still decides whether what arrived matches what was bought. The system's job
+is to make that decision attributable, bounded by a clock, and expensive to lie about — not to
+replace it. Everything in §6c about hashes versus containers still applies.
 
 ---
 

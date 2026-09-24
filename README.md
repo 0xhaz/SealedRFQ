@@ -252,6 +252,25 @@ Off unless `X402_ENABLED=true`. Enabled on a chain Circle cannot settle, or with
 address, the agent refuses to boot rather than quietly serving a paid endpoint for free. `GET /meta`
 advertises the price, so a buying agent can budget the call without provoking a 402 to discover it.
 
+## AI recommends; humans authorize; protocol enforces
+
+Three parties hold three different powers here, and none of them can take another's.
+
+The **evaluator** scores every revealed bid against the rubric published before bidding opened, and
+anchors a memo anyone can re-hash. It cannot award.
+
+The **buyer** awards — but only to the bidder the attested evaluation named. Swapping in a different
+supplier reverts.
+
+The **contract** refuses an award the policy forbids, whoever asks. The evidence pack contains a
+deliberately reverted transaction where an over-budget award was rejected; that is the firewall
+working, not a failure.
+
+So the machine does the reading and the arithmetic, a person makes the decision that spends money,
+and the protocol enforces the rules neither of them can quietly bend. Payment then follows the work:
+each milestone releases on acceptance, or on a clock if the buyer says nothing, so the money at risk
+at any moment is one milestone rather than the whole contract.
+
 ## What the operator can and cannot do
 
 This project's claim is that a buyer and a supplier can run a tender between themselves. That claim
