@@ -146,6 +146,12 @@ Build in this order. Each contract is done when it has unit tests and fuzz tests
 | `SealedRFQAdapter` | `0xC72B8a49020a9B9dACb384b88CDB9580770fA9C0` |
 | `RFQRegistry` | `0xb727F5A8031591bc7e1ed0E626f5cE1108626D61` |
 
+> **Historical — superseded by the 2026-09-24 redeploy (`9c12973`).** The live testnet addresses are
+> in `contracts/deployments/5042002.json`; `RFQRegistry` is now
+> `0x0D414d4547e0f4BFECa0A2788495404881004A82`. Kept because the evidence link below points at this
+> set. If a running service reports the address above, **it is serving a stale build** — that is
+> exactly how the 2026-09-25 Railway problem presented.
+
 Policy-firewall evidence: [`0xa749b830…a9853`](https://explorer.testnet.arc.io/tx/0xa749b830c25f57da6a5680fd9ffe3f64df60f159187c323d68af5cae5c2a9853) — award of an AI-recommended 3.40 bid reverted with `AwardExceedsBudget(3400000, 3000000)`.
 
 **Lessons for the mainnet run (Day 18–22):**
@@ -1286,10 +1292,16 @@ add a second service before the post-grant bundle, not now.
 - [ ] **Walk the current testnet deployment end to end.** Nothing else counts until what is already
       live is known to work — first real exercise of receipt confirmation, transit windows,
       extensions and compensatory settlement
-- [ ] `DATABASE_URL=file:./data/sealedrfq-v3.db` on Railway, `/stats` reporting zero RFQs first.
-      **v3, not v2** — there have been three testnet deploys (`1819430`, `d632a7e`, `9c12973`) and
-      v1/v2 both hold RFQs against retired contracts. Reusing either silently drops the new RFQ 1
-      via `onConflictDoNothing`, with no error and nothing on the board
+- [ ] **Railway is serving a stale build (found 2026-09-25).** `$AGENT/meta` reports `RFQRegistry`
+      `0xb727F5A8…` — the *second* testnet deploy — while the repo has `0x0D414d45…` from the third
+      (`9c12973`). Redeploy the service and confirm `/meta` changes; check `DEPLOYMENT_JSON` is not
+      overriding the path. Until this is fixed nothing else about the agent can be trusted
+- [ ] `DATABASE_URL=file:./data/sealedrfq-v4.db` on Railway, `/stats` reporting zero RFQs first.
+      **v4, because v3 is already contaminated** — the stale build indexed 4 RFQs from the *old*
+      contract into it. `rfqs.id` is the bare primary key (`apps/agent/src/db/schema.ts:10`) with no
+      chain or contract discriminator, so old RFQ 1 occupies the row the new RFQ 1 needs and
+      `onConflictDoNothing` drops it silently. Fix the build first, then the database, or v4 is
+      contaminated too.
 - [ ] Testnet contracts verified — blocked on the explorer, retry `verify-testnet.sh`
 - [x] `CORS_ORIGIN` set to the web domain — done 2026-09-25
 - [x] Custom domain **sealedrfq.com** bought 2026-09-25, clearing the MetaMask `vercel.app` flag.
