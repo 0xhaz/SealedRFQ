@@ -30,10 +30,21 @@ const description =
   "evaluator scores them against a rubric published before bidding opened, and an on-chain policy " +
   "decides the award. Winners are paid milestone by milestone.";
 
+/**
+ * The canonical origin, used to turn relative metadata URLs into absolute ones.
+ *
+ * Without it Next.js resolves Open Graph and canonical URLs against localhost, which is invisible
+ * in development and produces links nobody can open once a preview or a crawler reads them. Set
+ * from the environment so a Vercel preview describes itself rather than claiming to be production.
+ */
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://sealedrfq.com";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title,
   description,
-  openGraph: { title, description, type: "website" },
+  alternates: { canonical: "/" },
+  openGraph: { title, description, type: "website", url: siteUrl, siteName: "SealedRFQ" },
   twitter: { card: "summary_large_image", title, description },
 };
 

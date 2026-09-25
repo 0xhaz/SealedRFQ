@@ -1286,11 +1286,17 @@ add a second service before the post-grant bundle, not now.
 - [ ] **Walk the current testnet deployment end to end.** Nothing else counts until what is already
       live is known to work — first real exercise of receipt confirmation, transit windows,
       extensions and compensatory settlement
-- [ ] `DATABASE_URL=file:./data/sealedrfq-v2.db` on Railway, `/stats` reporting zero RFQs first
+- [ ] `DATABASE_URL=file:./data/sealedrfq-v3.db` on Railway, `/stats` reporting zero RFQs first.
+      **v3, not v2** — there have been three testnet deploys (`1819430`, `d632a7e`, `9c12973`) and
+      v1/v2 both hold RFQs against retired contracts. Reusing either silently drops the new RFQ 1
+      via `onConflictDoNothing`, with no error and nothing on the board
 - [ ] Testnet contracts verified — blocked on the explorer, retry `verify-testnet.sh`
-- [ ] `CORS_ORIGIN` set to the web domain
-- [ ] Custom domain, to clear the MetaMask `vercel.app` flag
-- [ ] **Repo public** — a hard requirement, and currently private
+- [x] `CORS_ORIGIN` set to the web domain — done 2026-09-25
+- [x] Custom domain **sealedrfq.com** bought 2026-09-25, clearing the MetaMask `vercel.app` flag.
+      Still to wire: point it at the Vercel project, confirm the certificate issued, and set
+      `NEXT_PUBLIC_SITE_URL` so `metadataBase` resolves to it rather than the default
+- [ ] **Repo public** — a hard requirement, still private as of 2026-09-25 (`gh repo view` reports
+      `PRIVATE`). Nothing else on this list can substitute for it
 - [ ] Fund the mainnet deployer **and all four role keys** with USDC on Arc mainnet (~0.63 USDC for
       the deploy at testnet rates; check mainnet). An unfunded EVALUATOR looks like the scheduler
       silently not running
@@ -1307,7 +1313,10 @@ add a second service before the post-grant bundle, not now.
 - [ ] Live app link that opens
 - [ ] `DORAHACKS.md` evidence pack with one explorer link per lifecycle step
 - [ ] Public builder profile (GitHub / X / Farcaster)
-- [ ] No Faktura/Casper strings or assets left anywhere: `grep -ri "faktura\|casper\|cspr" apps/web` returns nothing
+- [x] No Faktura/Casper strings or assets left anywhere — done 2026-09-25: the theme header
+      comment, a dead `.hero-builton` badge block and an orphaned CSPR.click comment. All were
+      comment-only or unreferenced CSS. `grep -ri "faktura\|casper\|cspr" apps/web` now returns
+      nothing
 - [ ] Submit — **as soon as it works**, not on the closing date
 
 ### Deliberately not before submission

@@ -204,7 +204,7 @@ wrong:
 ```
 ARC_CHAIN_ID=5042002
 ARC_RPC_URL=https://rpc.blockdaemon.testnet.arc.network
-CORS_ORIGIN=https://<your-app>.vercel.app
+CORS_ORIGIN=https://sealedrfq.com
 AGENT_API_TOKEN=<openssl rand -hex 32>
 EVALUATOR_PK=…   AWARDER_PK=…   VERIFIER_PK=…   ARBITER_PK=…
 X402_ENABLED=true  X402_PAY_TO=…  X402_PRICE=0.05

@@ -2,7 +2,7 @@
    SEALEDRFQ on ARC — "the ledger" theme
    Warm paper, ink typography, wax-seal red accents, stamped states.
 
-   Ported from the Faktura/Casper site (see workplan.md §4): the class vocabulary is kept
+   Ported from an earlier site (see workplan.md §4): the class vocabulary is kept
    (.hero, .story-act, .stamp, .panel, .lj-*) so markup and styles stay in step. Chain-specific
    rules were renamed; anything still unused by SealedRFQ is pruned as each section is ported.
    ============================================================ */
@@ -3932,36 +3932,6 @@ button.field-wallet {
   color: var(--red);
 }
 
-/* ---------- BUILT ON Casper badge (official wordmark, prominent) ---------- */
-.hero-builton {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 16px;
-  padding: 10px 16px;
-  border: 1.5px solid var(--ink);
-  border-radius: 4px;
-  background: var(--card, #fffdf7);
-  box-shadow: 4px 4px 0 rgba(23, 19, 13, 0.14);
-  text-decoration: none;
-}
-.hero-builton:hover {
-  box-shadow: 6px 6px 0 rgba(217, 45, 45, 0.35);
-}
-.hero-builton span {
-  font-family: var(--mono);
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 2px;
-  color: rgba(23, 19, 13, 0.62);
-}
-.hero-builton .hero-builton-net {
-  color: var(--green);
-  border: 1px solid var(--green);
-  border-radius: 999px;
-  padding: 2px 8px;
-}
-
 /* ---------- site logo (header) ---------- */
 .site-logo-link {
   display: inline-flex;
@@ -3995,10 +3965,6 @@ button.field-wallet {
   letter-spacing: 0.8px;
   color: var(--green);
 }
-
-/* CSPR.click host: ClickUI must be mounted for its sign-in modal to exist,
-   but its top bar has no place in our header — park it off-screen. The modal
-   itself portals to <body> and renders normally. */
 
 /* ---------- AI decision card ---------- */
 .lj-ai-decision {
