@@ -1344,9 +1344,26 @@ Safe is *deployed*, which is not the same as the flow *working*. A Safe has neve
 these contracts. Add to the testnet walkthrough: create a 2-of-3 Safe, post a tender from it, award
 from it, accept a milestone from it.
 
-**XMTP with a smart-account identity is unverified.** XMTP V3 supports SCW identities as a distinct
-identifier type and `apps/web/lib/xmtp.ts` has no handling for one. Affects post-award messaging
-only, never settlement.
+**XMTP with a smart-account identity — checked 2026-09-26, not supported.** The client is built
+with a hardcoded `type: "EOA"` signer (`apps/web/components/DirectMessages.tsx:92`), which XMTP
+verifies by ECDSA recovery. A Safe's signature is not recoverable — it is validated through
+ERC-1271 — so identity registration fails outright. The chat would not mis-attribute a team
+account; it simply would not work for one. Affects post-award messaging only, never settlement.
+
+The SDK already has what is needed: `@xmtp/browser-sdk@7.1.0` exports `createSCWSigner(address,
+signMessage, chainId)` and a `type: "SCW"` signer variant requiring `getChainId`. The fix is to
+choose the signer type from whether the connected address holds code, which `useIsContract` in
+`components/TeamAccount.tsx` already answers. Small, and blocked behind the connector gap above —
+there is nothing to test it against until a Safe can connect.
+
+**A message can never be traced to a person, and that does not change once SCW lands.** XMTP's
+identity is the account address, not whichever owner signed, so a message from a 2-of-3 Safe is
+attributed to the Safe with no field carrying who typed it. Worth deciding about rather than
+discovering: a commitment made in that channel binds the company rather than an individual, which
+is arguably correct — but *"who authorised this variation?"* is not answerable from the thread.
+On-chain actions differ: the calling address is recorded, and Safe's own history records which
+owners signed. So team-account actions are traceable on-chain to the account and, through Safe, to
+its signers; in chat they are traceable to nobody.
 
 ---
 
