@@ -817,13 +817,25 @@ export function NewRfqForm() {
               left to be typed — and naming it is also the moment to say that a stage here releases
               money against a hash, which is not the same as against goods.
             */}
-            <div className="filter-row" style={{ marginTop: 6 }}>
-              <span className="hint">Common splits:</span>
+            {/*
+              The label sits on its own line so the three chips share the field's full width.
+              Inline, it takes enough of a half-width field to push the last chip onto a second
+              row, which reads as though that option belongs to something else.
+            */}
+            <span className="hint" style={{ display: "block", marginTop: 6 }}>
+              Common splits:
+            </span>
+            <div className="filter-row" style={{ marginTop: 4 }}>
               <button type="button" className="chip" onClick={() => setMilestones("30, 30, 40")}>
                 thirds
               </button>
-              <button type="button" className="chip" onClick={() => setMilestones("30, 70")}>
-                30 / 70 — bulk goods
+              <button
+                type="button"
+                className="chip"
+                title="A deposit against production, the balance against shipping documents"
+                onClick={() => setMilestones("30, 70")}
+              >
+                30 / 70 — bulk
               </button>
               <button type="button" className="chip" onClick={() => setMilestones("100")}>
                 single payment
