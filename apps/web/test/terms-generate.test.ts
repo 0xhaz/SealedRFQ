@@ -8,8 +8,8 @@ const base: TermsInput = {
   stakePct: "5",
   retentionPct: "10",
   milestones: "30, 30, 40",
-  deliveryMin: "15",
-  acceptMin: "3",
+  deliverySec: 15 * 60,
+  acceptSec: 3 * 60,
   lineItemCount: 2,
 };
 
@@ -36,9 +36,12 @@ describe("generateTerms", () => {
     expect(generateTerms({ ...base, milestones: "100" })).toContain("1 milestone");
   });
 
-  it("renders long windows as hours instead of hundreds of minutes", () => {
-    expect(generateTerms({ ...base, acceptMin: "120" })).toContain("2 hours");
-    expect(generateTerms({ ...base, deliveryMin: "45" })).toContain("45 minutes");
+  it("renders a window in the largest unit that fits, up to weeks", () => {
+    expect(generateTerms({ ...base, acceptSec: 2 * 3600 })).toContain("2 hours");
+    expect(generateTerms({ ...base, deliverySec: 45 * 60 })).toContain("45 minutes");
+    // The case that made this worth changing: a real tender's windows are not measured in minutes.
+    expect(generateTerms({ ...base, deliverySec: 14 * 86_400 })).toContain("2 weeks");
+    expect(generateTerms({ ...base, acceptSec: 3 * 86_400 })).toContain("3 days");
   });
 
   it("adds the proposal clause only in RFP mode", () => {
@@ -54,7 +57,7 @@ describe("generateTerms", () => {
 
   it("never leaves a blank where a number should be", () => {
     // An untouched form must still produce readable clauses, not "undefined USDC".
-    const t = generateTerms({ ...base, budget: "", deposit: "", retentionPct: "", acceptMin: "" });
+    const t = generateTerms({ ...base, budget: "", deposit: "", retentionPct: "", acceptSec: 0 });
     expect(t).not.toMatch(/undefined|NaN/);
     expect(t).toContain("the stated window");
   });

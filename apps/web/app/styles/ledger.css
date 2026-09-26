@@ -6423,3 +6423,17 @@ button.field-wallet {
   line-height: 1.5;
   margin-top: 2px;
 }
+
+/* ---------- duration input: a number and its unit, read as one field ---------- */
+.duration-input {
+  display: flex;
+  gap: 8px;
+}
+.duration-input input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.duration-input select {
+  flex: 0 0 auto;
+  width: auto;
+}

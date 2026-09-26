@@ -6,11 +6,12 @@ import { agent, uploadDocument } from "@/lib/agent";
 import { chain, contracts, explorerTx } from "@/lib/chain";
 import { type Deadlines, PRESETS, applyPreset, checkDeadlines, toUnix } from "@/lib/deadlines";
 import { hashFile } from "@/lib/docHash";
+import { DURATION_UNITS, type DurationUnit, toSeconds } from "@/lib/duration";
 import { MAX_INVITEES, parseInvitees } from "@/lib/invitees";
 import { type LineItemRow, emptyRow, toLineItems } from "@/lib/lineItems";
 import { signUsdcPermit } from "@/lib/permit";
 import { CATEGORIES, REGIONS, labelFor } from "@/lib/taxonomy";
-import { INCOTERMS, incotermNote, riskPassesAt } from "@sealedrfq/shared";
+import { INCOTERMS, describeWindow, incotermNote, riskPassesAt } from "@sealedrfq/shared";
 import { generateTerms } from "@/lib/terms";
 import { describeTxError } from "@/lib/txError";
 import {
@@ -52,8 +53,12 @@ export function NewRfqForm() {
    * the dates offered and validated here are measured from the chain rather than from the browser.
    */
   const [skew, setSkew] = useState<number | null>(null);
-  const [deliveryMin, setDeliveryMin] = useState("15");
-  const [acceptMin, setAcceptMin] = useState("3");
+  // Windows are durations, not minutes. Defaults are what a real tender would use; the Demo
+  // preset shortens them to something that can be walked end to end in one sitting.
+  const [deliveryAmount, setDeliveryAmount] = useState("14");
+  const [deliveryUnit, setDeliveryUnit] = useState<DurationUnit>("days");
+  const [acceptAmount, setAcceptAmount] = useState("3");
+  const [acceptUnit, setAcceptUnit] = useState<DurationUnit>("days");
   const [retentionPct, setRetentionPct] = useState("10");
   const [milestones, setMilestones] = useState("30, 30, 40");
   // Shipment terms. Empty incoterm means "not a goods tender", which leaves transit at zero and
@@ -147,6 +152,9 @@ export function NewRfqForm() {
     };
   }, [config]);
 
+  const deliverySec = toSeconds(deliveryAmount, deliveryUnit);
+  const acceptSec = toSeconds(acceptAmount, acceptUnit);
+
   const chainNow = Math.floor(Date.now() / 1000) + (skew ?? 0);
   const deadlineError = skew === null ? null : checkDeadlines(deadlines, chainNow);
 
@@ -157,8 +165,8 @@ export function NewRfqForm() {
     stakePct,
     retentionPct,
     milestones,
-    deliveryMin,
-    acceptMin,
+    deliverySec,
+    acceptSec,
     maxDeliveryDays,
     attestations: attestations
       .split("\n")
@@ -228,13 +236,13 @@ export function NewRfqForm() {
         throw new Error("Milestones must be positive percentages");
       if (bps.reduce((a, b) => a + b, 0) !== 10_000)
         throw new Error("Milestone percentages must add up to 100");
-      if (Number(deliveryMin) < 5) throw new Error("Delivery window must be at least 5 minutes");
+      if (deliverySec < 300) throw new Error("Delivery window must be at least 5 minutes");
       if (incoterm && !namedPlace.trim()) {
         throw new Error(
           "Name the place the incoterm refers to — a port, a city or an address. Without it the term says who pays but not to where.",
         );
       }
-      if (Number(acceptMin) < 1) throw new Error("Acceptance window must be at least 1 minute");
+      if (acceptSec < 60) throw new Error("Acceptance window must be at least 1 minute");
 
       // The rubric is hashed before bids open, so it cannot be rewritten to fit a favoured bid.
       const rubric = {
@@ -319,8 +327,8 @@ export function NewRfqForm() {
         revealDeadline,
         awardDeadline,
         retentionBps: Math.round(Number(retentionPct) * 100),
-        deliveryWindow: Number(deliveryMin) * 60,
-        acceptanceWindow: Number(acceptMin) * 60,
+        deliveryWindow: deliverySec,
+        acceptanceWindow: acceptSec,
         // Zero unless this tender ships something. It is what stops a silent buyer paying for a
         // container still at sea, and what stops that protection becoming a way to never pay.
         transitWindow: incoterm ? Math.max(0, Number(transitDays) || 0) * 86_400 : 0,
@@ -620,7 +628,15 @@ export function NewRfqForm() {
                   type="button"
                   className="btn-outline"
                   title={preset.hint}
-                  onClick={() => setDeadlines(applyPreset(preset.offsets, chainNow))}
+                  onClick={() => {
+                    setDeadlines(applyPreset(preset.offsets, chainNow));
+                    // A timetable sets the whole clock: dates and windows move together, so a
+                    // demo run cannot leave fortnight-long milestones behind a 12-minute tender.
+                    setDeliveryAmount(preset.windows.delivery[0]);
+                    setDeliveryUnit(preset.windows.delivery[1]);
+                    setAcceptAmount(preset.windows.accept[0]);
+                    setAcceptUnit(preset.windows.accept[1]);
+                  }}
                 >
                   {preset.label}
                 </button>
@@ -673,26 +689,61 @@ export function NewRfqForm() {
             </div>
           )}
           <div className="field">
-            <label htmlFor="deliverymin">Delivery per milestone (minutes)</label>
-            <input
-              id="deliverymin"
-              inputMode="numeric"
-              value={deliveryMin}
-              onChange={(e) => setDeliveryMin(e.target.value)}
-            />
+            <label htmlFor="deliveryamount">Delivery per milestone</label>
+            <div className="duration-input">
+              <input
+                id="deliveryamount"
+                inputMode="numeric"
+                value={deliveryAmount}
+                onChange={(e) => setDeliveryAmount(e.target.value)}
+              />
+              <select
+                aria-label="delivery window unit"
+                value={deliveryUnit}
+                onChange={(e) => setDeliveryUnit(e.target.value as DurationUnit)}
+              >
+                {DURATION_UNITS.map((u) => (
+                  <option key={u.value} value={u.value}>
+                    {u.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <span className="field-hint">
+              How long the supplier has to deliver each milestone once the engagement reaches it.
+              Bids quoting longer than this cannot be awarded — the contract rejects them.
+            </span>
           </div>
           <div className="field">
-            <label htmlFor="acceptmin">Acceptance window (minutes)</label>
-            <input
-              id="acceptmin"
-              inputMode="numeric"
-              value={acceptMin}
-              onChange={(e) => setAcceptMin(e.target.value)}
-            />
-            {Number(acceptMin) < 60 && (
+            <label htmlFor="acceptamount">Acceptance window</label>
+            <div className="duration-input">
+              <input
+                id="acceptamount"
+                inputMode="numeric"
+                value={acceptAmount}
+                onChange={(e) => setAcceptAmount(e.target.value)}
+              />
+              <select
+                aria-label="acceptance window unit"
+                value={acceptUnit}
+                onChange={(e) => setAcceptUnit(e.target.value as DurationUnit)}
+              >
+                {DURATION_UNITS.map((u) => (
+                  <option key={u.value} value={u.value}>
+                    {u.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {acceptSec > 0 && acceptSec < 3600 ? (
               <span className="field-hint warn">
-                Payment auto-releases after this long. Fine for a demo; for real work give yourself
-                time to inspect — hours for a document, days for anything physical.
+                Payment auto-releases after this long. Fine for walking the system through; for real
+                work give yourself time to inspect — hours for a document, days for anything
+                physical.
+              </span>
+            ) : (
+              <span className="field-hint">
+                How long you have to inspect and reject before payment releases on its own.
               </span>
             )}
           </div>
@@ -1035,7 +1086,7 @@ export function NewRfqForm() {
             of every milestone until the last one is accepted, the winning supplier&apos;s deposit
             is staked on finishing the job, and you can reject a delivery with a reason instead of
             paying for it. Accept a milestone and the money moves; say nothing for{" "}
-            {acceptMin || "3"} minutes and it moves anyway.
+            {describeWindow(acceptSec)} and it moves anyway.
           </div>
           <div className="full note">
             The rubric is hashed and stored when the RFQ opens, before anyone bids. An award has to

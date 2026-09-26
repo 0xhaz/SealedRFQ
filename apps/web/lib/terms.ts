@@ -18,19 +18,35 @@ export type TermsInput = {
   stakePct: string;
   retentionPct: string;
   milestones: string;
-  deliveryMin: string;
-  acceptMin: string;
+  /** Seconds — the unit the contract stores, so the clause and the chain cannot disagree. */
+  deliverySec: number;
+  acceptSec: number;
   maxDeliveryDays?: string;
   attestations?: string[];
   lineItemCount: number;
 };
 
-const minutes = (v: string) => {
-  const n = Number(v);
-  if (!Number.isFinite(n) || n <= 0) return "the stated window";
-  if (n < 60) return `${n} minutes`;
-  const h = n / 60;
-  return `${Number.isInteger(h) ? h : h.toFixed(1)} hours`;
+/**
+ * A window in words for a contract clause.
+ *
+ * Reaches weeks, because a clause reading "1209600 seconds" or "336 hours" describes the same
+ * window far less clearly than "2 weeks" and these are terms a person has to agree to.
+ */
+const window = (seconds: number) => {
+  if (!Number.isFinite(seconds) || seconds <= 0) return "the stated window";
+  const units: [number, string][] = [
+    [604_800, "week"],
+    [86_400, "day"],
+    [3_600, "hour"],
+    [60, "minute"],
+  ];
+  for (const [size, name] of units) {
+    if (seconds >= size) {
+      const n = Math.round((seconds / size) * 10) / 10;
+      return `${n} ${name}${n === 1 ? "" : "s"}`;
+    }
+  }
+  return `${seconds} seconds`;
 };
 
 export function generateTerms(p: TermsInput): string {
@@ -50,9 +66,9 @@ export function generateTerms(p: TermsInput): string {
       split.length === 1 ? "" : "s"
     }${split.length ? ` of ${split.join("%, ")}%` : ""}. ${p.retentionPct || "0"}% of every milestone payment is retained and released only when the final milestone is accepted.`,
 
-    `4. Acceptance. The buyer has ${minutes(p.acceptMin)} from each submission to accept or reject it. Rejection must state a reason. If the buyer does not respond within that window the payment is released to the supplier automatically.`,
+    `4. Acceptance. The buyer has ${window(p.acceptSec)} from each submission to accept or reject it. Rejection must state a reason. If the buyer does not respond within that window the payment is released to the supplier automatically.`,
 
-    `5. Delivery. Each milestone must be submitted within ${minutes(p.deliveryMin)} of the engagement reaching it.${
+    `5. Delivery. Each milestone must be submitted within ${window(p.deliverySec)} of the engagement reaching it.${
       p.maxDeliveryDays ? ` Overall delivery is required within ${p.maxDeliveryDays} days.` : ""
     } A missed delivery window ends the engagement in the buyer's favour.`,
 

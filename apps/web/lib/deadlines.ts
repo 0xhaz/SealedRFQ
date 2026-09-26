@@ -1,3 +1,5 @@
+import type { DurationUnit } from "./duration";
+
 /**
  * Tender deadlines as dates, which is how buyers actually think about them.
  *
@@ -27,6 +29,9 @@ export function toLocalInput(unix: number): string {
 
 export type Deadlines = { bid: string; reveal: string; award: string };
 
+/** An amount and a unit, matching the duration selector on the form. */
+export type WindowSpec = [amount: string, unit: DurationUnit];
+
 /**
  * The same order the contract requires, checked before a wallet is ever opened. Mirrors
  * RFQRegistry._validate: now < bid < reveal < award.
@@ -48,11 +53,44 @@ export function checkDeadlines(d: Deadlines, chainNow: number): string | null {
 }
 
 /** Presets. The realistic ones are the point; the short one keeps a testnet run to one sitting. */
-export const PRESETS: { label: string; hint: string; offsets: [number, number, number] }[] = [
-  { label: "2 weeks", hint: "bids close in 14 days", offsets: [14 * 1440, 15 * 1440, 21 * 1440] },
-  { label: "1 week", hint: "bids close in 7 days", offsets: [7 * 1440, 8 * 1440, 14 * 1440] },
-  { label: "48 hours", hint: "for an urgent buy", offsets: [2880, 3240, 5760] },
-  { label: "Demo", hint: "minutes, for a testnet run", offsets: [12, 22, 80] },
+/**
+ * Each preset also carries the delivery and acceptance windows that belong with it.
+ *
+ * Those two are durations rather than dates, so they were previously left untouched by a preset —
+ * which meant choosing "Demo" gave a tender whose bidding closed in twelve minutes and whose
+ * milestones were due in a fortnight, and choosing "2 weeks" after a demo left fifteen-minute
+ * milestones on a real tender. A timetable should set the whole clock, not part of it.
+ */
+export const PRESETS: {
+  label: string;
+  hint: string;
+  offsets: [number, number, number];
+  windows: { delivery: WindowSpec; accept: WindowSpec };
+}[] = [
+  {
+    label: "2 weeks",
+    hint: "bids close in 14 days",
+    offsets: [14 * 1440, 15 * 1440, 21 * 1440],
+    windows: { delivery: ["14", "days"], accept: ["3", "days"] },
+  },
+  {
+    label: "1 week",
+    hint: "bids close in 7 days",
+    offsets: [7 * 1440, 8 * 1440, 14 * 1440],
+    windows: { delivery: ["7", "days"], accept: ["2", "days"] },
+  },
+  {
+    label: "48 hours",
+    hint: "for an urgent buy",
+    offsets: [2880, 3240, 5760],
+    windows: { delivery: ["24", "hours"], accept: ["4", "hours"] },
+  },
+  {
+    label: "Demo",
+    hint: "minutes, for a testnet run",
+    offsets: [12, 22, 80],
+    windows: { delivery: ["15", "minutes"], accept: ["3", "minutes"] },
+  },
 ];
 
 /** Builds the three input values from a preset, measured from chain time. */
