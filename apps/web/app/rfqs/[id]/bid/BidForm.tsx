@@ -11,6 +11,7 @@ import {
   saveBid,
 } from "@/lib/bidStore";
 import { chain, contracts, explorerTx } from "@/lib/chain";
+import { useIsContract } from "@/components/TeamAccount";
 import { hashFile } from "@/lib/docHash";
 import { signUsdcPermit } from "@/lib/permit";
 import { describeTxError } from "@/lib/txError";
@@ -112,6 +113,7 @@ export function BidForm({
   const notInvited = invited === false;
 
   const wrongChain = isConnected && chainId !== chain.id;
+  const { isContract: bidderIsContract } = useIsContract(address);
   const isOpen = bidMode === "open";
   const bidding = phase === "Bidding";
   // An open tender has nothing to reveal: the price went public when it was placed. Offering a
@@ -500,6 +502,22 @@ export function BidForm({
                 downloads as a backup. Keep at least one: after bidding closes, a bid that cannot be
                 revealed forfeits its deposit.
               </div>
+              )}
+              {/*
+                The paragraph above is true of an ordinary wallet and false of a team account. The
+                salt is the hash of a signature, and a multisig's signature bytes depend on which
+                owners signed and in what order — so a colleague revealing derives a different salt,
+                the commitment does not match, and the deposit is forfeited. Until the derivation
+                changes, the honest thing is to say the file is the only route.
+              */}
+              {bidderIsContract && bidding && (
+                <div className="full note warn">
+                  <b>This address is a contract account.</b> The reveal file below is your only way
+                  to reveal this bid — do not rely on regenerating the secret from a signature. A
+                  team account signs with whichever owners are available, and different signers
+                  produce a different secret, which would not match what you sealed. Download the
+                  file and keep it somewhere the person who reveals can reach.
+                </div>
               )}
               {notInvited && (
                 <div className="full note warn">

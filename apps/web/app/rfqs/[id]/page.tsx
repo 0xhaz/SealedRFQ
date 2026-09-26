@@ -1,3 +1,4 @@
+import { TeamAccount } from "@/components/TeamAccount";
 import { DirectMessages } from "@/components/DirectMessages";
 import { Proforma } from "@/components/Proforma";
 import { DocumentCheck } from "@/components/DocumentCheck";
@@ -78,7 +79,8 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
           {rfq.region ? ` · ${labelFor(REGIONS, rfq.region)}` : ""} · buyer{" "}
           <a href={explorerAddress(rfq.buyer)} target="_blank" rel="noreferrer" className="mono">
             {short(rfq.buyer)}
-          </a>
+          </a>{" "}
+          <TeamAccount address={rfq.buyer} />
           {rfq.inviteOnly && " · invite only"}
           {rfq.requiresQualification && " · qualified suppliers only"}
           {rfq.requiresProposal ? " · RFP (proposal required)" : " · RFQ (price and delivery)"}

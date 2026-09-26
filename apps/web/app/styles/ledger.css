@@ -6437,3 +6437,23 @@ button.field-wallet {
   flex: 0 0 auto;
   width: auto;
 }
+
+/* ---------- team account marker ---------- */
+.team-account {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 7px;
+  border: 1px solid rgba(23, 19, 13, 0.3);
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: rgba(23, 19, 13, 0.7);
+  white-space: nowrap;
+}
+.team-account b {
+  font-weight: 700;
+  color: var(--ink);
+}

@@ -1218,6 +1218,112 @@ not use the word "insurance" anywhere in the product.
 
 ---
 
+## 6i. Team accounts: Safe on Arc, and the one thing that breaks (assessed 2026-09-26)
+
+Raised from the right direction: procurement is not a one-person job. A buyer is a company —
+requisition, approval, finance — with a documented delegation of authority, and the app currently
+assumes **one wallet = one company**. That means the buyer's private key *is* the company's entire
+procurement authority, held by one person. For any real buyer that is an audit finding, not a
+preference.
+
+### Verified, not assumed: Safe is live on both Arc networks
+
+Checked by RPC on 2026-09-26, canonical addresses, both chains:
+
+| Contract | Address | Mainnet 5042 | Testnet 5042002 |
+|---|---|---|---|
+| Safe singleton v1.4.1 | `0x41675C099F32341bf84BFc5382aF534df5C7461a` | ✅ | ✅ |
+| SafeProxyFactory v1.4.1 | `0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67` | ✅ | ✅ |
+| SafeProxyFactory v1.3.0 | `0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2` | — | ✅ |
+| MultiSend v1.4.1 | `0x38869bf66a61cF6bDB996A6aE40D5853Fd43B526` | — | ✅ |
+
+Identity confirmed rather than inferred from bytecode size: the mainnet singleton answers
+`VERSION()` with `"1.4.1"`. Its own `getThreshold()` of 1 is expected — the singleton is the master
+copy that proxies delegate to, not an account anyone uses.
+
+### Buyer-side team accounts work today, with no contract change
+
+No `tx.origin`, no `ecrecover`, no code-size check anywhere in `contracts/src`. Every gate is
+`msg.sender == <address>` (`RFQRegistry.sol:65`, `:78`, `:93`, `SealedRFQAdapter.sol:152`, `:169`),
+and `PullPayments` credits an address and lets it call `withdraw()`, so a contract recipient is fine
+by construction.
+
+So a Safe as `r.buyer` gives the whole thing immediately: several people acting for one company, an
+approval threshold, segregation of duties between requester and approver, and continuity — somebody
+leaves, rotate the owners, live tenders unaffected.
+
+**This is also the honest answer to the arbiter question from 2026-09-23.** That question came from
+"the buyer does not have time to monitor this", and §6c rejected a third-party arbiter for good
+reasons. But the need behind it was never a third party: it was **delegation inside the buyer's own
+organisation**, which a team account solves without anyone new having to be trusted or identified.
+
+### The blocker: supplier-side accounts break sealed bidding
+
+```ts
+export function saltFromSignature(signature: `0x${string}`): `0x${string}` {
+  return keccak256(signature);
+}
+```
+`apps/web/lib/bidStore.ts:65`
+
+The salt is the hash of a wallet signature, which works only because an EOA signing the same message
+produces the same bytes every time. **A multisig does not.** Which owners signed, and in what order,
+changes the bytes — so if one team member seals and another reveals, the second derives a different
+salt, the commitment does not match, and the reveal fails. That forfeits the deposit.
+
+The reveal *file* already carries the salt, so the mechanism still works — but for a smart account
+the file stops being a backup and becomes mandatory, and the bid form currently promises the
+opposite ("the same wallet can regenerate it"). False, in the direction that costs money.
+
+**Fixed 2026-09-26 as a warning, not a mechanism change:** the bid form detects a contract account
+and tells that bidder the file is their only route. The underlying derivation is unchanged, because
+changing it is a real piece of work and this makes the current behaviour honest in the meantime.
+
+### Two delegation layers already exist, and nothing explains either
+
+1. **Wallet level** — Safe owners and threshold, available now.
+2. **Protocol level** — `RFQRegistry.sol:93` lets a holder of `Roles.AWARDER` award without being
+   the buyer, bounded by `agentAwardCap`. That is a delegated awarder with a spending limit. It is
+   framed as the agent path, but it is the same mechanism a company would use to let a junior buyer
+   award below a threshold.
+
+The gap is not capability. It is that a buyer is told about neither.
+
+### Position: label and surface, do not manage
+
+**Do not build Safe management.** Safe has a mature UI at `app.safe.global`; owner and threshold
+management is the highest-stakes screen in this picture, because a bug in "remove owner" locks a
+company out of its funds with no recovery. Rebuilding that against an audited implementation would
+be worse at the one job where worse is unrecoverable. It is also not the moat — §6h settled that the
+differentiator is sealed bidding with a re-checkable award, not wallet plumbing.
+
+**Do not put per-buyer team roles in the contracts either.** That is a second permission system
+beside `ProcurementPolicy`, duplicating Safe with none of its audit history, and a company's
+delegation of authority already lives in its treasury setup rather than in each vendor's app.
+
+**Do build the procurement context Safe cannot know.** Safe decides who may sign; this app should
+show what that means for a tender:
+
+- ✅ **Label team accounts.** A buyer address holding code is shown as a team account with its
+   threshold and owner count. A supplier deciding whether to spend a day on a bid learns something
+   real: the counterparty has internal controls and is not one person with a hot key.
+- ⬜ **Surface pending approvals in context** — "award to Supplier B, awaiting one more signature",
+   on the tender page beside the evaluation memo and the bids. Safe can show a pending transaction;
+   it cannot show why that award was recommended.
+- ⬜ **Explain the awarder role** to buyers as delegation, which is what it is.
+
+### Still to verify
+
+Safe is *deployed*, which is not the same as the flow *working*. A Safe has never transacted against
+these contracts. Add to the testnet walkthrough: create a 2-of-3 Safe, post a tender from it, award
+from it, accept a milestone from it.
+
+**XMTP with a smart-account identity is unverified.** XMTP V3 supports SCW identities as a distinct
+identifier type and `apps/web/lib/xmtp.ts` has no handling for one. Affects post-award messaging
+only, never settlement.
+
+---
+
 ## 7. Submission checklist
 
 **Programme terms, read 2026-09-24 — four of these change the plan.**
