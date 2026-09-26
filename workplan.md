@@ -1292,10 +1292,10 @@ add a second service before the post-grant bundle, not now.
 - [ ] **Walk the current testnet deployment end to end.** Nothing else counts until what is already
       live is known to work — first real exercise of receipt confirmation, transit windows,
       extensions and compensatory settlement
-- [ ] **Railway is serving a stale build (found 2026-09-25).** `$AGENT/meta` reports `RFQRegistry`
-      `0xb727F5A8…` — the *second* testnet deploy — while the repo has `0x0D414d45…` from the third
-      (`9c12973`). Redeploy the service and confirm `/meta` changes; check `DEPLOYMENT_JSON` is not
-      overriding the path. Until this is fixed nothing else about the agent can be trusted
+- [x] **Stale Railway build — fixed 2026-09-26.** `$AGENT/meta` had reported `RFQRegistry`
+      `0xb727F5A8…` (the *second* deploy, `d632a7e`); it now reports `0x0D414d45…` from the third
+      (`9c12973`), matching `contracts/deployments/5042002.json`. Note for next time: the newer
+      address is the *lower-looking* one, and reading them the wrong way round nearly undid the fix
 - [ ] `DATABASE_URL=file:./data/sealedrfq-v4.db` on Railway, `/stats` reporting zero RFQs first.
       **v4, because v3 is already contaminated** — the stale build indexed 4 RFQs from the *old*
       contract into it. `rfqs.id` is the bare primary key (`apps/agent/src/db/schema.ts:10`) with no
