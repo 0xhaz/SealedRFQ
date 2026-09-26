@@ -1310,7 +1310,10 @@ show what that means for a tender:
 - ⬜ **Surface pending approvals in context** — "award to Supplier B, awaiting one more signature",
    on the tender page beside the evaluation memo and the bids. Safe can show a pending transaction;
    it cannot show why that award was recommended.
-- ⬜ **Explain the awarder role** to buyers as delegation, which is what it is.
+- ✅ **Explain the awarder role** to buyers as delegation, which is what it is — done in
+   `docs/for-buyers.md` alongside the team-account section, with the supplier salt limitation
+   corrected in `docs/for-suppliers.md`, where the old text promised regeneration that a multisig
+   cannot do.
 
 ### Still to verify
 

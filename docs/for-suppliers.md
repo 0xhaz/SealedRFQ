@@ -34,6 +34,14 @@ forfeiture is what makes it binding. Reveal and your deposit comes back whether 
 The secret is derived from a wallet signature, so the same wallet can regenerate it even if you clear
 your browser. The reveal file is a backup for the same thing. Keep at least one.
 
+**Unless you bid from a team account, where the file is the only route.** A multisig signs with
+whichever owners are available, and a different set of signers produces different signature bytes —
+so a colleague revealing your bid would derive a different secret, which would not match what you
+sealed. The reveal would fail and the deposit would be forfeited. If the address you bid from is a
+contract, the bid page says so and the file stops being a backup: download it and put it somewhere
+the person who reveals can actually reach. This is a limitation of how the secret is derived, not a
+rule about who may bid, and it is one we intend to remove.
+
 ## Open tenders
 
 Some tenders run in the open, badged as such on the board. Your price is public the moment you place

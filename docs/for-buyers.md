@@ -76,6 +76,46 @@ minimum number of completed engagements — are screened automatically and appea
 never as satisfied, because nothing on-chain can verify them. A screening tool that ticked them off
 because a supplier said so would be worse than one that admits it cannot tell.
 
+## Buying as a team
+
+Most buying is not one person's job. A requisition comes from one place, approval from another, and
+above some figure a second signature is required — a delegation of authority that already exists in
+writing at most companies.
+
+By default a tender is posted from one wallet, which means **one private key carries your entire
+purchasing authority**. That is fine for a sole trader and uncomfortable for anyone else: the person
+holding it can award unilaterally, and if they leave you have a problem with live tenders.
+
+You can post from a **team account instead**, and nothing here needs to change for that to work.
+Every permission check asks *which address is calling*, never whether that address is a person, so a
+multisig satisfies them exactly as a single wallet does. Set one up at
+[app.safe.global](https://app.safe.global) — Safe is deployed on Arc — add your procurement team as
+owners, choose a threshold, and use that address as the buyer.
+
+What that buys you:
+
+- **A threshold.** Two signatures above a figure, one below it, however your own rules read.
+- **Segregation of duties.** The person who requests need not be the person who approves, which is
+  ordinary practice and impossible with a single key.
+- **Continuity.** Someone leaves, you rotate the owners, and live tenders are unaffected.
+
+Every buyer action runs through it — awarding, accepting a milestone, confirming receipt, extending
+a delivery window — so an award genuinely requires whoever your threshold says it requires. Tenders
+posted from a team account are labelled on the tender page with their threshold, because a supplier
+deciding whether to spend a day preparing a bid should know whether the counterparty has internal
+controls or is one person with a hot key.
+
+We deliberately do not manage the account here. Adding and removing owners is the one screen where
+being wrong locks a company out of its own money, and Safe has spent years getting it right.
+
+**One caveat, stated plainly.** We have verified that Safe is deployed on Arc and that nothing in
+these contracts assumes a single-key wallet. We have not yet run a whole tender from one. If you are
+first, use a small budget.
+
+There is a second kind of delegation worth knowing about: an address holding the awarder role can
+award without being the buyer, capped at a figure the policy sets. That is how an agent is allowed
+to act, and it is the same mechanism that would let a junior buyer award below a threshold.
+
 ## When something goes wrong
 
 **The supplier is running late.** You can extend the delivery window, but only *before* it closes.
