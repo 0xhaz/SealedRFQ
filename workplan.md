@@ -1315,6 +1315,29 @@ show what that means for a tender:
    corrected in `docs/for-suppliers.md`, where the old text promised regeneration that a multisig
    cannot do.
 
+### The connector gap — found 2026-09-26, after the docs were written
+
+**A Safe cannot connect to this app today.** `apps/web/lib/wagmi.ts` registers `injected()` and
+nothing else, so the only way in is a browser wallet. Connecting an owner's MetaMask makes *that
+person* `msg.sender`, not the Safe — which records the individual as the buyer and defeats the
+entire point.
+
+Signing as a Safe needs one of:
+
+- **WalletConnect** (`@wagmi/connectors`), which Safe supports natively. Needs a WalletConnect Cloud
+  project id in the environment.
+- **Safe Apps SDK** (`@safe-global/safe-apps-wagmi`), where the app runs inside Safe{Wallet} in an
+  iframe. No project id, but only works from within Safe.
+
+Either is small. Neither is done, and both add a connector path that has never been exercised —
+so by §7 they wait until after the submission.
+
+**Recorded as a process note, because the mistake is more instructive than the gap.** The contract
+assumptions were checked, the Safe deployment was checked by RPC, and the docs were written and
+published saying "use that address as the buyer" — with the one link in the chain that makes it
+reachable never looked at. Verifying a capability at the layers you thought of is not the same as
+verifying a user can get to it. `docs/for-buyers.md` was corrected the same day.
+
 ### Still to verify
 
 Safe is *deployed*, which is not the same as the flow *working*. A Safe has never transacted against

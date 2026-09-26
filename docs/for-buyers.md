@@ -86,31 +86,32 @@ By default a tender is posted from one wallet, which means **one private key car
 purchasing authority**. That is fine for a sole trader and uncomfortable for anyone else: the person
 holding it can award unilaterally, and if they leave you have a problem with live tenders.
 
-You can post from a **team account instead**, and nothing here needs to change for that to work.
-Every permission check asks *which address is calling*, never whether that address is a person, so a
-multisig satisfies them exactly as a single wallet does. Set one up at
-[app.safe.global](https://app.safe.global) — Safe is deployed on Arc — add your procurement team as
-owners, choose a threshold, and use that address as the buyer.
+**Team accounts are coming, and are not usable yet.** The contracts already support them: every
+permission check asks *which address is calling*, never whether that address is a person, so a
+multisig satisfies them exactly as a single wallet does, and Safe is deployed on Arc. What is
+missing is on this end — the app connects browser wallets only, so there is currently no way to sign
+*as* a Safe rather than as one of its owners. Connecting an owner's wallet makes that person the
+buyer, which is the thing a team account exists to avoid.
 
-What that buys you:
+This section describes where this is going, so you can plan around it. What it will buy you:
 
 - **A threshold.** Two signatures above a figure, one below it, however your own rules read.
 - **Segregation of duties.** The person who requests need not be the person who approves, which is
   ordinary practice and impossible with a single key.
 - **Continuity.** Someone leaves, you rotate the owners, and live tenders are unaffected.
 
-Every buyer action runs through it — awarding, accepting a milestone, confirming receipt, extending
-a delivery window — so an award genuinely requires whoever your threshold says it requires. Tenders
-posted from a team account are labelled on the tender page with their threshold, because a supplier
-deciding whether to spend a day preparing a bid should know whether the counterparty has internal
-controls or is one person with a hot key.
+Every buyer action would run through it — awarding, accepting a milestone, confirming receipt,
+extending a delivery window — so an award genuinely requires whoever your threshold says it
+requires. Tenders posted from a team account are already labelled on the tender page with their
+threshold, because a supplier deciding whether to spend a day preparing a bid should know whether
+the counterparty has internal controls or is one person with a hot key.
 
-We deliberately do not manage the account here. Adding and removing owners is the one screen where
+We deliberately will not manage the account here. Adding and removing owners is the one screen where
 being wrong locks a company out of its own money, and Safe has spent years getting it right.
 
-**One caveat, stated plainly.** We have verified that Safe is deployed on Arc and that nothing in
-these contracts assumes a single-key wallet. We have not yet run a whole tender from one. If you are
-first, use a small budget.
+**What is verified and what is not.** Safe is deployed on Arc, and nothing in these contracts
+assumes a single-key wallet — both checked. Connecting one is not built, and no tender has ever been
+run from a team account. Until both are true, post from an ordinary wallet.
 
 There is a second kind of delegation worth knowing about: an address holding the awarder role can
 award without being the buyer, capped at a figure the policy sets. That is how an agent is allowed
