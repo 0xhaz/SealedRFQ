@@ -46,7 +46,23 @@ contract DemoLifecycle is Script {
     uint256 buyerPk;
     uint256[3] supplierPk;
     uint128[3] prices = [P1, P2, P3];
-    uint32[3] days_ = [uint32(21), 14, 10];
+    /**
+     * Delivery quotes, in **seconds** — the unit a bid is stored in.
+     *
+     * These used to read `[21, 14, 10]` as days against a delivery window of well under an hour,
+     * which no bid could satisfy: the award reverted with `DeliveryExceedsWindow` every time. They
+     * are now a fraction of whatever window the run is configured with, so the ordering the demo
+     * narrates (supplier 3 quickest, supplier 1 slowest) holds however the windows are set.
+     */
+    uint32[3] private deliveryFractionBps = [uint32(6_600), 5_000, 3_300];
+
+    /// @dev A bid's delivery quote, as a fraction of the tender's own window, read from the RFQ
+    ///      so commit and reveal cannot disagree about it.
+    function _delivery(uint256 i, uint256 id) internal view returns (uint32) {
+        uint32 window = registry.getRFQ(id).deliveryWindow;
+        return uint32((uint256(window) * deliveryFractionBps[i]) / 10_000);
+    }
+
 
     function run() external {
         _load();
@@ -94,7 +110,7 @@ contract DemoLifecycle is Script {
 
         for (uint256 i; i < 3; ++i) {
             address bidder = vm.addr(supplierPk[i]);
-            bytes32 h = registry.computeCommitment(id, bidder, prices[i], days_[i], bytes32(0), _salt(i, id));
+            bytes32 h = registry.computeCommitment(id, bidder, prices[i], _delivery(i, id), bytes32(0), _salt(i, id));
             (v, r, s) = _permit(supplierPk[i], address(registry), DEPOSIT);
             vm.startBroadcast(supplierPk[i]);
             registry.commitBidWithPermit(id, h, block.timestamp + 1 hours, v, r, s);
@@ -115,7 +131,7 @@ contract DemoLifecycle is Script {
     function _reveal(uint256 id) internal {
         for (uint256 i; i < 3; ++i) {
             vm.startBroadcast(supplierPk[i]);
-            registry.revealBid(id, prices[i], days_[i], bytes32(0), _salt(i, id));
+            registry.revealBid(id, prices[i], _delivery(i, id), bytes32(0), _salt(i, id));
             vm.stopBroadcast();
         }
         console2.log("revealed 3 bids; award window opens at", registry.getRFQ(id).revealDeadline);

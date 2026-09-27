@@ -26,7 +26,23 @@ contract SeedLocal is Script {
     uint256 buyerPk;
     uint256[3] supplierPk;
     uint128[3] prices = [2_800_000, 2_950_000, 3_400_000]; // the third is over budget on purpose
-    uint32[3] days_ = [uint32(21), 14, 10];
+    /**
+     * Delivery quotes, in **seconds** — the unit a bid is stored in.
+     *
+     * These used to read `[21, 14, 10]` as days against a delivery window of well under an hour,
+     * which no bid could satisfy: the award reverted with `DeliveryExceedsWindow` every time. They
+     * are now a fraction of whatever window the run is configured with, so the ordering the demo
+     * narrates (supplier 3 quickest, supplier 1 slowest) holds however the windows are set.
+     */
+    uint32[3] private deliveryFractionBps = [uint32(6_600), 5_000, 3_300];
+
+    /// @dev A bid's delivery quote, as a fraction of the tender's own window, read from the RFQ
+    ///      so commit and reveal cannot disagree about it.
+    function _delivery(uint256 i, uint256 id) internal view returns (uint32) {
+        uint32 window = registry.getRFQ(id).deliveryWindow;
+        return uint32((uint256(window) * deliveryFractionBps[i]) / 10_000);
+    }
+
 
     function run() external {
         string memory json =
@@ -70,7 +86,7 @@ contract SeedLocal is Script {
                 if (registry.getBid(id, vm.addr(supplierPk[i])).revealed) continue;
                 bytes32 proposal = rfp ? _proposal(id, i) : bytes32(0);
                 vm.startBroadcast(supplierPk[i]);
-                registry.revealBid(id, prices[i], days_[i], proposal, _salt(i, id));
+                registry.revealBid(id, prices[i], _delivery(i, id), proposal, _salt(i, id));
                 vm.stopBroadcast();
             }
             console2.log("revealed bids on RFQ", id);
@@ -123,7 +139,7 @@ contract SeedLocal is Script {
         for (uint256 i; i < 3; ++i) {
             address bidder = vm.addr(supplierPk[i]);
             bytes32 proposal = rfp ? _proposal(id, i) : bytes32(0);
-            bytes32 h = registry.computeCommitment(id, bidder, prices[i], days_[i], proposal, _salt(i, id));
+            bytes32 h = registry.computeCommitment(id, bidder, prices[i], _delivery(i, id), proposal, _salt(i, id));
             vm.startBroadcast(supplierPk[i]);
             usdc.approve(address(registry), DEPOSIT);
             registry.commitBid(id, h);

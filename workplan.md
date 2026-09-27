@@ -1425,6 +1425,22 @@ window), 46 shared, 70 agent, 143 web. `test/delivery-window.test.ts` now assert
 the same unit list, so a future divergence fails loudly rather than silently making some window
 unquotable.
 
+### The demo scripts had the same bug, and nothing caught it
+
+`DemoLifecycle.s.sol` and `SeedLocal.s.sol` both quoted `[21, 14, 10]` **days** against a delivery
+window of 1800 and 900 **seconds**. Under the old semantics every award in both scripts reverted
+with `DeliveryExceedsWindow` — so §6b's delivery-window enforcement broke the demo path when it
+landed, and it stayed broken because the contract suite passes without ever running these scripts.
+
+Both now derive the quote as a fraction of the tender's own window (66% / 50% / 33%), read back
+from the RFQ so commit and reveal cannot disagree. The ordering the demo narrates — supplier 3
+quickest, supplier 1 slowest — holds whatever `DELIVERY_SECS` is set to, instead of being three
+literals that happened to fit one configuration.
+
+**The lesson worth keeping: `forge test` does not exercise `script/`.** A script can be broken for
+days by a contract change and every suite stays green. Running `tools/local.sh demo` is the only
+thing that covers them, and it is not in CI.
+
 ### Still to do
 
 - **Redeploy** to testnet before this is exercised; the live contracts still store days.
