@@ -78,7 +78,7 @@ export function generateTerms(p: TermsInput): string {
 
     `8. Confidentiality of bids. Bids are sealed until the reveal window opens. No party, including the operator of this deployment, can read a competing bid before then.`,
 
-    `9. Disputes. A rejected milestone that the parties cannot settle is referred to the arbiter named on this deployment, who may divide the amount still escrowed for the engagement. There is no other route to reverse a completed payment.`,
+    `9. Disputes. A rejected milestone is first for the parties to settle between themselves: the buyer must give a reason, the supplier may resubmit, and the delivery and acceptance windows bound how long either side can leave it. If it reaches deadlock, an address holding the arbiter role on this deployment can divide the amount still escrowed for that engagement, and can do nothing else — it cannot reverse a payment already released, take funds for itself, or act on an engagement neither party has put into dispute. Whether that role is held at all, and by which address, is readable on-chain; check it before relying on this clause.`,
   ];
 
   if (p.mode === "RFP") {

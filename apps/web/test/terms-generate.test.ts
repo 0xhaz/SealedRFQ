@@ -44,6 +44,16 @@ describe("generateTerms", () => {
     expect(generateTerms({ ...base, acceptSec: 3 * 86_400 })).toContain("3 days");
   });
 
+  it("describes the dispute path as the parties first, and bounds what an arbiter may do", () => {
+    // The clause used to say a deadlock is "referred to the arbiter named on this deployment",
+    // which named nobody and implied an adjudicator §6c concluded should not exist. The role is
+    // real but narrow, and a buyer publishing these terms should be able to check it.
+    const t = generateTerms(base);
+    expect(t).toMatch(/parties to settle between themselves/i);
+    expect(t).toMatch(/cannot reverse a payment already released/i);
+    expect(t).toMatch(/readable on-chain/i);
+  });
+
   it("adds the proposal clause only in RFP mode", () => {
     expect(generateTerms(base)).not.toMatch(/proposal document/i);
     expect(generateTerms({ ...base, mode: "RFP" })).toMatch(/proposal document/i);

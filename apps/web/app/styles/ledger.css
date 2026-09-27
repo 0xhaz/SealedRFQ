@@ -6470,3 +6470,13 @@ button.field-wallet {
   letter-spacing: 0.2px;
   color: rgba(23, 19, 13, 0.55);
 }
+
+/* ---------- buttons side by side ----------
+   Two hard-edged buttons touching read as one control with a seam down it, and the shadow of the
+   first lands on the second. The gap is what makes them two choices. */
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}

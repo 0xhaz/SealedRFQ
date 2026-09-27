@@ -670,7 +670,7 @@ export function RfqActions({
                   onChange={(e) => setReason(e.target.value)}
                 />
               </div>
-              <div className="full">
+              <div className="full button-row">
                 <button type="button" className="btn-primary" disabled={!!busy} onClick={accept}>
                   {busy ?? "Accept and pay"}
                 </button>
