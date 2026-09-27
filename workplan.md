@@ -1437,9 +1437,15 @@ from the RFQ so commit and reveal cannot disagree. The ordering the demo narrate
 quickest, supplier 1 slowest — holds whatever `DELIVERY_SECS` is set to, instead of being three
 literals that happened to fit one configuration.
 
+**Verified by running it**, not by reading it: `tools/local.sh demo` now completes the whole
+lifecycle on a local Arc chain — open, reveal, the policy firewall rejecting an over-budget
+recommendation (`status 0x0`, as intended), award, three milestones including one auto-release, and
+withdraw.
+
 **The lesson worth keeping: `forge test` does not exercise `script/`.** A script can be broken for
 days by a contract change and every suite stays green. Running `tools/local.sh demo` is the only
-thing that covers them, and it is not in CI.
+thing that covers them, and it is not in CI — worth adding, since it is the one check that would
+have caught both this and the original §6b breakage.
 
 ### Still to do
 
