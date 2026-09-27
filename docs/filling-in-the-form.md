@@ -186,5 +186,27 @@ You will sign twice: once to permit the USDC, once to post. The budget and your 
 escrow, the tender appears on the board, and the metadata hash is fixed — after this the scope,
 rubric and terms cannot be changed without every bidder seeing it.
 
-You can cancel while no bid has been committed. Once someone has bid, the tender runs its course:
-they have staked money on the strength of it.
+## If you get something wrong
+
+Nothing published can be edited. The scope, category, rubric and terms are fixed by a hash when the
+tender opens, which is exactly what lets a supplier spend a day quoting against it — a tender whose
+terms could move under them would be worth nothing. So a typo in the scope or the wrong category
+cannot be corrected in place.
+
+What you can do depends on whether anyone has bid yet.
+
+**Nobody has bid: cancel and repost.** The Actions panel offers this while `0` bids are committed.
+Your budget and stake come back in full, nothing has cost anyone anything, and you post a corrected
+tender. This is the common case for a typo, because most mistakes are spotted in the first minutes.
+
+**Somebody has bid: it runs its course.** Cancelling is refused once a sealed bid exists, because
+that bidder has a deposit at risk on the strength of what you published. If the mistake makes the
+tender unusable, the honest move is to let the award deadline pass and close it without an award —
+everyone who revealed gets their deposit back, and you have lost only time. Say so in the
+clarification round rather than leaving bidders to work it out.
+
+**Closing without an award is a transaction, not a deadline.** Once the award deadline passes the
+tender *reads* as closed, but the budget and your stake are still held by the contract until
+somebody calls it. The Actions panel has a button; anyone may press it, because the money goes to
+the buyer either way and a buyer who has given up is precisely the person who will not return to
+press it.

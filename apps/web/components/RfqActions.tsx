@@ -23,6 +23,16 @@ type Props = {
   rfqId: number;
   phase: string;
   buyer: `0x${string}`;
+  /** Sealed bids committed so far. Zero is the only state in which a tender can be cancelled. */
+  commitCount: number;
+  /**
+   * The RFQ's stored status, which is not the same as its phase.
+   *
+   * Phase is derived from the clock — past the award deadline it reads `NoAward` on its own. The
+   * escrow is only returned by `closeNoAward`, which someone has to call. So a tender can look
+   * closed for weeks while the buyer's budget and stake are still locked in the contract.
+   */
+  status: number;
   /** Bidder the attested evaluation recommends, if any. */
   recommended?: `0x${string}` | null;
   evaluationHash?: `0x${string}`;
@@ -62,6 +72,8 @@ export function RfqActions({
   rfqId,
   phase,
   buyer,
+  commitCount,
+  status,
   recommended,
   evaluationHash,
   rubricHash,
@@ -175,6 +187,48 @@ export function RfqActions({
    *
    * Best effort — a store that is down must never stop a buyer rejecting work they did not get.
    */
+  /** IRFQRegistry.Status — Open is the only one whose escrow has not been settled either way. */
+  const STILL_OPEN = status === 1;
+
+  /**
+   * Abandon a tender nobody has bid on.
+   *
+   * The published document is fixed by `metadataHash` when the RFQ opens, so a wrong category or a
+   * typo in the scope cannot be edited — the whole point is that suppliers bid against terms that
+   * cannot move under them. What a buyer can do is withdraw the tender while it is still costless
+   * to everyone: the contract allows it only while `commitCount` is zero, because after that
+   * somebody has put a deposit at risk on the strength of it.
+   */
+  function cancel() {
+    run("Cancelling…", () =>
+      write({
+        address: contracts.RFQRegistry,
+        abi: RFQRegistryAbi,
+        functionName: "cancelRFQ",
+        args: [BigInt(rfqId)],
+      }),
+    );
+  }
+
+  /**
+   * Settle a tender that ended without a winner, and release the escrow.
+   *
+   * Deliberately callable by anyone. The phase already reads `NoAward` once the clock passes, but
+   * nothing has moved: the budget and the buyer's stake sit in the contract until this is called.
+   * A buyer who has given up and stopped visiting is exactly the person who will not call it, so
+   * limiting it to them would strand the money it is meant to return.
+   */
+  function closeNoAward() {
+    run("Closing…", () =>
+      write({
+        address: contracts.RFQRegistry,
+        abi: RFQRegistryAbi,
+        functionName: "closeNoAward",
+        args: [BigInt(rfqId)],
+      }),
+    );
+  }
+
   async function publishReason(text: string) {
     if (!text.trim()) return;
     try {
@@ -335,8 +389,54 @@ export function RfqActions({
             : phase === "Reveal"
               ? "The reveal window is open. Bidders who committed must reveal now; an unrevealed bid forfeits its deposit."
               : phase === "NoAward"
-                ? "No award was made, so the budget and the buyer stake returned and every revealed bidder can reclaim its deposit."
+                ? STILL_OPEN
+                  ? "No award was made. The budget and the buyer stake are still held by the contract and are returned by closing the tender below — the deadline passing does not move money on its own."
+                  : "No award was made. The budget and the buyer stake have been returned, and every revealed bidder can reclaim its deposit."
                 : "Nothing to do in this phase."}
+        </div>
+      )}
+
+      {/* ---- cancel: only while nobody has bid ---- */}
+      {isBuyer && phase === "Bidding" && commitCount === 0 && (
+        <div className="form">
+          <div className="full note">
+            <b>Posted something wrong?</b> The scope, category and terms are fixed by the published
+            hash and cannot be edited — that is what lets a supplier trust the tender they bid on.
+            While no bid has been committed you can cancel instead, which returns your budget and
+            stake in full, and post a corrected tender.
+          </div>
+          <div className="full filter-row">
+            <button type="button" className="chip" onClick={cancel} disabled={Boolean(busy)}>
+              Cancel this tender
+            </button>
+            <span className="hint">
+              Possible until the first sealed bid arrives. After that the tender runs its course.
+            </span>
+          </div>
+        </div>
+      )}
+
+      {isBuyer && phase === "Bidding" && commitCount > 0 && (
+        <div className="note">
+          <b>This tender can no longer be cancelled.</b> {commitCount} sealed bid
+          {commitCount === 1 ? " has" : "s have"} been committed, and each one has a deposit at risk
+          on the strength of what you published. If you do not want any of them, let the award
+          deadline pass and close it without an award — the deposits are returned to everyone who
+          revealed.
+        </div>
+      )}
+
+      {/* ---- close a tender that ended with no winner ---- */}
+      {phase === "NoAward" && STILL_OPEN && (
+        <div className="form">
+          <div className="full filter-row">
+            <button type="button" className="chip" onClick={closeNoAward} disabled={Boolean(busy)}>
+              Close and return the escrow
+            </button>
+            <span className="hint">
+              Anyone may do this — the money goes to the buyer either way.
+            </span>
+          </div>
         </div>
       )}
 

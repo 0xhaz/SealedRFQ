@@ -17,6 +17,15 @@ bidding on it.
 You can cancel while no bid has been committed, and everything returns. Once someone has bid, the
 tender runs its course: they have put money at risk on the strength of it.
 
+Nothing published can be edited either — scope, category, rubric and terms are fixed by a hash when
+the tender opens. That is what makes it worth a supplier's time to quote. A mistake spotted before
+the first bid is a cancel-and-repost; after it, the tender has to finish.
+
+And closing a tender that found no winner is a **transaction**, not a deadline. Past the award
+deadline the tender reads as closed while the budget and your stake are still held by the contract.
+Someone has to close it to release them — anyone may, since the money returns to the buyer
+regardless.
+
 ## Sealed or open
 
 **Sealed** is the default and the one the integrity claim rests on. No bidder sees another's price

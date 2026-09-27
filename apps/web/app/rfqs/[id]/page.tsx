@@ -419,6 +419,8 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
             rfqId={id}
             phase={rfq.phase}
             buyer={rfq.buyer}
+            commitCount={Number(rfq.commitCount)}
+            status={rfq.status}
             recommended={evaluation.memo?.decision?.bidder ?? null}
             evaluationHash={evaluation.payloadHash}
             rubricHash={rfq.rubricHash}

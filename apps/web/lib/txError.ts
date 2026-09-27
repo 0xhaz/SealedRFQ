@@ -84,7 +84,8 @@ const EXPLAIN: Record<string, (a: readonly unknown[]) => string> = {
   BuyerStakeTooLow: (a) =>
     `The buyer stake is ${usdc(a[0])} but the policy requires at least ${usdc(a[1])}.`,
   NotAuthorizedToAward: () => "This wallet is not allowed to award this RFQ.",
-  CannotCancel: () => "This RFQ can no longer be cancelled.",
+  CannotCancel: () =>
+    "This tender can no longer be cancelled — a sealed bid has been committed against it. Whoever bid has a deposit at risk on the terms you published, so the tender now runs its course. If you do not want any of the bids, let the award deadline pass and close it without an award.",
 
   // ── delivery and payment ──
   AlreadyStarted: () => "This engagement has already been started.",
