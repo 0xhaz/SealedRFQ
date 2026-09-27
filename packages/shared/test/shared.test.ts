@@ -74,7 +74,7 @@ const memo: DecisionMemo = {
     {
       bidder: SUPPLIER,
       price: "2800000",
-      deliveryDays: 21,
+      deliverySeconds: 21 * 86_400,
       criteria: { price: 80, delivery: 70, quality: 90 },
       totalBps: 8_050,
       redFlags: [],

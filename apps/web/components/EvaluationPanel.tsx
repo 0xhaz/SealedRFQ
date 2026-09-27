@@ -1,6 +1,6 @@
 import type { AuditResult, Evaluation } from "@/lib/agent";
 import { explorerTx } from "@/lib/chain";
-import { formatUsdc } from "@sealedrfq/shared";
+import { formatUsdc, describeWindow} from "@sealedrfq/shared";
 import Link from "next/link";
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
@@ -125,7 +125,7 @@ export function EvaluationPanel({
                 )}
               </td>
               <td className="num">{formatUsdc(BigInt(s.price))}</td>
-              <td className="num">{s.deliveryDays}</td>
+              <td className="num">{describeWindow(s.deliverySeconds)}</td>
               <td className="num">
                 <b>{(s.totalBps / 100).toFixed(1)}</b>
                 <span className="muted">

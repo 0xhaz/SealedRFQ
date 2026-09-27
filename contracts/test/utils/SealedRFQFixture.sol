@@ -130,7 +130,8 @@ abstract contract SealedRFQFixture is Test {
 
     /// @dev `proposalHash` is zero for a price-only RFQ and the proposal document hash in RFP mode.
     function commit(uint256 id, address bidder, uint128 price, uint32 days_, bytes32 proposalHash) internal {
-        bytes32 h = registry.computeCommitment(id, bidder, price, days_, proposalHash, salt(bidder));
+        bytes32 h =
+            registry.computeCommitment(id, bidder, price, _days(days_), proposalHash, salt(bidder));
         vm.prank(bidder);
         registry.commitBid(id, h);
     }
@@ -141,7 +142,16 @@ abstract contract SealedRFQFixture is Test {
 
     function reveal(uint256 id, address bidder, uint128 price, uint32 days_, bytes32 proposalHash) internal {
         vm.prank(bidder);
-        registry.revealBid(id, price, days_, proposalHash, salt(bidder));
+        registry.revealBid(id, price, _days(days_), proposalHash, salt(bidder));
+    }
+
+    /**
+     * @dev Bids are stored in seconds; these helpers still take days because that is how a test
+     *      reads ("s2 bid 14 days"). Converting here keeps every call site expressing intent while
+     *      the contract keeps the unit a delivery window is actually measured in.
+     */
+    function _days(uint32 d) internal pure returns (uint32) {
+        return uint32(uint256(d) * 1 days);
     }
 
     function toReveal(uint256 id) internal {

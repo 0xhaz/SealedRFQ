@@ -91,9 +91,9 @@ a window that restarts each time, not a final date: three milestones of 14 days 
 **Set it at least as long as the slowest delivery you would accept** — the contract refuses an award
 to a bid quoting longer, so a short window silently makes good bids unawardable.
 
-Suppliers quote delivery in **whole days**, so a day is the shortest window any bid can meet and the
-form will not accept less. This is also why a window is a deadline rather than a wait: a supplier
-can deliver the moment a milestone opens, and the window only matters if they are late.
+Suppliers quote delivery in the same units you set here, so any window you can express is one a bid
+can answer. Remember it is a deadline rather than a wait: a supplier can deliver the moment a
+milestone opens, and the window only matters if they are late.
 
 **Acceptance window.** How long you have to inspect before payment releases on its own. Hours for a
 document, days for anything physical — and for goods it must cover **shipping plus inspection**, not

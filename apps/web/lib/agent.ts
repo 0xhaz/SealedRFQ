@@ -52,7 +52,7 @@ export type Evaluation = {
     scores: {
       bidder: `0x${string}`;
       price: string;
-      deliveryDays: number;
+      deliverySeconds: number;
       criteria: Record<string, number>;
       totalBps: number;
       redFlags: string[];

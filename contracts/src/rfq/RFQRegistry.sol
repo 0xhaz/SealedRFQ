@@ -96,13 +96,13 @@ contract RFQRegistry is SealedBid {
 
         Bid storage b = _bids[rfqId][winner];
         if (!b.revealed) revert WinnerNotRevealed(winner);
-        // Checked here rather than at reveal, deliberately. A bid quoting more days than the tender
+        // Checked here rather than at reveal, deliberately. A bid quoting longer than the tender
         // allows is unawardable, but the supplier who placed it did so against a window they could
         // read and should not lose their deposit for it — and reverting their reveal would leave
         // them recorded as never having revealed, which is exactly how a deposit is forfeited.
         // Refusing the award instead makes the bid worthless without making it costly.
-        if (r.deliveryWindow > 0 && uint256(b.deliveryDays) * 1 days > r.deliveryWindow) {
-            revert DeliveryExceedsWindow(b.deliveryDays, r.deliveryWindow);
+        if (r.deliveryWindow > 0 && b.deliverySeconds > r.deliveryWindow) {
+            revert DeliveryExceedsWindow(b.deliverySeconds, r.deliveryWindow);
         }
         if (!attestationLog.isAttested(
                 awardSubject(rfqId, winner), evaluationHash, AttestationKinds.AWARD_RECOMMENDATION

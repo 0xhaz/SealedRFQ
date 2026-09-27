@@ -7,7 +7,7 @@ pragma solidity 0.8.28;
 ///  Lifecycle (every state has a clock):
 ///    createRFQ  -> budget + buyer stake escrowed atomically ("funded before open")
 ///    Bidding    -> now < bidDeadline: suppliers commitBid(hash) + deposit
-///    Reveal     -> bidDeadline <= now < revealDeadline: revealBid(price, days, salt)
+///    Reveal     -> bidDeadline <= now < revealDeadline: revealBid(price, deliverySeconds, salt)
 ///    Award      -> revealDeadline <= now < awardDeadline: buyer or AWARDER awards, policy-checked
 ///    Awarded    -> price + buyer stake + winner deposit (performance stake) move to the adapter
 ///    NoAward    -> closeNoAward after awardDeadline (or at revealDeadline with zero reveals)
@@ -114,7 +114,7 @@ interface IRFQRegistry {
     struct Bid {
         bytes32 commitHash;
         uint128 price;
-        uint32 deliveryDays;
+        uint32 deliverySeconds;
         /// sha256 of the proposal document (method, team, timeline). Zero for a price-only RFQ.
         bytes32 proposalHash;
         bool revealed;
@@ -142,7 +142,7 @@ interface IRFQRegistry {
         uint256 indexed rfqId,
         address indexed bidder,
         uint256 price,
-        uint32 deliveryDays,
+        uint32 deliverySeconds,
         bytes32 proposalHash,
         uint256 deposit
     );
@@ -151,7 +151,7 @@ interface IRFQRegistry {
         uint256 indexed rfqId,
         address indexed bidder,
         uint256 price,
-        uint32 deliveryDays,
+        uint32 deliverySeconds,
         bytes32 proposalHash
     );
     event RFQAwarded(
@@ -187,8 +187,8 @@ interface IRFQRegistry {
     error ZeroPrice();
     /// @dev A sealed action on an open tender, or the reverse.
     error WrongBidMode();
-    /// @dev The winning bid promised more days than the tender allows per milestone.
-    error DeliveryExceedsWindow(uint32 deliveryDays, uint32 windowSeconds);
+    /// @dev The winning bid promised a longer delivery than the tender allows per milestone.
+    error DeliveryExceedsWindow(uint32 deliverySeconds, uint32 windowSeconds);
     /// @dev An agent awarded above what policy lets it decide without a person.
     error AgentAwardCapExceeded(uint256 price, uint128 cap);
     error NotAuthorizedToAward(address caller);
@@ -218,7 +218,7 @@ interface IRFQRegistry {
         bytes32 s
     ) external;
     /// @param proposalHash sha256 of the proposal document; must be non-zero when the RFQ is in RFP mode.
-    function revealBid(uint256 rfqId, uint128 price, uint32 deliveryDays, bytes32 proposalHash, bytes32 salt)
+    function revealBid(uint256 rfqId, uint128 price, uint32 deliverySeconds, bytes32 proposalHash, bytes32 salt)
         external;
 
     // ---- award (buyer or AWARDER, always through ProcurementPolicy) ----
@@ -245,7 +245,7 @@ interface IRFQRegistry {
         uint256 rfqId,
         address bidder,
         uint128 price,
-        uint32 deliveryDays,
+        uint32 deliverySeconds,
         bytes32 proposalHash,
         bytes32 salt
     ) external view returns (bytes32);

@@ -31,7 +31,8 @@ export type DecisionKind = z.infer<typeof DecisionKind>;
 export const BidScore = z.object({
   bidder: address,
   price: usdcUnits,
-  deliveryDays: z.number().int().nonnegative(),
+  /** Seconds — the unit the bid is stored in on-chain, so the memo and the chain agree. */
+  deliverySeconds: z.number().int().nonnegative(),
   /** Per-criterion scores, 0–100, keyed by rubric criterion id. */
   criteria: z.record(z.string(), z.number().min(0).max(100)),
   /** Weighted total, 0–100 (two-decimal precision as an integer of basis points: 0–10000). */

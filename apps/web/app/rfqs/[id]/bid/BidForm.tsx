@@ -12,6 +12,7 @@ import {
 } from "@/lib/bidStore";
 import { chain, contracts, explorerTx } from "@/lib/chain";
 import { useIsContract } from "@/components/TeamAccount";
+import { DURATION_UNITS, type DurationUnit, toSeconds } from "@/lib/duration";
 import { hashFile } from "@/lib/docHash";
 import { signUsdcPermit } from "@/lib/permit";
 import { describeTxError } from "@/lib/txError";
@@ -58,18 +59,25 @@ export function BidForm({
   const { writeContractAsync } = useWriteContract();
 
   const [price, setPrice] = useState("");
-  const [days, setDays] = useState("21");
+  /**
+   * Delivery as an amount and a unit, matching the buyer's own field.
+   *
+   * A bid used to be a whole number of days while the buyer's window was seconds, so a window
+   * shorter than a day could not be met by any bid at all and the tender simply refused every
+   * award. Both are seconds now, and a supplier can answer a two-hour window with ninety minutes.
+   */
+  const [deliveryAmount, setDeliveryAmount] = useState("21");
+  const [deliveryUnit, setDeliveryUnit] = useState<DurationUnit>("days");
+  const deliverySeconds = toSeconds(deliveryAmount, deliveryUnit);
 
   /**
    * Whether the quoted delivery fits the window the buyer published.
    *
-   * Nothing on-chain enforces this: the contract will happily take the bid, award it, and then
-   * start a milestone whose deadline has already passed — at which point the supplier forfeits the
-   * escrow and their performance stake for missing a date they were never asked to agree to. The
-   * only place this can be caught cheaply is before the deposit is committed, which is here.
+   * The award now refuses a bid that overruns, but the deposit is taken at commit — long before
+   * anyone tries to award. So catching it here is still the only place it costs the supplier
+   * nothing, and the warning stays.
    */
-  const windowDays = deliveryWindow / 86_400;
-  const overWindow = deliveryWindow > 0 && Number(days) > windowDays;
+  const overWindow = deliveryWindow > 0 && deliverySeconds > deliveryWindow;
   const [proposal, setProposal] = useState("");
   /**
    * A priced quotation as a file. A classic RFQ is answered with a document, not a paragraph, and
@@ -141,7 +149,7 @@ export function BidForm({
   function commitmentFor(
     bidder: `0x${string}`,
     price: bigint,
-    deliveryDays: number,
+    deliverySeconds: number,
     proposalHash: `0x${string}`,
     salt: `0x${string}`,
   ) {
@@ -151,7 +159,7 @@ export function BidForm({
       rfqId,
       bidder,
       price,
-      deliveryDays,
+      deliverySeconds,
       proposalHash,
       salt,
     });
@@ -175,10 +183,7 @@ export function BidForm({
     try {
       const priceUnits = parseUsdc(price);
       if (priceUnits <= 0n) throw new Error("Enter a price above zero");
-      const deliveryDays = Number(days);
-      if (!Number.isInteger(deliveryDays) || deliveryDays <= 0) {
-        throw new Error("Delivery must be a whole number of days");
-      }
+      if (deliverySeconds <= 0) throw new Error("Enter how long delivery will take");
 
       if (!accepted) {
         throw new Error(
@@ -202,7 +207,7 @@ export function BidForm({
           abi: RFQRegistryAbi,
           address: contracts.RFQRegistry,
           functionName: "placeOpenBid",
-          args: [BigInt(rfqId), priceUnits, deliveryDays, proposalHash],
+          args: [BigInt(rfqId), priceUnits, deliverySeconds, proposalHash],
           chainId: chain.id,
         });
         setTxHash(hash);
@@ -221,7 +226,7 @@ export function BidForm({
 
       setBusy("Deriving your bid secret (signature, not a transaction)…");
       const salt = await deriveSalt(address);
-      const commitHash = commitmentFor(address, priceUnits, deliveryDays, proposalHash, salt);
+      const commitHash = commitmentFor(address, priceUnits, deliverySeconds, proposalHash, salt);
 
       // Save and hand over the reveal file before signing anything that costs money.
       const record: SavedBid = {
@@ -229,7 +234,7 @@ export function BidForm({
         rfqId,
         bidder: address,
         price: priceUnits.toString(),
-        deliveryDays,
+        deliverySeconds,
         proposalHash,
         salt,
         commitHash,
@@ -295,7 +300,7 @@ export function BidForm({
           commitmentFor(
             address,
             BigInt(c.price),
-            c.deliveryDays,
+            c.deliverySeconds,
             c.proposalHash ?? ZERO_HASH,
             c.salt,
           ).toLowerCase() === target.toLowerCase(),
@@ -307,8 +312,8 @@ export function BidForm({
           : candidates[0]
             ? BigInt(candidates[0].price)
             : 0n;
-        const deliveryDays = Number(days) || candidates[0]?.deliveryDays || 0;
-        if (priceUnits > 0n && deliveryDays > 0) {
+        const secs = deliverySeconds || candidates[0]?.deliverySeconds || 0;
+        if (priceUnits > 0n && secs > 0) {
           setBusy("Re-deriving your bid secret from your wallet…");
           const salt = await deriveSalt(address);
           const proposalHash =
@@ -316,7 +321,7 @@ export function BidForm({
               ? proposalHashOf(proposal)
               : (candidates[0]?.proposalHash ?? ZERO_HASH);
           if (
-            commitmentFor(address, priceUnits, deliveryDays, proposalHash, salt).toLowerCase() ===
+            commitmentFor(address, priceUnits, deliverySeconds, proposalHash, salt).toLowerCase() ===
             target.toLowerCase()
           ) {
             match = {
@@ -324,7 +329,7 @@ export function BidForm({
               rfqId,
               bidder: address,
               price: priceUnits.toString(),
-              deliveryDays,
+              deliverySeconds,
               proposalHash,
               salt,
               commitHash: target,
@@ -350,7 +355,7 @@ export function BidForm({
         args: [
           BigInt(rfqId),
           BigInt(match.price),
-          match.deliveryDays,
+          match.deliverySeconds,
           match.proposalHash ?? ZERO_HASH,
           match.salt,
         ],
@@ -429,19 +434,32 @@ export function BidForm({
             />
           </div>
           <div className="field">
-            <label htmlFor="bid-days">Delivery (days)</label>
-            <input
-              id="bid-days"
-              inputMode="numeric"
-              value={days}
-              onChange={(e) => setDays(e.target.value)}
-            />
+            <label htmlFor="bid-delivery">Delivery</label>
+            <div className="duration-input">
+              <input
+                id="bid-delivery"
+                inputMode="numeric"
+                value={deliveryAmount}
+                onChange={(e) => setDeliveryAmount(e.target.value)}
+              />
+              <select
+                aria-label="delivery unit"
+                value={deliveryUnit}
+                onChange={(e) => setDeliveryUnit(e.target.value as DurationUnit)}
+              >
+                {DURATION_UNITS.map((u) => (
+                  <option key={u.value} value={u.value}>
+                    {u.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             {overWindow && (
               <div className="field-err" role="alert">
                 This tender gives each milestone {describeWindow(deliveryWindow)} to deliver, so a{" "}
-                {days}-day quote cannot be met. Bid it and the first milestone's deadline passes
-                before you can deliver, forfeiting the escrow and your performance stake. The
-                evaluator flags this and will not recommend the bid.
+                {describeWindow(deliverySeconds)} quote cannot be met. Bid it and the award will be
+                refused — and if the buyer awards anyway, the first milestone's deadline passes
+                before you can deliver, forfeiting the escrow and your performance stake.
               </div>
             )}
           </div>
@@ -583,7 +601,8 @@ export function BidForm({
                 {saved ? (
                   <>
                     Found your sealed bid in this browser:{" "}
-                    <b>{formatUsdc(BigInt(saved.price))} USDC</b> over {saved.deliveryDays} days.
+                    <b>{formatUsdc(BigInt(saved.price))} USDC</b> over{" "}
+                    {describeWindow(saved.deliverySeconds)}.
                   </>
                 ) : (
                   <>

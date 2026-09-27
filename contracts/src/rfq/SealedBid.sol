@@ -5,7 +5,7 @@ import {BidDeposit} from "./BidDeposit.sol";
 
 /// @title SealedBid
 /// @notice Commit-reveal sealed bids. During Bidding a supplier posts only
-///         `computeCommitment(rfqId, bidder, price, deliveryDays, salt)` plus the deposit, so no
+///         `computeCommitment(rfqId, bidder, price, deliverySeconds, salt)` plus the deposit, so no
 ///         price is visible on-chain until the reveal window. The salt is generated client-side
 ///         (never `block.prevrandao`, which is 0 on Arc). A bid that is not revealed in time forfeits
 ///         its deposit.
@@ -14,12 +14,12 @@ abstract contract SealedBid is BidDeposit {
         uint256 rfqId,
         address bidder,
         uint128 price,
-        uint32 deliveryDays,
+        uint32 deliverySeconds,
         bytes32 proposalHash,
         bytes32 salt
     ) public view returns (bytes32) {
         return keccak256(
-            abi.encode(address(this), block.chainid, rfqId, bidder, price, deliveryDays, proposalHash, salt)
+            abi.encode(address(this), block.chainid, rfqId, bidder, price, deliverySeconds, proposalHash, salt)
         );
     }
 
@@ -42,7 +42,7 @@ abstract contract SealedBid is BidDeposit {
     /// @notice Reveal a committed bid. Only the bidder can reveal, only in the reveal window.
     /// @dev `proposalHash` is bound into the commitment, so an RFP proposal cannot be rewritten
     ///      after seeing the competition any more than the price can.
-    function revealBid(uint256 rfqId, uint128 price, uint32 deliveryDays, bytes32 proposalHash, bytes32 salt)
+    function revealBid(uint256 rfqId, uint128 price, uint32 deliverySeconds, bytes32 proposalHash, bytes32 salt)
         external
     {
         RFQ storage r = _rfq(rfqId);
@@ -52,17 +52,17 @@ abstract contract SealedBid is BidDeposit {
         if (b.revealed) revert AlreadyRevealed(msg.sender);
         if (price == 0) revert ZeroPrice();
         if (r.requiresProposal && proposalHash == bytes32(0)) revert ProposalRequired();
-        if (computeCommitment(rfqId, msg.sender, price, deliveryDays, proposalHash, salt) != b.commitHash) {
+        if (computeCommitment(rfqId, msg.sender, price, deliverySeconds, proposalHash, salt) != b.commitHash) {
             revert CommitmentMismatch();
         }
 
         b.revealed = true;
         b.price = price;
-        b.deliveryDays = deliveryDays;
+        b.deliverySeconds = deliverySeconds;
         b.proposalHash = proposalHash;
         r.revealCount++;
         _trackCheapest(r, price);
-        emit BidRevealed(rfqId, msg.sender, price, deliveryDays, proposalHash);
+        emit BidRevealed(rfqId, msg.sender, price, deliverySeconds, proposalHash);
     }
 
     /**
@@ -73,7 +73,7 @@ abstract contract SealedBid is BidDeposit {
      *      improve their own bid while bidding is open — that is the point of an open auction — and
      *      the deposit is taken once, exactly as `_commit` does.
      */
-    function placeOpenBid(uint256 rfqId, uint128 price, uint32 deliveryDays, bytes32 proposalHash)
+    function placeOpenBid(uint256 rfqId, uint128 price, uint32 deliverySeconds, bytes32 proposalHash)
         external
         nonReentrant
     {
@@ -92,11 +92,11 @@ abstract contract SealedBid is BidDeposit {
             _takeDeposit(r, msg.sender);
         }
         b.price = price;
-        b.deliveryDays = deliveryDays;
+        b.deliverySeconds = deliverySeconds;
         b.proposalHash = proposalHash;
         b.revealed = true;
         _trackCheapest(r, price);
-        emit BidPlaced(rfqId, msg.sender, price, deliveryDays, proposalHash, r.depositAmount);
+        emit BidPlaced(rfqId, msg.sender, price, deliverySeconds, proposalHash, r.depositAmount);
     }
 
     /**

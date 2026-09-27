@@ -192,7 +192,7 @@ export class IndexerService implements OnModuleInit {
           .set({
             revealed: true,
             price: String(a.price),
-            deliveryDays: Number(a.deliveryDays),
+            deliverySeconds: Number(a.deliverySeconds),
             proposalHash: a.proposalHash ?? null,
             revealedTx: l.transactionHash,
           })

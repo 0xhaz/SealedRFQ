@@ -45,18 +45,11 @@ export function fromSeconds(seconds: number): { amount: string; unit: DurationUn
 }
 
 /**
- * Units valid for a delivery window, which is not every unit.
+ * The shortest delivery window worth offering.
  *
- * A bid carries `uint32 deliveryDays` — whole days — and the award check refuses a bid whose days
- * exceed the window. The smallest bid anyone can place is therefore one day, so a window shorter
- * than that cannot be met by any bid at all: the tender takes bids normally, reveals them
- * normally, and then refuses every award with `DeliveryExceedsWindow`. Offering minutes and hours
- * here would be offering a setting whose only effect is to waste a supplier's deposit.
- *
- * The acceptance window has no such limit — it is the buyer's own clock and is measured in
- * seconds throughout.
+ * Delivery used to be a whole number of days while the window was seconds, so nothing below a day
+ * could be met by any bid and such a tender refused every award. Both are seconds now, so a
+ * two-hour window can be answered with ninety minutes and every unit below is legitimate. The
+ * floor is only here to stop a window so short that nobody could act on it.
  */
-export const DELIVERY_UNITS = DURATION_UNITS.filter((u) => u.seconds >= 86_400);
-
-/** One day, in seconds: the shortest delivery window any bid can satisfy. */
-export const MIN_DELIVERY_SECONDS = 86_400;
+export const MIN_DELIVERY_SECONDS = 300;

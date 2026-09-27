@@ -142,13 +142,16 @@ export class EvaluatorService {
       (m, b) => (BigInt(b.price ?? "0") < m ? BigInt(b.price ?? "0") : m),
       BigInt(revealed[0].price ?? "0"),
     );
-    const bestDays = Math.min(...revealed.map((b) => b.deliveryDays ?? 9999));
+    // A bid with no recorded delivery scores as the worst possible rather than the best, so a
+    // missing value can never win on speed.
+    const NO_DELIVERY = 9999 * 86_400;
+    const bestSeconds = Math.min(...revealed.map((b) => b.deliverySeconds ?? NO_DELIVERY));
 
     const scores = revealed.map((b) => {
       const price = BigInt(b.price ?? "0");
-      const days = b.deliveryDays ?? 9999;
+      const secs = b.deliverySeconds ?? NO_DELIVERY;
       const priceScore = price > 0n ? Number((bestPrice * 10_000n) / price) / 100 : 0;
-      const deliveryScore = days > 0 ? (bestDays / days) * 100 : 0;
+      const deliveryScore = secs > 0 ? (bestSeconds / secs) * 100 : 0;
       const completed = db
         .select()
         .from(schema.engagements)
@@ -164,9 +167,9 @@ export class EvaluatorService {
       // way an over-budget bid is. It is worth catching here because the consequence lands on the
       // supplier: award them and the first milestone's deadline is already impossible, so they
       // forfeit the escrow and their performance stake for missing a date they never agreed to.
-      if (deliveryWindow > 0 && days * 86_400 > deliveryWindow) {
+      if (deliveryWindow > 0 && secs > deliveryWindow) {
         redFlags.push(
-          `bid promises ${days} days but this tender allows ${describeWindow(deliveryWindow)}`,
+          `bid promises ${describeWindow(secs)} but this tender allows ${describeWindow(deliveryWindow)}`,
         );
       }
       if (rfq.requiresProposal && !b.proposalHash) {
@@ -181,7 +184,7 @@ export class EvaluatorService {
       // fixed before bidding, so the bar cannot have moved since. Checkable ones become red flags;
       // stated-but-unprovable ones are reported as needing a person rather than quietly passed.
       const { failed, unverified } = checkRequirements(
-        { deliveryDays: days, completed },
+        { deliverySeconds: secs, completed },
         (published as { requirements?: unknown } | null)?.requirements,
       );
       redFlags.push(...failed);
@@ -196,7 +199,7 @@ export class EvaluatorService {
       return {
         bidder: b.bidder,
         price: String(price),
-        deliveryDays: days,
+        deliverySeconds: secs,
         criteria: {
           price: Math.round(priceScore * 100) / 100,
           delivery: Math.round(deliveryScore * 100) / 100,
@@ -221,8 +224,8 @@ export class EvaluatorService {
      * in those terms rather than claiming the contract would refuse.
      */
     const overBudget = (s: { price: string }) => BigInt(s.price) > budget;
-    const overWindow = (s: { deliveryDays: number }) =>
-      deliveryWindow > 0 && s.deliveryDays * 86_400 > deliveryWindow;
+    const overWindow = (s: { deliverySeconds: number }) =>
+      deliveryWindow > 0 && s.deliverySeconds > deliveryWindow;
     const winner = scores.filter((s) => !overBudget(s) && !overWindow(s))[0];
 
     const inputsHash = hashCanonical({
@@ -232,7 +235,7 @@ export class EvaluatorService {
       bids: revealed.map((b) => ({
         bidder: b.bidder,
         price: b.price,
-        days: b.deliveryDays,
+        delivery: b.deliverySeconds === null ? null : describeWindow(b.deliverySeconds),
         proposalHash: b.proposalHash,
       })),
     });
@@ -241,7 +244,7 @@ export class EvaluatorService {
       best.bidder !== winner?.bidder
         ? overBudget(best)
           ? ` ${best.bidder} scored higher overall but bids above the published budget, which the contract would reject.`
-          : ` ${best.bidder} scored higher overall but promises ${best.deliveryDays} days against a ${describeWindow(deliveryWindow)} delivery window, so its first milestone would expire before it could be delivered.`
+          : ` ${best.bidder} scored higher overall but promises ${describeWindow(best.deliverySeconds)} against a ${describeWindow(deliveryWindow)} delivery window, so its first milestone would expire before it could be delivered.`
         : "";
     const rationale = !verified
       ? "The rubric published with this RFQ does not match the hash fixed on-chain, so the bids cannot be scored against the agreed criteria."

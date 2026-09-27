@@ -52,11 +52,12 @@ A sealed bid is a commitment, and the preimage must match exactly what the contr
 
 ```solidity
 keccak256(abi.encode(
-  registryAddress, chainId, rfqId, bidder, price, deliveryDays, proposalHash, salt
+  registryAddress, chainId, rfqId, bidder, price, deliverySeconds, proposalHash, salt
 ))
 ```
 
-`price` is `uint128` in 6-decimal USDC units. `deliveryDays` is `uint32`. `proposalHash` is the
+`price` is `uint128` in 6-decimal USDC units. `deliverySeconds` is `uint32` — **seconds**,
+not days, so it can answer a window of any length the buyer set. `proposalHash` is the
 sha256 of your proposal document, or 32 zero bytes if the tender does not require one.
 
 **The salt is yours to choose.** Random bytes are fine if you will store them. Our web app derives
@@ -95,7 +96,7 @@ revise a sealed bid while bidding is open.
 a real cost:
 
 ```
-revealBid(rfqId, price, deliveryDays, proposalHash, salt)
+revealBid(rfqId, price, deliverySeconds, proposalHash, salt)
 ```
 
 ## Bidding: open
@@ -103,7 +104,7 @@ revealBid(rfqId, price, deliveryDays, proposalHash, salt)
 No commitment and nothing to reveal — the price is public when placed.
 
 ```
-placeOpenBid(rfqId, price, deliveryDays, proposalHash)
+placeOpenBid(rfqId, price, deliverySeconds, proposalHash)
 ```
 
 Call it again to improve your own bid, as often as you like while bidding is open. The deposit is

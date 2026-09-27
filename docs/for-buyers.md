@@ -52,8 +52,7 @@ convention is `30, 70` — a deposit against production and the balance against 
 **Delivery per milestone.** How long the supplier has, from the moment each milestone opens. It is a
 *window*, not a date: the clock restarts each milestone. **Set it at least as long as the slowest
 bid you would accept** — the contract now refuses an award to a bid quoting more days than the
-window allows, so a short window quietly makes your best bids unawardable. Bids are quoted in whole
-days, so one day is the floor.
+window allows, so a short window quietly makes your best bids unawardable.
 
 **Acceptance window.** How long you have to inspect after delivery before payment releases
 automatically. Hours for a document. Days for anything physical. Letting it lapse pays the supplier,

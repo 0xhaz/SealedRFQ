@@ -11,7 +11,7 @@ export type SavedBid = {
   bidder: `0x${string}`;
   /** 6-decimal USDC units, as a string (JSON has no bigint). */
   price: string;
-  deliveryDays: number;
+  deliverySeconds: number;
   /** sha256 of the proposal document in RFP mode; zero hash for a price-only RFQ. */
   proposalHash: `0x${string}`;
   salt: `0x${string}`;
@@ -73,7 +73,7 @@ export function computeCommitment(args: {
   rfqId: number;
   bidder: `0x${string}`;
   price: bigint;
-  deliveryDays: number;
+  deliverySeconds: number;
   proposalHash: `0x${string}`;
   salt: `0x${string}`;
 }): `0x${string}` {
@@ -86,7 +86,7 @@ export function computeCommitment(args: {
         BigInt(args.rfqId),
         args.bidder,
         args.price,
-        args.deliveryDays,
+        args.deliverySeconds,
         args.proposalHash,
         args.salt,
       ],

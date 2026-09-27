@@ -106,7 +106,7 @@ export async function getBid(id: number, bidder: `0x${string}`) {
   return {
     commitHash: bid.commitHash,
     price: bid.price,
-    deliveryDays: bid.deliveryDays,
+    deliverySeconds: bid.deliverySeconds,
     proposalHash: bid.proposalHash,
     revealed: bid.revealed,
     deposit: DEPOSIT_STATES[Number(bid.deposit)] ?? "None",

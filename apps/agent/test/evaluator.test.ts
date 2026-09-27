@@ -64,6 +64,7 @@ function seedRfq(id: number, overrides: Record<string, unknown> = {}) {
     .run();
 }
 
+/** Callers still say days, because that is how a bid reads; the column is seconds, as the chain is. */
 function seedBid(rfqId: number, bidder: string, price: string, deliveryDays: number) {
   db.insert(schema.bids)
     .values({
@@ -71,7 +72,7 @@ function seedBid(rfqId: number, bidder: string, price: string, deliveryDays: num
       bidder,
       commitHash: "0xhash",
       price,
-      deliveryDays,
+      deliverySeconds: deliveryDays * 86_400,
       revealed: true,
       committedTx: "0xtx",
     })
@@ -116,7 +117,7 @@ describe("evaluator scoring", () => {
   });
 
   it("flags a bid that cannot be delivered inside the tender's window", async () => {
-    // The window is the buyer's term; the days are the supplier's quote. Nothing on-chain compares
+    // The window is the buyer's term; the quote is the supplier's. Nothing on-chain compares
     // them, which is exactly why the evaluator has to.
     chainDeliveryWindow = 900; // 15 minutes
     seedRfq(10);

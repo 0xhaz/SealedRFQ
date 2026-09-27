@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { checkRequirements } from "../src/requirements.js";
 
-const bid = { deliveryDays: 21, completed: 0 };
+const DAY = 86_400;
+const bid = { deliverySeconds: 21 * DAY, completed: 0 };
 
 describe("checkRequirements", () => {
   it("passes a bid that meets the checkable bar", () => {
     const r = checkRequirements(
-      { deliveryDays: 14, completed: 3 },
+      { deliverySeconds: 14 * DAY, completed: 3 },
       {
         maxDeliveryDays: 30,
         minCompletedEngagements: 2,
@@ -18,8 +19,8 @@ describe("checkRequirements", () => {
   it("fails a bid slower than the required delivery, quoting both numbers", () => {
     const r = checkRequirements(bid, { maxDeliveryDays: 14 });
     expect(r.failed).toHaveLength(1);
-    expect(r.failed[0]).toContain("21");
-    expect(r.failed[0]).toContain("14");
+    expect(r.failed[0]).toContain("21 days");
+    expect(r.failed[0]).toContain("14 days");
   });
 
   it("fails a supplier with too little history here", () => {

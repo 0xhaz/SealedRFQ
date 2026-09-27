@@ -1,3 +1,4 @@
+import { describeWindow } from "./windows.js";
 import { z } from "zod";
 
 /**
@@ -18,7 +19,7 @@ import { z } from "zod";
  * plainly that a human still has to look.
  */
 export const Requirements = z.object({
-  /** Reject a bid promising delivery slower than this. Checked against the revealed deliveryDays. */
+  /** Reject a bid promising delivery slower than this. Checked against the revealed delivery. */
   maxDeliveryDays: z.number().int().positive().optional(),
   /** Completed engagements on this deployment, counted from the chain's own history. */
   minCompletedEngagements: z.number().int().nonnegative().optional(),
@@ -41,7 +42,8 @@ export type RequirementResult = {
 };
 
 export type BidFacts = {
-  deliveryDays: number;
+  /** Seconds, matching the chain. The buyer's requirement below is still stated in days. */
+  deliverySeconds: number;
   /** Completed engagements this supplier already has on this deployment. */
   completed: number;
 };
@@ -56,9 +58,11 @@ export function checkRequirements(bid: BidFacts, requirements?: unknown): Requir
   const r = parsed.data;
 
   const failed: string[] = [];
-  if (r.maxDeliveryDays !== undefined && bid.deliveryDays > r.maxDeliveryDays) {
+  // The requirement is a buyer-facing figure in days; the bid is seconds, as the chain stores it.
+  // Comparing them needs one conversion, and doing it here keeps both sides in their own units.
+  if (r.maxDeliveryDays !== undefined && bid.deliverySeconds > r.maxDeliveryDays * 86_400) {
     failed.push(
-      `delivery of ${bid.deliveryDays} days is slower than the required ${r.maxDeliveryDays}`,
+      `delivery of ${describeWindow(bid.deliverySeconds)} is slower than the required ${r.maxDeliveryDays} days`,
     );
   }
   if (r.minCompletedEngagements !== undefined && bid.completed < r.minCompletedEngagements) {

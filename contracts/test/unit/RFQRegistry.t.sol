@@ -100,7 +100,7 @@ contract RFQRegistryTest is SealedRFQFixture {
         assertEq(uint8(b.deposit), uint8(IRFQRegistry.DepositState.Held));
         assertEq(registry.getRFQ(id).commitCount, 1);
         assertEq(usdc.balanceOf(s1), 100 * USDC - DEPOSIT);
-        assertEq(b.commitHash, registry.computeCommitment(id, s1, 2_700_000, 21, bytes32(0), salt(s1)));
+        assertEq(b.commitHash, registry.computeCommitment(id, s1, 2_700_000, _days(21), bytes32(0), salt(s1)));
     }
 
     function test_commit_rules() public {

@@ -15,7 +15,7 @@ import { readLineItems } from "@/lib/lineItems";
 import { milestoneLedger, milestoneMeaning } from "@/lib/milestones";
 import { countdown, getBid, getBidders, getEngagement, getRfq, getRfqCount } from "@/lib/rfq";
 import { CATEGORIES, REGIONS, labelFor } from "@/lib/taxonomy";
-import { formatUsdc } from "@sealedrfq/shared";
+import { formatUsdc, describeWindow} from "@sealedrfq/shared";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -159,7 +159,7 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
                           )}
                         </td>
                         <td className="num">
-                          {b.revealed && !sealed ? `${b.deliveryDays} d` : "—"}
+                          {b.revealed && !sealed ? describeWindow(b.deliverySeconds) : "—"}
                         </td>
                         {hasDocuments && (
                           <td className="mono" style={{ fontSize: 11 }}>

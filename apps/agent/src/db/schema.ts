@@ -33,7 +33,7 @@ export const bids = sqliteTable(
     bidder: text("bidder").notNull(),
     commitHash: text("commit_hash").notNull(),
     price: text("price"),
-    deliveryDays: integer("delivery_days"),
+    deliverySeconds: integer("delivery_seconds"),
     /** sha256 of the proposal document (RFP mode); null for a price-only RFQ. */
     proposalHash: text("proposal_hash"),
     revealed: integer("revealed", { mode: "boolean" }).notNull().default(false),

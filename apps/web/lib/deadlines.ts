@@ -83,13 +83,13 @@ export const PRESETS: {
     label: "48 hours",
     hint: "for an urgent buy",
     offsets: [2880, 3240, 5760],
-    windows: { delivery: ["1", "days"], accept: ["4", "hours"] },
+    windows: { delivery: ["24", "hours"], accept: ["4", "hours"] },
   },
   {
     label: "Demo",
     hint: "minutes, for a testnet run",
     offsets: [12, 22, 80],
-    windows: { delivery: ["1", "days"], accept: ["3", "minutes"] },
+    windows: { delivery: ["15", "minutes"], accept: ["3", "minutes"] },
   },
 ];
 

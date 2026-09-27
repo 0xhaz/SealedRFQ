@@ -1,32 +1,42 @@
 import { describe, expect, it } from "vitest";
 import { PRESETS } from "../lib/deadlines.js";
-import { DELIVERY_UNITS, MIN_DELIVERY_SECONDS, toSeconds } from "../lib/duration.js";
+import { DURATION_UNITS, MIN_DELIVERY_SECONDS, toSeconds } from "../lib/duration.js";
 
 /**
- * A bid carries `uint32 deliveryDays`, and `RFQRegistry.award` refuses a bid whose days exceed the
- * RFQ's delivery window. The smallest bid anyone can place is one whole day, so a window below a
- * day cannot be met by *any* bid: the tender takes deposits, reveals normally, and then refuses
- * every award. It looks like a tender that simply attracted no acceptable offer.
+ * Delivery was once a whole number of days on a bid while the buyer's window was seconds, so the
+ * smallest bid anyone could place was 86,400 seconds and no bid could satisfy a window shorter
+ * than a day. Such a tender took deposits, revealed normally, then refused every award — it looked
+ * like a tender that merely attracted no acceptable offer. Both sides are seconds now, and these
+ * assert the property that made the mismatch possible is gone.
  */
-describe("delivery window against what a bid can express", () => {
-  it("offers only units a whole-day bid can satisfy", () => {
-    for (const u of DELIVERY_UNITS) expect(u.seconds).toBeGreaterThanOrEqual(MIN_DELIVERY_SECONDS);
-    expect(DELIVERY_UNITS.map((u) => u.value)).not.toContain("minutes");
-    expect(DELIVERY_UNITS.map((u) => u.value)).not.toContain("hours");
+describe("a bid can express any window a buyer can set", () => {
+  it("offers the same units to both sides", () => {
+    // The buyer's window selector and the supplier's delivery selector read the same list; if they
+    // ever diverge again, some window becomes unquotable and the symptom is silent.
+    expect(DURATION_UNITS.map((u) => u.value)).toEqual([
+      "minutes",
+      "hours",
+      "days",
+      "weeks",
+      "months",
+    ]);
   });
 
-  it("gives every timetable preset a deliverable window", () => {
-    // The Demo preset used to set 15 minutes, which made every demo tender unawardable.
+  it("allows a sub-day window, because a bid can now answer one", () => {
+    expect(MIN_DELIVERY_SECONDS).toBeLessThan(86_400);
+    expect(toSeconds("90", "minutes")).toBeGreaterThanOrEqual(MIN_DELIVERY_SECONDS);
+  });
+
+  it("gives every preset a window a bid could meet", () => {
     for (const p of PRESETS) {
       const secs = toSeconds(p.windows.delivery[0], p.windows.delivery[1]);
       expect(secs, `${p.label} delivery window`).toBeGreaterThanOrEqual(MIN_DELIVERY_SECONDS);
     }
   });
 
-  it("leaves the acceptance window free to be short", () => {
-    // Acceptance is the buyer's own clock and is stored in seconds, so minutes are legitimate
-    // there — a demo run needs to get past it without waiting a day.
+  it("keeps the Demo preset fast enough to walk in one sitting", () => {
     const demo = PRESETS.find((p) => p.label === "Demo");
+    expect(toSeconds(demo!.windows.delivery[0], demo!.windows.delivery[1])).toBeLessThan(3600);
     expect(toSeconds(demo!.windows.accept[0], demo!.windows.accept[1])).toBeLessThan(3600);
   });
 });

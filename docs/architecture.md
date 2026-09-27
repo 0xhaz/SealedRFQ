@@ -277,7 +277,7 @@ Ported from Faktura's "Your agent talks to this desk directly" pattern, but spli
 |---|---|---|---|
 | 1 | `list_open_rfqs` (category, budget range, `requiresQualification`) | supplier agent | read · live chain |
 | 2 | `get_rfq` (scope, rubric weights, windows, deposit, funded status) | both | read · live chain |
-| 3 | `submit_sealed_bid` (rfqId, price, deliveryDays, salt) → commit hash + deposit tx | supplier agent | write · mode-aware |
+| 3 | `submit_sealed_bid` (rfqId, price, deliverySeconds, salt) → commit hash + deposit tx | supplier agent | write · mode-aware |
 | 4 | `get_evaluation_report` (rfqId) → HTTP 402 challenge → scored bids + rationale | buyer agent / third party | x402 · machine-payable |
 | 5 | `verify_decision_hash` (rfqId) → re-hash canonical award memo vs on-chain anchor | anyone / auditor | audit · trustless |
 | 6 | `escrow_status` (rfqId) → milestones, retention, stakes, windows, next auto-action | both | read · live chain |

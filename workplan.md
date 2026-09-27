@@ -1401,15 +1401,36 @@ typing a number into a box labelled minutes.
 - `test/delivery-window.test.ts` asserts every preset is deliverable and that no sub-day unit is
   offered.
 
-### The real fix, for the post-submission bundle
+### Fixed properly the same day: delivery is seconds everywhere
 
-Store **delivery in seconds** rather than days, so a bid can express what a window can. That means
-`uint32 deliverySeconds` in the bid struct, in `revealBid`, in `placeOpenBid` and — the part that
-makes it a redeploy rather than an edit — **inside the commitment preimage**, which every sealed
-bid already hashes. There is no migration path for live tenders, so it goes in the same bundle as
-anything else needing a redeploy.
+`uint32 deliveryDays` became `uint32 deliverySeconds` in the bid struct, `revealBid`,
+`placeOpenBid`, `computeCommitment`, the events and the error — and the award check lost its
+`* 1 days`. The interim UI workaround (a whole-day floor, minutes and hours removed from the
+buyer's selector, presets pushed to a 1-day window) was reverted: every unit is legitimate again
+and the Demo preset is back to a 15-minute window.
 
-Until then the whole-day floor is the honest constraint, and both buyer docs now state it.
+**The type did not change**, only its name and meaning, so the ABI shape and the commitment
+preimage are byte-identical. That keeps the change small but does *not* make it upgradeable: a live
+bid holding `14` would be reinterpreted from days to seconds. **A redeploy is required**, and there
+is no migration for tenders on the current deployment.
+
+Propagated through: `memo.ts` (`BidScore.deliverySeconds` — the memo now records what the chain
+records), `requirements.ts` (`BidFacts.deliverySeconds`, with `maxDeliveryDays` staying a
+buyer-facing figure in days and converting at the comparison), the agent's evaluator, indexer, SQL
+DDL and Drizzle schema, and the web bid form — **which now has the same amount-and-unit control the
+buyer's form has**, which is what the mismatch was really about.
+
+Tests: 105 contract (including `test_aSubDayWindowIsAwardable`, a 90-minute quote against a 2-hour
+window), 46 shared, 70 agent, 143 web. `test/delivery-window.test.ts` now asserts both sides offer
+the same unit list, so a future divergence fails loudly rather than silently making some window
+unquotable.
+
+### Still to do
+
+- **Redeploy** to testnet before this is exercised; the live contracts still store days.
+- `docs/building-a-supplier-agent.md` now documents `deliverySeconds`, so any agent built against
+  the old signature breaks at the commitment hash rather than at the call — worth saying in the
+  release note.
 
 ---
 

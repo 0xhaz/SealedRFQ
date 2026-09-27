@@ -29,7 +29,7 @@ contract BidModesTest is SealedRFQFixture {
     function test_openBid_isVisibleImmediately_withNothingToReveal() public {
         uint256 id = openRfq();
         vm.prank(s1);
-        registry.placeOpenBid(id, PRICE, 21, bytes32(0));
+        registry.placeOpenBid(id, PRICE, _days(21), bytes32(0));
 
         // The whole difference between the modes: the price is readable while bidding is still
         // open, so a rival can respond to it. That is what an open tender is, and what costs it
@@ -45,9 +45,9 @@ contract BidModesTest is SealedRFQFixture {
         uint256 before = usdc.balanceOf(s1);
 
         vm.startPrank(s1);
-        registry.placeOpenBid(id, PRICE, 21, bytes32(0));
-        registry.placeOpenBid(id, 2_600_000, 18, bytes32(0));
-        registry.placeOpenBid(id, 2_500_000, 15, bytes32(0));
+        registry.placeOpenBid(id, PRICE, _days(21), bytes32(0));
+        registry.placeOpenBid(id, 2_600_000, _days(18), bytes32(0));
+        registry.placeOpenBid(id, 2_500_000, _days(15), bytes32(0));
         vm.stopPrank();
 
         // Improving your own bid is the point of an open auction; charging a deposit each time
@@ -66,7 +66,7 @@ contract BidModesTest is SealedRFQFixture {
         uint256 sealed_ = createRFQ();
         vm.prank(s1);
         vm.expectRevert(IRFQRegistry.WrongBidMode.selector);
-        registry.placeOpenBid(sealed_, PRICE, 21, bytes32(0));
+        registry.placeOpenBid(sealed_, PRICE, _days(21), bytes32(0));
     }
 
     function test_openBidsStillScreenWhoMayBid() public {
@@ -74,16 +74,16 @@ contract BidModesTest is SealedRFQFixture {
         uint256 id = openRfq();
         vm.prank(buyer);
         vm.expectRevert(IRFQRegistry.BuyerCannotBid.selector);
-        registry.placeOpenBid(id, PRICE, 21, bytes32(0));
+        registry.placeOpenBid(id, PRICE, _days(21), bytes32(0));
     }
 
     function test_openBidsFeedTheRunnerUpMeasure() public {
         // The damages measure in §6c needs the next cheapest bid, and it has to work in both modes.
         uint256 id = openRfq();
         vm.prank(s1);
-        registry.placeOpenBid(id, PRICE, 21, bytes32(0));
+        registry.placeOpenBid(id, PRICE, _days(21), bytes32(0));
         vm.prank(s2);
-        registry.placeOpenBid(id, 2_950_000, 14, bytes32(0));
+        registry.placeOpenBid(id, 2_950_000, _days(14), bytes32(0));
 
         IRFQRegistry.RFQ memory r = registry.getRFQ(id);
         assertEq(r.lowestRevealed, PRICE);
@@ -91,6 +91,41 @@ contract BidModesTest is SealedRFQFixture {
     }
 
     // ───────────── the delivery window is now enforced ─────────────
+
+    /**
+     * Delivery used to be stored in whole days while the window was seconds, so the smallest bid
+     * anyone could place was 86,400 seconds and *no* bid could satisfy a window shorter than a
+     * day. Such a tender took deposits, revealed normally, then refused every award — presenting
+     * as a tender that merely attracted no acceptable offer. Both are seconds now.
+     */
+    function test_aSubDayWindowIsAwardable() public {
+        IRFQRegistry.RFQParams memory p = defaultParams();
+        p.deliveryWindow = 2 hours;
+        vm.prank(buyer);
+        uint256 id = registry.createRFQ(p);
+
+        // Hashes first: `computeCommitment` is itself a call, and vm.prank applies to the next
+        // one — inlining it would spend the prank and send commitBid from the test contract.
+        bytes32 h1 = registry.computeCommitment(id, s1, PRICE, uint32(90 minutes), bytes32(0), salt(s1));
+        bytes32 h2 =
+            registry.computeCommitment(id, s2, 2_950_000, uint32(2 hours), bytes32(0), salt(s2));
+        vm.prank(s1);
+        registry.commitBid(id, h1);
+        vm.prank(s2);
+        registry.commitBid(id, h2);
+        toReveal(id);
+        vm.prank(s1);
+        registry.revealBid(id, PRICE, uint32(90 minutes), bytes32(0), salt(s1));
+        vm.prank(s2);
+        registry.revealBid(id, 2_950_000, uint32(2 hours), bytes32(0), salt(s2));
+        toAward(id);
+
+        bytes32 memo = recommend(id, s1);
+        vm.prank(awarder);
+        registry.award(id, s1, memo, RUBRIC);
+
+        assertEq(registry.getRFQ(id).winner, s1);
+    }
 
     function test_awardRefusesABidThatCannotBeDeliveredInTime() public {
         IRFQRegistry.RFQParams memory p = defaultParams();
@@ -108,7 +143,7 @@ contract BidModesTest is SealedRFQFixture {
         bytes32 memo = recommend(id, s1);
         vm.prank(awarder);
         vm.expectRevert(
-            abi.encodeWithSelector(IRFQRegistry.DeliveryExceedsWindow.selector, uint32(21), uint32(7 days))
+            abi.encodeWithSelector(IRFQRegistry.DeliveryExceedsWindow.selector, uint32(21 days), uint32(7 days))
         );
         registry.award(id, s1, memo, RUBRIC);
     }
