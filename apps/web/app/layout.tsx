@@ -37,7 +37,7 @@ const description =
  * in development and produces links nobody can open once a preview or a crawler reads them. Set
  * from the environment so a Vercel preview describes itself rather than claiming to be production.
  */
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://sealedrfq.com";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.sealedrfq.com";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),

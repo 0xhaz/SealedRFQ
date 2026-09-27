@@ -1452,7 +1452,12 @@ add a second service before the post-grant bundle, not now.
       `onConflictDoNothing` drops it silently. Fix the build first, then the database, or v4 is
       contaminated too.
 - [ ] Testnet contracts verified — blocked on the explorer, retry `verify-testnet.sh`
-- [x] `CORS_ORIGIN` set to the web domain — done 2026-09-25
+- [ ] `CORS_ORIGIN` — **set, but to the wrong host (found 2026-09-27).** `sealedrfq.com` 308s to
+      `www.sealedrfq.com`, so the browser's Origin is always the www host. With the apex alone every
+      browser call is blocked while every server-rendered one keeps working: the board loads
+      normally and the terms-document upload fails with "Failed to fetch", which sends you looking
+      at the upload code. Set `CORS_ORIGIN=https://www.sealedrfq.com`. `main.ts` now also accepts a
+      comma-separated list
 - [x] Custom domain **sealedrfq.com** bought 2026-09-25, clearing the MetaMask `vercel.app` flag.
       Still to wire: point it at the Vercel project, confirm the certificate issued, and set
       `NEXT_PUBLIC_SITE_URL` so `metadataBase` resolves to it rather than the default

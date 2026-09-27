@@ -54,7 +54,19 @@ export class AppModule implements NestModule {
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { logger: ["log", "warn", "error"] });
-  app.enableCors({ origin: process.env.CORS_ORIGIN ?? "*" });
+  /**
+   * Comma-separated, because a site is usually reachable at more than one hostname.
+   *
+   * `sealedrfq.com` redirects to `www.sealedrfq.com`, so the browser's Origin is the www host
+   * whichever one was typed. Setting this to the apex alone blocks every browser call while every
+   * server-rendered one keeps working — which presents as the board loading normally and uploads
+   * failing with "Failed to fetch", and sends you looking at the upload code.
+   */
+  const origins = (process.env.CORS_ORIGIN ?? "*")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+  app.enableCors({ origin: origins.length === 1 ? origins[0] : origins });
   const port = Number(process.env.PORT ?? 4020);
   await app.listen(port);
   new Logger("bootstrap").log(`SealedRFQ agent listening on :${port}`);
