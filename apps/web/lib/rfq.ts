@@ -1,4 +1,4 @@
-import { RFQRegistryAbi, SealedRFQAdapterAbi } from "@sealedrfq/shared";
+import { AgenticCommerceAbi, RFQRegistryAbi, SealedRFQAdapterAbi } from "@sealedrfq/shared";
 import { http, createPublicClient, fallback } from "viem";
 import { chain, contracts, rpcUrls } from "./chain";
 
@@ -39,6 +39,7 @@ export type Rfq = Awaited<ReturnType<typeof getRfq>>;
 
 const registry = { address: contracts.RFQRegistry, abi: RFQRegistryAbi } as const;
 const adapter = { address: contracts.SealedRFQAdapter, abi: SealedRFQAdapterAbi } as const;
+const escrow = { address: contracts.AgenticCommerce, abi: AgenticCommerceAbi } as const;
 
 /** bytes32 fields hold short ASCII labels (category, region). */
 export function decodeLabel(hex: string): string {
@@ -167,7 +168,30 @@ export async function getEngagement(id: number) {
     args: [BigInt(id)],
   });
   if (Number(e.status) === 0) return null;
+
+  /**
+   * The furthest a delivery deadline can be pushed, computed exactly as `extendDelivery` does.
+   *
+   * The milestone's escrow job has its own expiry, and the extended deadline must still leave room
+   * for transit and one acceptance window inside it — otherwise the supplier would be given time
+   * to deliver into a job that expires before they could be paid. Offering a date the contract
+   * will reject is worse than offering none: the buyer signs, pays gas and gets `BadExtension`.
+   */
+  let latestExtension = 0;
+  try {
+    const job = await publicClient.readContract({
+      ...escrow,
+      functionName: "getJob",
+      args: [e.currentJobId],
+    });
+    latestExtension =
+      Number(job.expiredAt) - Number(e.transitWindow) - Number(e.acceptanceWindow);
+  } catch {
+    // No current job (between milestones, or already finished) — there is nothing to extend.
+  }
+
   return {
+    latestExtension,
     status: ENGAGEMENT_STATES[Number(e.status)] ?? "None",
     buyer: e.buyer,
     supplier: e.supplier,

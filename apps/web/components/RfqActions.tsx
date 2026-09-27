@@ -61,6 +61,13 @@ type Props = {
     transitWindow: number;
     /** Hash of the submitted deliverable, for the buyer to check their copy against. */
     deliverable?: string;
+    /**
+     * The furthest this milestone's deadline can be pushed, in unix seconds.
+     *
+     * Bounded by the escrow job's own expiry less transit and one acceptance window, exactly as
+     * `extendDelivery` computes it. Zero when there is no current job to extend.
+     */
+    latestExtension: number;
   } | null;
 };
 
@@ -92,6 +99,7 @@ export function RfqActions({
   const [deliverableHash, setDeliverableHash] = useState<Hex | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [reason, setReason] = useState("");
+  const [newDeadline, setNewDeadline] = useState("");
 
   const me = address?.toLowerCase();
   const isBuyer = me === buyer.toLowerCase();
@@ -228,6 +236,36 @@ export function RfqActions({
       }),
     );
   }
+
+  /**
+   * Push this milestone's deadline out. The buyer's call, and only before the window shuts.
+   *
+   * Deliberately impossible afterwards: reopening a closed window would be reversing a forfeiture
+   * rather than preventing one, and the supplier's stake is already at risk against it. A supplier
+   * who needs more time has to ask before the deadline, which is what the private message channel
+   * is for — they cannot extend it themselves at any point.
+   */
+  function extend(newDeadline: number) {
+    run("Extending…", () =>
+      write({
+        address: contracts.SealedRFQAdapter,
+        abi: SealedRFQAdapterAbi,
+        functionName: "extendDelivery",
+        args: [BigInt(rfqId), BigInt(newDeadline)],
+      }),
+    );
+  }
+
+  /** Unix seconds as a readable local timestamp. */
+  const fmt = (t: number) =>
+    new Date(t * 1000).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+
+  /** Unix seconds as the value a `datetime-local` input expects, in local time. */
+  const toLocal = (t: number) => {
+    const d = new Date(t * 1000);
+    const p = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+  };
 
   async function publishReason(text: string) {
     if (!text.trim()) return;
@@ -577,9 +615,67 @@ export function RfqActions({
                     before that happens.
                   </div>
                 )}
+                {!deliveryClosed && (
+                  <div className="note" style={{ marginTop: 10 }}>
+                    <b>Going to be late?</b> Ask the buyer to extend this milestone&apos;s window
+                    <b> before it closes</b> — use the private message channel below. Only the buyer
+                    can extend it, and only while it is still open: once the deadline passes nothing
+                    can reopen it, because that would be reversing a forfeiture rather than
+                    preventing one.
+                  </div>
+                )}
               </div>
             </>
           )}
+
+          {/*
+            Extending is the buyer's alone, and only while the window is still open. A supplier
+            who needs longer has to ask for it in time — the panel tells them so on their side.
+            The ceiling comes from the contract's own arithmetic, so the date offered here is one
+            the call will actually accept rather than one that reverts after the buyer pays gas.
+          */}
+          {isBuyer &&
+            engagement?.status === "Active" &&
+            !deliveryClosed &&
+            engagement.latestExtension > engagement.deliveryDeadline && (
+              <div className="form">
+                <div className="full note">
+                  <b>Supplier asked for more time?</b> You can push this milestone&apos;s deadline
+                  out to <b>{fmt(engagement.latestExtension)}</b> at the latest — beyond that the
+                  escrow job itself would expire before they could be paid. It cannot be extended
+                  once the window has closed, so do it before{" "}
+                  <b>{fmt(engagement.deliveryDeadline)}</b>.
+                </div>
+                <div className="field full">
+                  <label htmlFor="new-deadline">New delivery deadline</label>
+                  <input
+                    id="new-deadline"
+                    type="datetime-local"
+                    value={newDeadline}
+                    min={toLocal(engagement.deliveryDeadline + 60)}
+                    max={toLocal(engagement.latestExtension)}
+                    onChange={(e) => setNewDeadline(e.target.value)}
+                  />
+                </div>
+                <div className="full">
+                  <button
+                    type="button"
+                    className="chip"
+                    disabled={Boolean(busy) || !newDeadline}
+                    onClick={() => {
+                      const t = Math.floor(new Date(newDeadline).getTime() / 1000);
+                      if (Number.isFinite(t)) extend(t);
+                    }}
+                  >
+                    Extend the delivery window
+                  </button>
+                  <span className="under-button">
+                    Recorded on-chain. It moves this milestone only; later milestones keep their
+                    own windows.
+                  </span>
+                </div>
+              </div>
+            )}
 
           {/*
             Guarded three ways. `Active` because a settled engagement still carries a deadline in

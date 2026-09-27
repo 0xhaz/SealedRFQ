@@ -450,6 +450,7 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
                     ).toString(),
                     performanceStake: engagement.performanceStake.toString(),
                     deliverable: engagement.deliverable,
+                    latestExtension: engagement.latestExtension,
                   }
                 : null
             }

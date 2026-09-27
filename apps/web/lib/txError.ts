@@ -89,7 +89,17 @@ const EXPLAIN: Record<string, (a: readonly unknown[]) => string> = {
 
   // ── delivery and payment ──
   AlreadyStarted: () => "This engagement has already been started.",
-  DeliveryWindowClosed: () => "The delivery window for this milestone has closed.",
+  DeliveryWindowClosed: () =>
+    "The delivery window for this milestone has already closed, so it can no longer be extended. Reopening it would reverse a forfeiture rather than prevent one, which the contract does not allow.",
+  BadExtension: (a) =>
+    `That date is not a valid extension. It must be later than the current deadline and no later than ${
+      a?.[0] !== undefined
+        ? new Date(Number(a[0]) * 1000).toLocaleString(undefined, {
+            dateStyle: "medium",
+            timeStyle: "short",
+          })
+        : "the milestone's escrow expiry"
+    }, which is when the milestone's own escrow expires.`,
   AcceptanceWindowOpen: () =>
     "The buyer still has time to accept or dispute, so this cannot be released yet.",
   DisputeWindowOpen: () => "The dispute window is still open.",
