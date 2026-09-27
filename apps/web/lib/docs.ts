@@ -38,6 +38,7 @@ export type DocMeta = {
 const PUBLISHED = [
   "how-it-works",
   "for-buyers",
+  "filling-in-the-form",
   "for-suppliers",
   "building-a-supplier-agent",
   "verifying-a-decision",

@@ -31,6 +31,14 @@ describe("docs index", () => {
       expect(d.summary).not.toMatch(/^[#>\-*|`]/);
     }
   });
+
+  it("publishes the field-by-field form guide, and links to it from the buyers page", () => {
+    // Added because the buyer-facing hints say what a field is, not how to choose a value; a
+    // first-time buyer needs the second and it is easy to publish the file and forget the link.
+    const slugs = listDocs().map((d) => d.slug);
+    expect(slugs).toContain("filling-in-the-form");
+    expect(readDoc("for-buyers")?.html ?? "").toContain("/docs/filling-in-the-form");
+  });
 });
 
 describe("readDoc", () => {

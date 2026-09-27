@@ -3,6 +3,10 @@
 Posting a tender, choosing between the two bid modes, and what each figure on the form commits you
 to. Read this once before your first tender; most of it you will not need again.
 
+If you are looking at the form now and want to know what to type in a particular box,
+[Filling in the form](filling-in-the-form.md) goes through every field in order. This page is the
+reasoning behind those choices.
+
 ## What you are committing
 
 When you post, the budget and your stake move into escrow. They are not spent — an award draws from
