@@ -215,7 +215,7 @@ export function DirectMessages({
             <button type="button" className="btn-primary" onClick={start}>
               Enable messaging
             </button>
-            <span className="hint" style={{ marginLeft: 10 }}>
+            <span className="under-button">
               One signature. No gas, no transaction.
             </span>
           </div>

@@ -123,7 +123,7 @@ export function Proforma({
             {isSupplier ? "issue a proforma" : "generate a proforma"}
           </button>
           {isBuyer && (
-            <span className="hint" style={{ marginLeft: 10 }}>
+            <span className="under-button">
               Normally the supplier issues this — they know the origin and classification.
             </span>
           )}

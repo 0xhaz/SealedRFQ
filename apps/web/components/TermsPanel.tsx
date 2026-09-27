@@ -66,8 +66,8 @@ export function TermsPanel({ metadataURI, metadataHash }: Props) {
           <p className="note">
             <a className="btn-outline" href={terms.uri} target="_blank" rel="noreferrer noopener">
               ↓ {terms.name ?? "Download the terms document"}
-            </a>{" "}
-            <span className="hint">
+            </a>
+            <span className="under-button">
               Hosted for convenience, not on trust — verify the download below.
             </span>
           </p>

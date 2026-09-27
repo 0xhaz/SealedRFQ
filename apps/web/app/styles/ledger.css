@@ -6457,3 +6457,16 @@ button.field-wallet {
   font-weight: 700;
   color: var(--ink);
 }
+
+/* ---------- a statement under a button, not beside it ----------
+   Beside a wide button the text wraps into a ragged column next to it and reads as a label for
+   something else. Underneath it reads as what it is: a note about the thing just above. */
+.under-button {
+  display: block;
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  line-height: 1.5;
+  letter-spacing: 0.2px;
+  color: rgba(23, 19, 13, 0.55);
+}

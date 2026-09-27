@@ -405,11 +405,11 @@ export function RfqActions({
             While no bid has been committed you can cancel instead, which returns your budget and
             stake in full, and post a corrected tender.
           </div>
-          <div className="full filter-row">
+          <div className="full">
             <button type="button" className="chip" onClick={cancel} disabled={Boolean(busy)}>
               Cancel this tender
             </button>
-            <span className="hint">
+            <span className="under-button">
               Possible until the first sealed bid arrives. After that the tender runs its course.
             </span>
           </div>
@@ -429,11 +429,11 @@ export function RfqActions({
       {/* ---- close a tender that ended with no winner ---- */}
       {phase === "NoAward" && STILL_OPEN && (
         <div className="form">
-          <div className="full filter-row">
+          <div className="full">
             <button type="button" className="chip" onClick={closeNoAward} disabled={Boolean(busy)}>
               Close and return the escrow
             </button>
-            <span className="hint">
+            <span className="under-button">
               Anyone may do this — the money goes to the buyer either way.
             </span>
           </div>
@@ -616,7 +616,7 @@ export function RfqActions({
                 >
                   {busy ?? "Settle the expired milestone"}
                 </button>
-                <span className="hint" style={{ marginLeft: 10 }}>
+                <span className="under-button">
                   Either party may do this; the contract decides where the money goes.
                 </span>
               </div>
