@@ -638,7 +638,7 @@ export function RfqActions({
             engagement?.status === "Active" &&
             !deliveryClosed &&
             engagement.latestExtension > engagement.deliveryDeadline && (
-              <div className="form">
+              <div className="full form" style={{ padding: 0 }}>
                 <div className="full note">
                   <b>Supplier asked for more time?</b> You can push this milestone&apos;s deadline
                   out to <b>{fmt(engagement.latestExtension)}</b> at the latest — beyond that the
@@ -685,7 +685,7 @@ export function RfqActions({
             job's own expiry, which is later than the delivery window.
           */}
           {engagement?.status === "Active" && !awaitingReview && deliveryClosed && jobExpired && (
-            <div className="note warn" style={{ marginTop: 10 }}>
+            <div className="full note warn" style={{ marginTop: 10 }}>
               <b>This milestone can now be settled.</b> Nothing was delivered before the window
               closed, so the contract hands the buyer{" "}
               <b>{formatUsdc(BigInt(engagement?.expiredPot ?? "0"))} USDC</b> — the unpaid
