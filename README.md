@@ -57,15 +57,19 @@ Keys live in `.env.testnet` / `.env.mainnet` (gitignored); see `.env.example`.
 
 | Contract | Address |
 |---|---|
-| `RFQRegistry` | [`0x0D414d4547e0f4BFECa0A2788495404881004A82`](https://explorer.testnet.arc.io/address/0x0D414d4547e0f4BFECa0A2788495404881004A82) |
-| `SealedRFQAdapter` | [`0x75d8684dfE1bc61b9831Ff29501E69FF87986575`](https://explorer.testnet.arc.io/address/0x75d8684dfE1bc61b9831Ff29501E69FF87986575) |
-| `AgenticCommerce` (ERC-8183) | [`0x56e33104C2263eB266Dbc30b1a2C919Bf7515B28`](https://explorer.testnet.arc.io/address/0x56e33104C2263eB266Dbc30b1a2C919Bf7515B28) |
-| `ProcurementPolicy` | [`0xBb41F43798d89f5DACd38EFe87A1AE1F342b8Bc0`](https://explorer.testnet.arc.io/address/0xBb41F43798d89f5DACd38EFe87A1AE1F342b8Bc0) |
-| `AttestationLog` | [`0x452A2B65922D41d5ed6728f15e965A3F39B72AC2`](https://explorer.testnet.arc.io/address/0x452A2B65922D41d5ed6728f15e965A3F39B72AC2) |
+| `RFQRegistry` | [`0x597577573654D0b4cA085BDBE5474fe38e126984`](https://explorer.testnet.arc.io/address/0x597577573654D0b4cA085BDBE5474fe38e126984) |
+| `SealedRFQAdapter` | [`0xD63Be85613D24701678978AF208d72E38025d34c`](https://explorer.testnet.arc.io/address/0xD63Be85613D24701678978AF208d72E38025d34c) |
+| `AgenticCommerce` (ERC-8183) | [`0xeAbaBEc32b8d2e5a060440117275DE7D2BC511c6`](https://explorer.testnet.arc.io/address/0xeAbaBEc32b8d2e5a060440117275DE7D2BC511c6) |
+| `ProcurementPolicy` | [`0xa92F54993dDBc38C35f60445A1e4c38bc7e73B9F`](https://explorer.testnet.arc.io/address/0xa92F54993dDBc38C35f60445A1e4c38bc7e73B9F) |
+| `AttestationLog` | [`0xBE3b811E8c812910E8bCC662Deff9C0CB829C24a`](https://explorer.testnet.arc.io/address/0xBE3b811E8c812910E8bCC662Deff9C0CB829C24a) |
 
-Redeployed **2026-09-24** to carry open tenders, an enforced delivery window, a
-cap on what an agent may award unattended, receipt confirmation, transit windows,
-delivery extensions and compensatory settlement. The previous deployment is still on-chain and
+Redeployed **2026-09-27** so that a bid's delivery is stored in **seconds** rather than whole days.
+Previously a bid could only say "14 days" while the buyer's window was seconds, so any window
+shorter than a day could not be met by *any* bid and the award reverted every time — a tender took
+deposits, revealed normally, then refused every award. The 2026-09-24 deployment carried open
+tenders, an enforced delivery window, a cap on what an agent may award unattended, receipt
+confirmation, transit windows, delivery extensions and compensatory settlement; all of that is
+unchanged here. The previous deployment is still on-chain and
 still works; its addresses are kept in `contracts/deployments/archive/` because the tenders run
 against it are part of the record and its explorer links remain valid for them.
 
