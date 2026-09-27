@@ -1367,6 +1367,52 @@ its signers; in chat they are traceable to nobody.
 
 ---
 
+## 6j. Delivery is quoted in days, windows are stored in seconds (found 2026-09-27)
+
+A bid carries `uint32 deliveryDays` — **whole days** — while the RFQ's `deliveryWindow` is seconds,
+and `RFQRegistry.award` compares them:
+
+```solidity
+if (r.deliveryWindow > 0 && uint256(b.deliveryDays) * 1 days > r.deliveryWindow) {
+    revert DeliveryExceedsWindow(b.deliveryDays, r.deliveryWindow);
+}
+```
+
+The smallest bid anyone can place is one day, so **any window below 24 hours cannot be met by any
+bid at all**. Such a tender takes deposits, reveals normally, and then refuses every award. It
+presents as a tender that simply attracted no acceptable offer, which is the worst possible
+symptom: nothing errors, and the suppliers who bid are out their time.
+
+**The Demo preset set 15 minutes**, so every demo tender was unawardable. Testnet RFQ №1 — three
+bids, all revealed, no award — is this. The mismatch predates the duration units added on
+2026-09-26; those only made it visible, by letting a buyer choose the unit deliberately rather than
+typing a number into a box labelled minutes.
+
+### Fixed without a contract change (2026-09-27)
+
+- `DELIVERY_UNITS` offers only days, weeks and months. Minutes and hours are gone from the delivery
+  window, because a setting whose only effect is to waste a supplier's deposit should not be
+  offered. The **acceptance** window keeps every unit — it is the buyer's own clock, stored in
+  seconds, and a demo run needs to pass it without waiting a day.
+- The form refuses a delivery window under `MIN_DELIVERY_SECONDS`, with the reason.
+- The 48-hour and Demo presets moved to a 1-day delivery window. This costs a demo nothing: the
+  window is a **deadline, not a wait**, so a supplier can deliver the moment a milestone opens and
+  the acceptance window (3 minutes on Demo) is what actually paces the walkthrough.
+- `test/delivery-window.test.ts` asserts every preset is deliverable and that no sub-day unit is
+  offered.
+
+### The real fix, for the post-submission bundle
+
+Store **delivery in seconds** rather than days, so a bid can express what a window can. That means
+`uint32 deliverySeconds` in the bid struct, in `revealBid`, in `placeOpenBid` and — the part that
+makes it a redeploy rather than an edit — **inside the commitment preimage**, which every sealed
+bid already hashes. There is no migration path for live tenders, so it goes in the same bundle as
+anything else needing a redeploy.
+
+Until then the whole-day floor is the honest constraint, and both buyer docs now state it.
+
+---
+
 ## 7. Submission checklist
 
 **Programme terms, read 2026-09-24 — four of these change the plan.**

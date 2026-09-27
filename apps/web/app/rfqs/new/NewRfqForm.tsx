@@ -6,7 +6,13 @@ import { agent, uploadDocument } from "@/lib/agent";
 import { chain, contracts, explorerTx } from "@/lib/chain";
 import { type Deadlines, PRESETS, applyPreset, checkDeadlines, toUnix } from "@/lib/deadlines";
 import { hashFile } from "@/lib/docHash";
-import { DURATION_UNITS, type DurationUnit, toSeconds } from "@/lib/duration";
+import {
+  DELIVERY_UNITS,
+  DURATION_UNITS,
+  type DurationUnit,
+  MIN_DELIVERY_SECONDS,
+  toSeconds,
+} from "@/lib/duration";
 import { MAX_INVITEES, parseInvitees } from "@/lib/invitees";
 import { type LineItemRow, emptyRow, toLineItems } from "@/lib/lineItems";
 import { signUsdcPermit } from "@/lib/permit";
@@ -236,7 +242,14 @@ export function NewRfqForm() {
         throw new Error("Milestones must be positive percentages");
       if (bps.reduce((a, b) => a + b, 0) !== 10_000)
         throw new Error("Milestone percentages must add up to 100");
-      if (deliverySec < 300) throw new Error("Delivery window must be at least 5 minutes");
+      // Below a day no bid can be awarded at all: the smallest bid is one whole day, and the award
+      // check compares days against this window. The tender would take deposits and then refuse
+      // every award, which costs suppliers money for nothing.
+      if (deliverySec < MIN_DELIVERY_SECONDS) {
+        throw new Error(
+          "Delivery per milestone must be at least 1 day — suppliers quote in whole days, so no bid could meet a shorter window.",
+        );
+      }
       if (incoterm && !namedPlace.trim()) {
         throw new Error(
           "Name the place the incoterm refers to — a port, a city or an address. Without it the term says who pays but not to where.",
@@ -702,7 +715,7 @@ export function NewRfqForm() {
                 value={deliveryUnit}
                 onChange={(e) => setDeliveryUnit(e.target.value as DurationUnit)}
               >
-                {DURATION_UNITS.map((u) => (
+                {DELIVERY_UNITS.map((u) => (
                   <option key={u.value} value={u.value}>
                     {u.label}
                   </option>
@@ -711,7 +724,8 @@ export function NewRfqForm() {
             </div>
             <span className="field-hint">
               How long the supplier has to deliver each milestone once the engagement reaches it.
-              Bids quoting longer than this cannot be awarded — the contract rejects them.
+              Bids quoting longer than this cannot be awarded — the contract rejects them. Suppliers
+              quote in <b>whole days</b>, so one day is the shortest window any bid can meet.
             </span>
           </div>
           <div className="field">
