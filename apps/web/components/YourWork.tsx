@@ -71,6 +71,30 @@ export function YourWork({ rfqs }: { rfqs: BoardRfq[] }) {
     query: { enabled: Boolean(address) && chainId === chain.id, refetchInterval: 30_000 },
   });
 
+  /*
+   * Questions waiting on this buyer. Fetched rather than read from the chain, because a
+   * clarification is not an on-chain object — it is a signed message the agent holds. An agent
+   * that cannot be reached leaves this empty and the rest of the panel still works.
+   *
+   * These two hooks must stay *above* the early return below. Placed after it they ran only on
+   * the renders that got that far, so connecting a wallet changed the hook count mid-life and
+   * React tore the page down with error #310 — which presents as a blank "this page couldn't
+   * load", not as anything pointing at this panel.
+   */
+  const mine = open.filter((r) => r.buyer.toLowerCase() === me).map((r) => r.id);
+  const mineKey = mine.join(",");
+  const [unanswered, setUnanswered] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (!address || !mineKey) return;
+    let live = true;
+    agent.openQuestions(address, mineKey.split(",").map(Number)).then((r) => {
+      if (live && "unanswered" in r) setUnanswered(r.unanswered);
+    });
+    return () => {
+      live = false;
+    };
+  }, [address, mineKey]);
+
   if (!isConnected || chainId !== chain.id) return null;
 
   const ZERO_HASH = `0x${"0".repeat(64)}`;
@@ -125,25 +149,6 @@ export function YourWork({ rfqs }: { rfqs: BoardRfq[] }) {
       engagement: engagementAt(r.id),
     };
   });
-
-  /*
-   * Questions waiting on this buyer. Fetched rather than read from the chain, because a
-   * clarification is not an on-chain object — it is a signed message the agent holds. An agent
-   * that cannot be reached leaves this empty and the rest of the panel still works.
-   */
-  const mine = open.filter((r) => r.buyer.toLowerCase() === me).map((r) => r.id);
-  const [unanswered, setUnanswered] = useState<Record<string, number>>({});
-  const mineKey = mine.join(",");
-  useEffect(() => {
-    if (!address || !mineKey) return;
-    let live = true;
-    agent.openQuestions(address, mineKey.split(",").map(Number)).then((r) => {
-      if (live && "unanswered" in r) setUnanswered(r.unanswered);
-    });
-    return () => {
-      live = false;
-    };
-  }, [address, mineKey]);
 
   const items = deriveWork(rows, address, undefined, unanswered);
   if (items.length === 0) return null;
