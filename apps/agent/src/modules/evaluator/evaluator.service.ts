@@ -106,10 +106,13 @@ export class EvaluatorService {
   async evaluate(rfqId: number): Promise<{ memo: DecisionMemo; rubricVerified: boolean }> {
     const rfq = db.select().from(schema.rfqs).where(eq(schema.rfqs.id, rfqId)).get();
     if (!rfq) throw new Error(`RFQ ${rfqId} is not indexed yet`);
+    // Ordered explicitly. Without it SQLite is free to return rows however it likes, which makes
+    // the input to the scoring pass — and anything that reads it before the sort — unstable.
     const revealed = db
       .select()
       .from(schema.bids)
       .where(sql`${schema.bids.rfqId} = ${rfqId} and ${schema.bids.revealed} = 1`)
+      .orderBy(schema.bids.bidder)
       .all();
     if (revealed.length === 0) throw new Error(`RFQ ${rfqId} has no revealed bids`);
 
@@ -211,7 +214,27 @@ export class EvaluatorService {
       };
     });
 
-    scores.sort((a, b) => b.totalBps - a.totalBps);
+    /**
+     * A total order, declared rather than inherited.
+     *
+     * Sorting on score alone left ties to `Array.sort`'s stability, which meant they were settled
+     * by whatever order SQLite returned rows in — no `ORDER BY`, no guarantee, and nothing a
+     * losing supplier could reproduce. For a memo that claims the same inputs always give the same
+     * answer, that is the one place the claim was not true.
+     *
+     * The cascade below is every tiebreak in turn, and each step is readable from the memo itself:
+     * cheaper wins, then quicker, then the lower address. The last is arbitrary — someone has to
+     * win — but it is arbitrary *and fixed*, which is the property that matters. It is not worth
+     * gaming either: reaching it requires matching a rival's price and delivery exactly, and in a
+     * sealed tender you cannot see them, while in an open one undercutting wins outright.
+     */
+    scores.sort(
+      (a, b) =>
+        b.totalBps - a.totalBps ||
+        (BigInt(a.price) < BigInt(b.price) ? -1 : BigInt(a.price) > BigInt(b.price) ? 1 : 0) ||
+        a.deliverySeconds - b.deliverySeconds ||
+        a.bidder.toLowerCase().localeCompare(b.bidder.toLowerCase()),
+    );
     const best = scores[0];
     /**
      * Two kinds of non-compliance, kept apart because they are not the same kind of fact.

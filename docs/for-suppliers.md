@@ -64,6 +64,11 @@ loses to one that is quicker, even on a rubric that weights price higher — the
 couple of points and the delivery gap fifteen. If you can move a lead time more easily than a
 price, that is usually where the tender is decided.
 
+If two bids score exactly the same, the tie is settled by a fixed cascade — cheaper first, then
+quicker, then the lower wallet address — so the outcome is one you can recompute rather than one
+decided on the day. The last step is arbitrary; it only comes up when two bids match exactly, which
+in a sealed tender you could not have arranged.
+
 You cannot set the criteria — no supplier can, here or in any procurement process. What you can do
 is **question them while bidding is open**, in the clarification round. Every answer goes to every
 bidder, so asking whether a requirement is realistic costs you nothing and occasionally gets the

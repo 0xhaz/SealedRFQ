@@ -108,6 +108,17 @@ one.
 In practice prices cluster — suppliers converge on the market rate — while delivery can differ by
 multiples. So delivery often decides a tender that price was supposed to.
 
+### When two bids score exactly the same
+
+It happens — identical price, identical delivery, neither supplier with any history here. The
+evaluator settles it with a cascade that is fixed in advance and readable from the memo: the higher
+score, then the cheaper bid, then the quicker one, then the lower wallet address.
+
+The last step is arbitrary, and deliberately so. Somebody has to win, there is no usable source of
+randomness on-chain, and an arbitrary rule that is *fixed* can be checked by the supplier who lost;
+one decided in the moment cannot. It is not worth gaming either — reaching that step means matching
+a rival's price and delivery exactly, which you cannot see in a sealed tender.
+
 ### A high score does not mean awardable
 
 The rubric scores every revealed bid, including ones the contract will refuse. A bid over budget

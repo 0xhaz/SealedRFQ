@@ -273,4 +273,25 @@ describe("evaluator scoring", () => {
     // Identical price and delivery, so history is what separates them.
     expect(memo.decision.bidder).toBe(S1);
   });
+
+  it("settles an exact tie the same way every time", async () => {
+    // Two suppliers, identical price and identical delivery, no history on either — so price,
+    // delivery and quality all score the same and the totals are equal. Before the cascade was
+    // declared, the winner was whichever row SQLite returned first: stable in practice, promised
+    // nowhere, and impossible for a losing supplier to reproduce from the memo.
+    seedRfq(9);
+    seedBid(9, S2, "2800000", 14);
+    seedBid(9, S1, "2800000", 14);
+
+    const first = await evaluator.evaluate(9);
+    expect(first.memo.scores[0].totalBps).toBe(first.memo.scores[1].totalBps);
+    // The lowest address wins: arbitrary, but fixed and readable from the memo.
+    expect(first.memo.decision.bidder?.toLowerCase()).toBe(S1.toLowerCase());
+
+    // And the same on a second run, which is the property the memo actually claims.
+    const again = await evaluator.evaluate(9);
+    expect(again.memo.decision.bidder).toBe(first.memo.decision.bidder);
+    expect(again.memo.scores.map((x) => x.bidder)).toEqual(first.memo.scores.map((x) => x.bidder));
+  });
+
 });
