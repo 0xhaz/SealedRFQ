@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 1180" width="1400" height="1180" role="img" aria-labelledby="t d" font-family="'IBM Plex Mono', ui-monospace, monospace">
+  <title id="t">How a sealed tender runs</title>
+  <desc id="d">A sequence diagram across three lanes — buyer, evaluator and supplier — covering the eight steps of a tender from funding to final acceptance.</desc>
+
+  <defs>
+    <marker id="aB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2456b8"/>
+    </marker>
+    <marker id="aG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0f8a5f"/>
+    </marker>
+    <marker id="aF" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#7fb800"/>
+    </marker>
+    <marker id="aA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c98a1b"/>
+    </marker>
+  </defs>
+
+  <rect width="1400" height="1180" fill="#f6f3ec"/>
+
+  <!-- header -->
+  <text x="72" y="56" font-size="13" letter-spacing="2.4" fill="#7c7362">SEALEDRFQ · TENDER LIFECYCLE</text>
+  <text x="72" y="104" font-family="Fraunces, Georgia, serif" font-size="40" font-weight="700" fill="#17130d">How a sealed tender runs</text>
+  <text x="72" y="140" font-size="15" fill="#7c7362">Sealed bids, a rubric-bound evaluator that recommends but cannot award, and milestone</text>
+  <text x="72" y="162" font-size="15" fill="#7c7362">payments that release on acceptance or timeout.</text>
+
+  <!-- legend -->
+  <g font-size="13" fill="#7c7362">
+    <rect x="1008" y="96" width="11" height="11" rx="2" fill="#2456b8"/><text x="1027" y="106">Buyer action</text>
+    <rect x="1178" y="96" width="11" height="11" rx="2" fill="#c98a1b"/><text x="1197" y="106">Evaluator action</text>
+    <rect x="1008" y="122" width="11" height="11" rx="2" fill="#0f8a5f"/><text x="1027" y="132">Supplier action</text>
+    <rect x="1178" y="122" width="11" height="11" rx="2" fill="#7fb800"/><text x="1197" y="132">Funds move</text>
+  </g>
+
+  <!-- lanes -->
+  <g>
+    <rect x="160" y="196" width="200" height="54" rx="8" fill="#fffdf7" stroke="#2456b8" stroke-width="2"/>
+    <text x="260" y="230" text-anchor="middle" font-size="17" font-weight="700" letter-spacing="2" fill="#2456b8">BUYER</text>
+    <rect x="600" y="196" width="200" height="54" rx="8" fill="#fffdf7" stroke="#c98a1b" stroke-width="2"/>
+    <text x="700" y="230" text-anchor="middle" font-size="17" font-weight="700" letter-spacing="2" fill="#c98a1b">EVALUATOR</text>
+    <rect x="1040" y="196" width="200" height="54" rx="8" fill="#fffdf7" stroke="#0f8a5f" stroke-width="2"/>
+    <text x="1140" y="230" text-anchor="middle" font-size="17" font-weight="700" letter-spacing="2" fill="#0f8a5f">SUPPLIER</text>
+    <line x1="260" y1="250" x2="260" y2="1130" stroke="#2456b8" stroke-width="1.5" stroke-dasharray="4 6" opacity="0.5"/>
+    <line x1="700" y1="250" x2="700" y2="1130" stroke="#c98a1b" stroke-width="1.5" stroke-dasharray="4 6" opacity="0.5"/>
+    <line x1="1140" y1="250" x2="1140" y2="1130" stroke="#0f8a5f" stroke-width="1.5" stroke-dasharray="4 6" opacity="0.5"/>
+  </g>
+
+  <g font-size="14.5" fill="#17130d">
+    <!-- 1 -->
+    <circle cx="80" cy="322" r="17" fill="#2456b8"/><text x="80" y="327" text-anchor="middle" font-size="14" font-weight="700" fill="#fffdf7">1</text>
+    <rect x="452" y="288" width="496" height="30" rx="15" fill="#fffdf7" stroke="#ddd5c5"/>
+    <text x="700" y="308" text-anchor="middle">posts a tender and <tspan font-weight="700" fill="#0f8a5f">funds it</tspan> in the same transaction</text>
+    <line x1="260" y1="322" x2="1128" y2="322" stroke="#2456b8" stroke-width="2" marker-end="url(#aB)"/>
+
+    <!-- 2 -->
+    <circle cx="80" cy="432" r="17" fill="#0f8a5f"/><text x="80" y="437" text-anchor="middle" font-size="14" font-weight="700" fill="#fffdf7">2</text>
+    <rect x="770" y="378" width="300" height="52" rx="10" fill="#fffdf7" stroke="#ddd5c5"/>
+    <text x="920" y="398" text-anchor="middle">seals a bid and <tspan font-weight="700" fill="#0f8a5f">posts a deposit</tspan></text>
+    <text x="920" y="419" text-anchor="middle" font-size="13" font-style="italic" fill="#7c7362">nobody can read it</text>
+    <line x1="1140" y1="432" x2="712" y2="432" stroke="#0f8a5f" stroke-width="2" marker-end="url(#aG)"/>
+
+    <!-- 3 -->
+    <circle cx="80" cy="506" r="17" fill="#0f8a5f"/><text x="80" y="511" text-anchor="middle" font-size="14" font-weight="700" fill="#fffdf7">3</text>
+    <rect x="862" y="476" width="116" height="28" rx="14" fill="#fffdf7" stroke="#ddd5c5"/>
+    <text x="920" y="495" text-anchor="middle">reveals it</text>
+    <rect x="400" y="492" width="150" height="28" rx="14" fill="#efe9dc" stroke="#ddd5c5"/>
+    <text x="475" y="511" text-anchor="middle" font-size="13" font-weight="700" fill="#7c7362">bidding closes</text>
+    <line x1="1140" y1="506" x2="712" y2="506" stroke="#0f8a5f" stroke-width="2" marker-end="url(#aG)"/>
+
+    <!-- 4 -->
+    <circle cx="80" cy="610" r="17" fill="#c98a1b"/><text x="80" y="615" text-anchor="middle" font-size="14" font-weight="700" fill="#fffdf7">4</text>
+    <rect x="430" y="552" width="540" height="96" rx="10" fill="#fdf6e6" stroke="#c98a1b" stroke-width="1.5"/>
+    <text x="700" y="582" text-anchor="middle">scores every revealed bid against the rubric</text>
+    <text x="700" y="606" text-anchor="middle">published before bidding opened, writes a memo,</text>
+    <text x="700" y="630" text-anchor="middle">and <tspan font-weight="700" fill="#c98a1b">anchors its hash on-chain</tspan></text>
+    <rect x="692" y="648" width="16" height="48" fill="#c98a1b" opacity="0.85"/>
+    <rect x="330" y="676" width="308" height="30" rx="15" fill="#fffdf7" stroke="#ddd5c5"/>
+    <text x="484" y="696" text-anchor="middle">recommends one — <tspan font-style="italic" fill="#c98a1b">it cannot award</tspan></text>
+    <line x1="692" y1="720" x2="272" y2="720" stroke="#c98a1b" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#aA)"/>
+
+    <!-- 5 -->
+    <circle cx="80" cy="790" r="17" fill="#2456b8"/><text x="80" y="795" text-anchor="middle" font-size="14" font-weight="700" fill="#fffdf7">5</text>
+    <rect x="498" y="756" width="404" height="30" rx="15" fill="#fffdf7" stroke="#ddd5c5"/>
+    <text x="700" y="776" text-anchor="middle"><tspan font-weight="700">awards</tspan> — and only the bidder the memo named</text>
+    <line x1="260" y1="790" x2="1128" y2="790" stroke="#2456b8" stroke-width="2" marker-end="url(#aB)"/>
+
+    <!-- milestone loop -->
+    <rect x="140" y="828" width="1120" height="212" rx="8" fill="none" stroke="#c9c0ae" stroke-width="1.5" stroke-dasharray="8 6"/>
+    <rect x="140" y="828" width="268" height="26" rx="4" fill="#efe9dc"/>
+    <text x="156" y="847" font-size="12.5" font-weight="700" letter-spacing="0.6" fill="#7c7362">LOOP · repeat 6–7 per milestone</text>
+
+    <!-- 6 -->
+    <circle cx="80" cy="906" r="17" fill="#0f8a5f"/><text x="80" y="911" text-anchor="middle" font-size="14" font-weight="700" fill="#fffdf7">6</text>
+    <rect x="832" y="876" width="176" height="28" rx="14" fill="#fffdf7" stroke="#ddd5c5"/>
+    <text x="920" y="895" text-anchor="middle">delivers milestone</text>
+    <line x1="1140" y1="906" x2="712" y2="906" stroke="#0f8a5f" stroke-width="2" marker-end="url(#aG)"/>
+
+    <!-- 7 -->
+    <circle cx="80" cy="994" r="17" fill="#2456b8"/><text x="80" y="999" text-anchor="middle" font-size="14" font-weight="700" fill="#fffdf7">7</text>
+    <rect x="245" y="944" width="470" height="30" rx="15" fill="#fffdf7" stroke="#ddd5c5"/>
+    <text x="480" y="964" text-anchor="middle">accepts it, or says nothing until the window lapses</text>
+    <rect x="789" y="944" width="262" height="30" rx="15" fill="#f2f7e2" stroke="#7fb800"/>
+    <text x="920" y="964" text-anchor="middle" font-weight="700" fill="#5d8700">payment releases either way</text>
+    <line x1="260" y1="994" x2="1128" y2="994" stroke="#7fb800" stroke-width="2.5" marker-end="url(#aF)"/>
+
+    <!-- 8 -->
+    <circle cx="80" cy="1096" r="17" fill="#7fb800"/><text x="80" y="1101" text-anchor="middle" font-size="14" font-weight="700" fill="#fffdf7">8</text>
+    <rect x="172" y="1070" width="1056" height="52" rx="10" fill="#f2f7e2" stroke="#7fb800" stroke-width="1.5"/>
+    <text x="700" y="1102" text-anchor="middle">final acceptance <tspan font-weight="700" fill="#5d8700">releases the retention</tspan> and <tspan font-weight="700" fill="#5d8700">returns both stakes</tspan></text>
+  </g>
+</svg>

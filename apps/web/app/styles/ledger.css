@@ -6489,6 +6489,9 @@ button.field-wallet {
   width: 100%;
   height: auto;
   margin: 4px 0 18px;
-  border: 1px solid rgba(23, 19, 13, 0.2);
+  /* The figure is drawn on this page's own paper colour, so it needs a rule to sit on rather than
+     a frame to be contained by — a heavy border would make it look pasted in. */
+  border: 1px solid var(--line);
   border-radius: 4px;
+  background: var(--paper);
 }

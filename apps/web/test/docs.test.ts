@@ -37,10 +37,10 @@ describe("docs index", () => {
     // repository path so GitHub renders it too. In a browser that path is meaningless, so it has
     // to become the route Next serves. A broken image here would be silent.
     const html = readDoc("how-it-works")?.html ?? "";
-    expect(html).toContain('src="/diagrams/tender-flow.png"');
+    expect(html).toContain('src="/diagrams/tender-flow.svg"');
     expect(html).not.toContain("apps/web/public");
-    // A dark picture carries the whole lifecycle; without real alt text that is lost to anyone
-    // who cannot see it, and to anyone reading with images off.
+    // The picture carries the whole lifecycle; without real alt text that is lost to anyone who
+    // cannot see it, and to anyone reading with images off.
     const alt = html.match(/<img[^>]*alt="([^"]*)"/)?.[1] ?? "";
     expect(alt.length).toBeGreaterThan(200);
     expect(alt).toMatch(/cannot award/i);
