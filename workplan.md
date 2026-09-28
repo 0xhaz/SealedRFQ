@@ -1603,6 +1603,29 @@ discovers they disagree.
 Nothing to build. Worth recording because the obvious mitigation — letting a buyer re-run a sealed
 tender cleanly — is impossible by construction, and someone will eventually propose it.
 
+### Gap 4: the reputation ramp has a cold start, and it compounds
+
+`qualityScore = min(100, 50 + 10 × completed)`, counting engagements completed **on this
+deployment**. On the default 50/30/20 rubric that is worth roughly a 4% price premium per completed
+job, capping at 20% after five.
+
+Two consequences worth stating rather than discovering:
+
+- **On a fresh deployment the criterion is inert.** Every supplier sits at 50, so quality adds the
+  same ten points to every bid and the rubric is effectively price and delivery. True right now:
+  the 2026-09-27 redeploy reset every record, so nothing differentiates on quality until somebody
+  finishes a tender on the current contracts.
+- **It compounds, and that is a market-design property rather than a bug.** The first supplier to
+  complete a job gains a pricing advantage over every newcomer, which helps them win the next one.
+  The cap at five limits how far it runs — the difference between five completed jobs and fifty is
+  nothing — but the first mover advantage is real and deliberate, and a buyer relying on it should
+  know it measures activity here, not competence anywhere.
+
+The honest limit is the same one §6h reached about certifications: nothing on-chain can see a
+reputation earned elsewhere, so a thirty-year trading history scores exactly what a wallet created
+this morning scores. Documented in both buyer and supplier docs with the percentages, because the
+size of the advantage is not obvious from the formula.
+
 ### Related, and already recorded
 
 §6g's *"AI recommends; humans authorize"* covers who may act on a score. This section is about who

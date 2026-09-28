@@ -64,6 +64,17 @@ loses to one that is quicker, even on a rubric that weights price higher — the
 couple of points and the delivery gap fifteen. If you can move a lead time more easily than a
 price, that is usually where the tender is decided.
 
+**Your record here is worth real money, and it is worth knowing how much.** The quality score is
+`50 + 10 for every engagement you have completed on this deployment`, capped at 100 — so five
+completed jobs is the ceiling and a sixth adds nothing. On a typical 50 / 30 / 20 rubric, holding
+delivery equal, that lets you price above a newcomer and still tie: about **4% with one completed
+job, 8% with two, 20% at the cap**.
+
+Which is the argument for taking a first job at a thin margin. It is also the reason the number
+that matters most early on is not price at all — it is finishing, because until you complete one
+engagement you score the same 50 as a wallet created this morning, however long you have been
+trading. Nothing on-chain can see a reputation you earned elsewhere.
+
 If two bids score exactly the same, the tie is settled by a fixed cascade — cheaper first, then
 quicker, then the lower wallet address — so the outcome is one you can recompute rather than one
 decided on the day. The last step is arbitrary; it only comes up when two bids match exactly, which

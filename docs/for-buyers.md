@@ -108,6 +108,31 @@ one.
 In practice prices cluster — suppliers converge on the market rate — while delivery can differ by
 multiples. So delivery often decides a tender that price was supposed to.
 
+### What a track record is actually worth
+
+The quality score is not a judgement of anyone. It is arithmetic on one number — engagements this
+supplier has **completed on this deployment** — and it runs `50 + 10 per completed job`, capped at
+100. A supplier nobody has hired here starts at 50; five completed jobs reach the ceiling.
+
+On the default 50 / 30 / 20 rubric that converts into a concrete pricing advantage. Holding
+delivery equal, a supplier with history can bid this much dearer than a newcomer and still tie:
+
+| Completed here | Quality | Can be dearer by |
+|---|---|---|
+| 1 | 60 | about 4% |
+| 2 | 70 | about 8% |
+| 5 or more | 100 | about 20% |
+
+Twenty per cent is a firm thumb on the scale, and it is where the ramp stops — the difference
+between five completed jobs and fifty is nothing at all. Whether that is the trade you want is a
+rubric question: lower the quality weight and experience counts for less.
+
+**Two things to know before you rely on it.** It counts only what happened *here*, so a supplier
+with thirty years of trade and no tenders on this deployment scores 50, the same as someone who
+registered this morning — nothing on-chain can see a reputation earned elsewhere. And on a fresh
+deployment every supplier sits at 50, which means quality contributes the same ten points to every
+bid and your rubric is effectively price and delivery until somebody finishes a job.
+
 ### When two bids score exactly the same
 
 It happens — identical price, identical delivery, neither supplier with any history here. The
