@@ -25,38 +25,7 @@ Three parties act on a tender, and the point of the design is that **none of the
 job**. The evaluator judges but cannot award. The buyer awards but cannot judge for a second time.
 The contract enforces but decides nothing.
 
-```diagram
-  BUYER                     EVALUATOR                    SUPPLIER
-    │                           │                            │
- 1  │ posts a tender and funds it in the same transaction    │
-    ├───────────────────────────────────────────────────────▶│
-    │                           │                            │
- 2  │                           │         seals a bid and    │
-    │                           │◀──────── posts a deposit ──┤
-    │                           │        (nobody can read it)│
-    │                           │                            │
- 3  │        bidding closes     │◀──────── reveals it ───────┤
-    │                           │                            │
- 4  │              scores every revealed bid against the
-    │              rubric published before bidding opened,
-    │              writes a memo, anchors its hash on-chain
-    │                           │
-    │◀──── recommends one ──────┤
-    │      it cannot award      │
-    │                           │
- 5  │ awards — and only the bidder the memo named            │
-    ├───────────────────────────────────────────────────────▶│
-    │                           │                            │
- 6  │                           │◀──── delivers milestone ───┤
-    │                           │                            │
- 7  │ accepts it, or says nothing until the window lapses    │
-    ├──────────── payment releases either way ──────────────▶│
-    │                           │                            │
-    │                     repeat 6–7 per milestone
-    │                           │                            │
- 8  │           final acceptance releases the retention
-    │           and returns both stakes
-```
+![A sequence diagram across three lanes — buyer, evaluator and supplier. 1: the buyer posts a tender and funds it in the same transaction. 2: the supplier seals a bid and posts a deposit, which nobody can read. 3: bidding closes and the supplier reveals it. 4: the evaluator scores every revealed bid against the rubric published before bidding opened, writes a memo and anchors its hash on-chain, then recommends one bidder — it cannot award. 5: the buyer awards, and only the bidder the memo named. 6 and 7 repeat per milestone — the supplier delivers, and the buyer accepts or says nothing until the window lapses, with payment releasing either way. 8: final acceptance releases the retention and returns both stakes.](../apps/web/public/diagrams/tender-flow.png)
 
 Every arrow above is a transaction somebody signed. The contract sits underneath all of them and
 refuses anything that breaks the published policy — over budget, too few bidders, a rubric that

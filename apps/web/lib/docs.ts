@@ -90,22 +90,22 @@ export function readDoc(slug: string): { title: string; html: string } | null {
   const body = md.replace(/^#\s+.+$/m, "");
 
   const html = marked.parse(body, { async: false, gfm: true }) as string;
-  return { title, html: rewriteLinks(styleDiagrams(html)) };
+  return { title, html: rewriteImages(rewriteLinks(html)) };
 }
 
 /**
- * Render a ```diagram fence as a drawing rather than as code.
+ * Point an image at the copy this app serves.
  *
- * These files are read on GitHub as well as here, and GitHub renders no CSS of ours — so a
- * diagram has to survive as plain text in a code fence to be readable there at all. That rules
- * out both an HTML drawing and a Mermaid block needing a megabyte of JavaScript to become a
- * picture. Marking the fence lets the same characters be a dark code block on GitHub and a
- * paper-coloured figure here, from one source that cannot drift.
+ * The file lives once, under `apps/web/public/diagrams/`, and the markdown refers to it by the
+ * repository-relative path so GitHub renders it too. In the browser that path means nothing, so
+ * anything under that folder becomes the route Next serves it at. Keeping a single copy matters
+ * more than the tidier-looking alternative: two copies of a diagram drift, and a picture that
+ * disagrees with the prose beside it is worse than no picture.
  */
-function styleDiagrams(html: string): string {
+function rewriteImages(html: string): string {
   return html.replace(
-    /<pre><code class="language-diagram">([\s\S]*?)<\/code><\/pre>/g,
-    (_whole, inner: string) => `<pre class="doc-diagram"><code>${inner}</code></pre>`,
+    /src="([^"]*apps\/web\/public\/diagrams\/([^"/]+))"/g,
+    (_whole, _full: string, file: string) => `src="/diagrams/${file}"`,
   );
 }
 
