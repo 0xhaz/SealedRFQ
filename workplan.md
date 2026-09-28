@@ -1054,6 +1054,49 @@ cannot assess whether it is neutral. Treat an inspection report as *evidence a h
 as an oracle the contract trusts — the moment the contract keys money to an inspector's signature,
 that inspector is an arbiter chosen by whoever named them.
 
+### Auto-award: already built, off by default, and what would make it acceptable (2026-09-29)
+
+Proposed as a per-tender option — the buyer opts in and the recommendation is awarded the moment it
+is produced. Recorded because the mechanism already exists and the reasoning for leaving it off is
+easy to lose.
+
+**It exists.** `AUTO_AWARD=true` makes the scheduler award immediately after attesting
+(`evaluator.scheduler.ts`), and the flag's own comment carries the position: *awarding is the
+buyer's call by default*. It is bounded too — `award` checks `agentAwardCap` whenever the caller is
+not the buyer, so an unattended award above the cap reverts on-chain whatever the flag says.
+
+**The problem it solves is real, and we have seen it.** Testnet RFQ №1 lapsed into `NoAward` with
+three revealed bids and a recommendation in hand, because nobody pressed the button before the
+award deadline. Three suppliers did the work and everyone lost for no reason. That is the worst
+outcome this system can produce.
+
+**Three reasons it stays off anyway:**
+
+1. **It removes the buyer's last remaining choice.** §6l Gap 3 established that after reveal the
+   buyer has two options, not three: award the recommendation or award nobody. Declining is not
+   ceremonial — the memo carries red flags (*no completed engagements*, *bid under 40% of budget:
+   check scope understanding*) that exist precisely so a person weighs them.
+2. **Provenance.** A buyer cannot sign unattended, so a per-tender opt-in still means the
+   *operator's* `AWARDER` key sends the transaction with the buyer's consent recorded in our own
+   database. On-chain those are indistinguishable, and the audit page could not tell a reader
+   which it was. "The buyer authorised this" would become a claim rather than a fact, in the one
+   project that argues claims should be checkable.
+3. **§7 already flags the legal shape**: automated decision-making binding a supplier is GDPR Art
+   22 territory and contrary to the procurement norm of a human award.
+
+**What would make it acceptable: a session key on the buyer's own smart account** (§6i). Then the
+buyer is provably the signer, the cap is theirs rather than the policy's, and the audit trail says
+what actually happened. Blocked on the same WalletConnect gap as team accounts and mobile wallets —
+which is now the third distinct feature waiting on one connector.
+
+**The cheaper fix is notification (§6k), and it is the only one needed.** The first guess — that the
+form offers award windows that are too tight — was checked and is wrong: the real presets give
+**6 days, 6 days and 2 days** to award. Only *Demo* gives 58 minutes, which is correct for a demo.
+
+So RFQ №1 did not lapse because the window was short or because awarding was hard. It lapsed
+because it was a demo-timed tender left unattended, and nothing told anyone the clock was running.
+That is a notification problem, not a deadline problem and not an auto-award problem.
+
 ### The honest limit that does not go away
 
 None of this makes the chain able to see goods. A verification checkpoint is a *document* hashed and
