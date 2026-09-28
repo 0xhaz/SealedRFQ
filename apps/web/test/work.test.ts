@@ -151,4 +151,31 @@ describe("deriveWork — milestone deadlines", () => {
       expect(deriveWork([engaged({ status })], ME, NOW)).toEqual([]);
     }
   });
+
+  it("tells a buyer when suppliers are waiting on an answer", () => {
+    // Nothing is pushed to a buyer anywhere here — a wallet address is not a contact method — so
+    // the panel is the only thing that will ever tell them somebody asked.
+    const items = deriveWork(
+      [row({ phase: "Bidding", buyer: ME })],
+      ME,
+      undefined,
+      { "1": 2 },
+    );
+    const q = items.find((i) => i.kind === "answer");
+    expect(q?.questions).toBe(2);
+    // Not urgent: missing it costs no money, and crying wolf trains people to ignore the panel.
+    expect(q?.urgent).toBe(false);
+  });
+
+  it("stops listing questions once asking has closed", () => {
+    // Asking closes with bidding, and the buyer cannot answer afterwards — so an item they can no
+    // longer act on would be noise pointing at a dead end.
+    const later = deriveWork([row({ phase: "Reveal", buyer: ME })], ME, undefined, { "1": 2 });
+    expect(later.some((i) => i.kind === "answer")).toBe(false);
+  });
+
+  it("shows nothing when the agent could not be reached", () => {
+    const items = deriveWork([row({ phase: "Bidding", buyer: ME })], ME);
+    expect(items.some((i) => i.kind === "answer")).toBe(false);
+  });
 });

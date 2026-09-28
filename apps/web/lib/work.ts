@@ -34,13 +34,15 @@ export type WorkRow = {
 
 export type WorkItem = {
   key: string;
-  kind: "reveal" | "award" | "invited" | "deliver" | "lapsed" | "accept";
+  kind: "reveal" | "award" | "invited" | "deliver" | "lapsed" | "accept" | "answer";
   urgent: boolean;
   rfqId: number;
   deadline: number;
   /** 1-based, for the milestone kinds. Undefined for the bidding ones. */
   milestone?: number;
   milestoneCount?: number;
+  /** How many suppliers are waiting on an answer. Only on the `answer` kind. */
+  questions?: number;
 };
 
 /**
@@ -63,6 +65,8 @@ export function deriveWork(
   rows: WorkRow[],
   me?: string,
   now: number = Math.floor(Date.now() / 1000),
+  /** Unanswered question counts by RFQ id, from the agent. Absent when it could not be reached. */
+  unanswered: Record<string, number> = {},
 ): WorkItem[] {
   if (!me) return [];
   const who = me.toLowerCase();
@@ -102,6 +106,24 @@ export function deriveWork(
         urgent: true,
         rfqId: r.id,
         deadline: r.awardDeadline,
+      });
+    }
+
+    /*
+     * A question nobody answered. Not urgent — missing it costs no money — but it is the one item
+     * here that somebody else is actively waiting on, and asking closes when bidding does. After
+     * that the buyer cannot answer even if they want to, so it is listed only while it is still
+     * possible to act on.
+     */
+    const waiting = unanswered[String(r.id)] ?? 0;
+    if (waiting > 0 && r.phase === "Bidding" && r.buyer.toLowerCase() === who) {
+      items.push({
+        key: `q-${r.id}`,
+        kind: "answer",
+        urgent: false,
+        rfqId: r.id,
+        deadline: r.bidDeadline,
+        questions: waiting,
       });
     }
   }

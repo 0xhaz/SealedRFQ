@@ -1,10 +1,12 @@
 "use client";
 
+import { agent } from "@/lib/agent";
 import { chain, contracts } from "@/lib/chain";
 import { countdown } from "@/lib/rfq";
 import { type WorkRow, deriveWork } from "@/lib/work";
 import { RFQRegistryAbi, SealedRFQAdapterAbi } from "@sealedrfq/shared";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useAccount, useReadContracts } from "wagmi";
 
 export type BoardRfq = {
@@ -124,7 +126,26 @@ export function YourWork({ rfqs }: { rfqs: BoardRfq[] }) {
     };
   });
 
-  const items = deriveWork(rows, address);
+  /*
+   * Questions waiting on this buyer. Fetched rather than read from the chain, because a
+   * clarification is not an on-chain object — it is a signed message the agent holds. An agent
+   * that cannot be reached leaves this empty and the rest of the panel still works.
+   */
+  const mine = open.filter((r) => r.buyer.toLowerCase() === me).map((r) => r.id);
+  const [unanswered, setUnanswered] = useState<Record<string, number>>({});
+  const mineKey = mine.join(",");
+  useEffect(() => {
+    if (!address || !mineKey) return;
+    let live = true;
+    agent.openQuestions(address, mineKey.split(",").map(Number)).then((r) => {
+      if (live && "unanswered" in r) setUnanswered(r.unanswered);
+    });
+    return () => {
+      live = false;
+    };
+  }, [address, mineKey]);
+
+  const items = deriveWork(rows, address, undefined, unanswered);
   if (items.length === 0) return null;
 
   const describe = (it: (typeof items)[number]) => {
@@ -139,6 +160,8 @@ export function YourWork({ rfqs }: { rfqs: BoardRfq[] }) {
         return `The delivery window for milestone ${it.milestone} of ${it.milestoneCount} on RFQ № ${it.rfqId} has closed. Nothing can be submitted now; talk to the buyer before the escrow is settled.`;
       case "accept":
         return `Review the delivery on RFQ № ${it.rfqId} within ${countdown(it.deadline)}, or it is accepted automatically and the supplier is paid.`;
+      case "answer":
+        return `${it.questions} unanswered question${it.questions === 1 ? "" : "s"} on RFQ № ${it.rfqId}. Asking closes with bidding in ${countdown(it.deadline)}, and you cannot answer after that — every bidder sees the answer, so one reply serves all of them.`;
       default:
         return `You are invited to bid on RFQ № ${it.rfqId}. Bidding closes in ${countdown(it.deadline)}.`;
     }

@@ -279,6 +279,19 @@ export function profileMessage(input: {
 }
 
 export const agent = {
+  /**
+   * Unanswered question counts across a buyer's own tenders, keyed by RFQ id.
+   *
+   * One call for the whole board instead of opening each tender to look. Nothing is pushed to a
+   * buyer anywhere in this project — a wallet address is not a contact method — so the least this
+   * can do is tell them on arrival that somebody is waiting.
+   */
+  openQuestions: (address: string, rfqIds: number[]) =>
+    get<{ unanswered: Record<string, number> }>(
+      `/buyers/${address}/questions?rfqIds=${rfqIds.join(",")}`,
+      { unanswered: {} },
+    ),
+
   /** The public clarification thread for an RFQ. */
   clarifications: (rfqId: number) =>
     get<{ entries: ClarificationEntry[] }>(`/rfqs/${rfqId}/clarifications`, { entries: [] }),

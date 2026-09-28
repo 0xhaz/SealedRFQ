@@ -6,6 +6,7 @@ import {
   Headers,
   Param,
   Post,
+  Query,
   Req,
   Res,
   UseGuards,
@@ -50,6 +51,22 @@ export class ApiController {
    * Ask a question, or answer one as the buyer. Authorised by signature rather than by a session:
    * there are no accounts here, and the wallet is the identity everywhere else.
    */
+  /**
+   * How many questions are waiting on this buyer, per tender.
+   *
+   * Public, like the thread itself — it only counts what anyone can already read. The board calls
+   * it once for the connected wallet rather than opening every tender to look.
+   */
+  @Get("buyers/:address/questions")
+  openQuestions(@Param("address") address: string, @Query("rfqIds") rfqIds?: string) {
+    const ids = (rfqIds ?? "")
+      .split(",")
+      .map((x) => Number(x.trim()))
+      .filter((n) => Number.isInteger(n) && n > 0)
+      .slice(0, 200);
+    return { unanswered: this.clarifications.unansweredByRfq(ids) };
+  }
+
   @Post("rfqs/:id/clarifications")
   addClarification(
     @Param("id") id: string,

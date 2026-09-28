@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable } from "@nestjs/common";
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { type Hex, recoverMessageAddress, sha256, stringToBytes } from "viem";
 import { db, schema } from "../../db/index.js";
 
@@ -139,6 +139,37 @@ export class ClarificationsService {
       .all()
       .sort((a, b) => a.ts - b.ts || (a.id ?? 0) - (b.id ?? 0))
       .map((r) => this.present(r));
+  }
+
+  /**
+   * Questions on a buyer's own tenders that nobody has answered yet.
+   *
+   * There is no push notification anywhere in this project and deliberately so: a wallet address
+   * is not a contact method, and collecting an email would mean accounts. What can be fixed is the
+   * *pull* — a buyer who opens the board should be told a supplier is waiting on them, rather than
+   * having to visit each tender to find out.
+   *
+   * Counted per RFQ rather than listed, because the panel that uses this only needs to say how
+   * many and where. A question is unanswered when no reply points at it.
+   */
+  unansweredByRfq(rfqIds: number[]): Record<number, number> {
+    if (rfqIds.length === 0) return {};
+    const rows = db
+      .select()
+      .from(schema.clarifications)
+      .where(inArray(schema.clarifications.rfqId, rfqIds))
+      .all();
+
+    const answered = new Set(
+      rows.filter((r) => r.parentId !== null).map((r) => r.parentId as number),
+    );
+    const out: Record<number, number> = {};
+    for (const r of rows) {
+      if (r.parentId !== null || r.role !== "supplier") continue;
+      if (answered.has(r.id)) continue;
+      out[r.rfqId] = (out[r.rfqId] ?? 0) + 1;
+    }
+    return out;
   }
 
   /**

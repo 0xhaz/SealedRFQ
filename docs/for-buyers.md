@@ -130,6 +130,22 @@ There is a second kind of delegation worth knowing about: an address holding the
 award without being the buyer, capped at a figure the policy sets. That is how an agent is allowed
 to act, and it is the same mechanism that would let a junior buyer award below a threshold.
 
+## How you find out a supplier is waiting
+
+Nothing here emails you, and that is deliberate rather than unfinished. A tender identifies people
+by wallet address, and an address is not a contact method — nothing can send to `0x0C01…`.
+Collecting email addresses would mean accounts, passwords and a database of who is buying what,
+which is a larger thing to trust than the contracts are.
+
+So notice is **pulled, not pushed**: connect your wallet and the board lists what is waiting on you,
+including any question a supplier has asked and nobody has answered. Questions close when bidding
+does, and you cannot answer after that, so the item disappears once acting on it is no longer
+possible.
+
+The practical consequence: if you post a tender and never return until the award deadline, you will
+have missed every question asked in between. Look in once a day while bidding is open — the panel
+is at the top of the board and says nothing at all when there is nothing to do.
+
 ## When something goes wrong
 
 **The supplier is running late.** You can extend the delivery window, but only *before* it closes.
