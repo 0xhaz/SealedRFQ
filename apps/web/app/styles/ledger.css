@@ -6480,3 +6480,23 @@ button.field-wallet {
   gap: 12px;
   align-items: center;
 }
+
+/* ---------- a figure in a doc, as opposed to a code sample ----------
+   The default `pre` here is ink-on-cream and reads as code, which is right for a call signature
+   and wrong for a drawing of who does what. A diagram gets the paper treatment instead: same
+   monospace grid, but it sits in the page rather than interrupting it. */
+.doc-body pre.doc-diagram {
+  background: rgba(23, 19, 13, 0.03);
+  color: var(--ink);
+  border: 1px solid rgba(23, 19, 13, 0.18);
+  border-radius: 4px;
+  padding: 18px 20px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+@media (max-width: 720px) {
+  .doc-body pre.doc-diagram {
+    font-size: 10.5px;
+    padding: 12px 12px;
+  }
+}

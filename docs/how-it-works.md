@@ -19,6 +19,84 @@ Procurement software has an answer to the second half. It has very little to say
 and almost nothing to say about the question a losing supplier actually asks: *was that a fair
 tender, or had they already decided?*
 
+## Who does what
+
+Three parties act on a tender, and the point of the design is that **none of them can do another's
+job**. The evaluator judges but cannot award. The buyer awards but cannot judge for a second time.
+The contract enforces but decides nothing.
+
+```diagram
+  BUYER                     EVALUATOR                    SUPPLIER
+    │                           │                            │
+ 1  │ posts a tender and funds it in the same transaction    │
+    ├───────────────────────────────────────────────────────▶│
+    │                           │                            │
+ 2  │                           │         seals a bid and    │
+    │                           │◀──────── posts a deposit ──┤
+    │                           │        (nobody can read it)│
+    │                           │                            │
+ 3  │        bidding closes     │◀──────── reveals it ───────┤
+    │                           │                            │
+ 4  │              scores every revealed bid against the
+    │              rubric published before bidding opened,
+    │              writes a memo, anchors its hash on-chain
+    │                           │
+    │◀──── recommends one ──────┤
+    │      it cannot award      │
+    │                           │
+ 5  │ awards — and only the bidder the memo named            │
+    ├───────────────────────────────────────────────────────▶│
+    │                           │                            │
+ 6  │                           │◀──── delivers milestone ───┤
+    │                           │                            │
+ 7  │ accepts it, or says nothing until the window lapses    │
+    ├──────────── payment releases either way ──────────────▶│
+    │                           │                            │
+    │                     repeat 6–7 per milestone
+    │                           │                            │
+ 8  │           final acceptance releases the retention
+    │           and returns both stakes
+```
+
+Every arrow above is a transaction somebody signed. The contract sits underneath all of them and
+refuses anything that breaks the published policy — over budget, too few bidders, a rubric that
+does not match the one fixed at the start, a delivery longer than the tender allows.
+
+### What each party cannot do
+
+The negatives are the interesting half, because they are what the guarantees are made of.
+
+| | Can | **Cannot** |
+|---|---|---|
+| **Buyer** | Publish and fund, invite, award, accept or reject a milestone with a reason, extend a delivery window, confirm receipt | Read a sealed bid, change the scope or rubric after posting, award anyone the evaluator did not name, award over budget, take back a released payment, cancel once a bid exists |
+| **Evaluator** *(the AI)* | Score revealed bids, write and anchor a memo, flag a bid as non-compliant | **Award anything.** Score before the reveal window, score against a rubric other than the published one, move a single USDC |
+| **Supplier** | Bid, reveal, deliver, dispute a rejection, reclaim a deposit | See a rival's price before reveal, change a bid after sealing it, extend their own deadline |
+| **Operator** *(us)* | Hold role keys on this deployment — which ones is listed in the README and readable on-chain | Read a sealed bid, move escrow that is not in dispute, exempt an award from a policy check, or reverse a released payment |
+
+That last row deserves the detail rather than a reassuring summary. On **this** deployment the
+operator still holds role keys, and two of them matter: an arbiter can divide escrow on an
+engagement the parties have already put into dispute, and an admin can change the policy that
+future awards are checked against. Neither can reach a tender running normally, and neither can
+reverse a payment that has released — but "the operator cannot touch anything" would be false, so
+it is not claimed. Which roles are held is readable on-chain, and the README's table is meant to
+match what is actually held at the time you read it.
+
+### Where the AI actually sits
+
+It is worth being blunt about this, because "AI procurement" usually means something looser.
+
+The evaluator is **deterministic arithmetic**, not a language model: price, delivery and quality
+weighted by the rubric the buyer published before bidding opened. Run it twice on the same bids and
+it returns the same answer, which is the only reason a losing supplier can check it. It writes a
+memo explaining the result and anchors that memo's hash on-chain **before** any award is possible.
+
+So the sequence is fixed: **it reasons, then it is recorded, then a human commits.** Not the other
+way round. A recommendation that appeared after the award would prove nothing.
+
+And there is a cap on the other side of it. If an agent rather than the buyer sends the award
+transaction, the contract refuses it above `agentAwardCap`. Above that figure a person signs, or
+nobody does.
+
 ## Act one: the buyer publishes a tender
 
 The buyer writes what they need, what they will pay for it, and how bids will be judged — then

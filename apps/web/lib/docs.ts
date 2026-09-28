@@ -90,7 +90,23 @@ export function readDoc(slug: string): { title: string; html: string } | null {
   const body = md.replace(/^#\s+.+$/m, "");
 
   const html = marked.parse(body, { async: false, gfm: true }) as string;
-  return { title, html: rewriteLinks(html) };
+  return { title, html: rewriteLinks(styleDiagrams(html)) };
+}
+
+/**
+ * Render a ```diagram fence as a drawing rather than as code.
+ *
+ * These files are read on GitHub as well as here, and GitHub renders no CSS of ours — so a
+ * diagram has to survive as plain text in a code fence to be readable there at all. That rules
+ * out both an HTML drawing and a Mermaid block needing a megabyte of JavaScript to become a
+ * picture. Marking the fence lets the same characters be a dark code block on GitHub and a
+ * paper-coloured figure here, from one source that cannot drift.
+ */
+function styleDiagrams(html: string): string {
+  return html.replace(
+    /<pre><code class="language-diagram">([\s\S]*?)<\/code><\/pre>/g,
+    (_whole, inner: string) => `<pre class="doc-diagram"><code>${inner}</code></pre>`,
+  );
 }
 
 /**

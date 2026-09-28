@@ -32,6 +32,18 @@ describe("docs index", () => {
     }
   });
 
+  it("renders a diagram fence as a figure, not as a code block", () => {
+    // These files are read on GitHub too, where none of our CSS applies — so a diagram has to
+    // survive as plain text in a fence to be readable there at all. The marker is what lets the
+    // same characters be a code block there and a paper-coloured figure here, from one source.
+    const html = readDoc("how-it-works")?.html ?? "";
+    expect(html).toContain('<pre class="doc-diagram">');
+    expect(html).not.toContain('class="language-diagram"');
+    // The thing the diagram exists to show: three parties, and what each cannot do.
+    expect(html).toMatch(/EVALUATOR/);
+    expect(html).toMatch(/cannot award/i);
+  });
+
   it("publishes the field-by-field form guide, and links to it from the buyers page", () => {
     // Added because the buyer-facing hints say what a field is, not how to choose a value; a
     // first-time buyer needs the second and it is easy to publish the file and forget the link.
