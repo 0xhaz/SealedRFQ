@@ -27,6 +27,22 @@
   margin: 0;
   padding: 0;
 }
+
+/*
+ * A button is clickable, so it should say so.
+ *
+ * Browsers give `<button>` the default arrow, not a pointer, so every clickable thing here has had
+ * to remember to set it per class — and two had not. An element selector is the floor: it costs
+ * one specificity point, so every `.btn:disabled { cursor: default }` and `:disabled { cursor:
+ * not-allowed }` already written still wins, and a button class added tomorrow is covered without
+ * anyone thinking about it.
+ */
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
 html,
 body,
 #root {
