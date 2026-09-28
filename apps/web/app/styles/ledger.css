@@ -6524,3 +6524,15 @@ button.field-wallet {
 .doc-body code {
   overflow-wrap: anywhere;
 }
+
+/* ---------- a wallet's claimed name ----------
+   The name is set in the body face so it reads as a label, and the address stays monospace beside
+   it so nobody mistakes the label for the thing being identified. Muted, because it is the weaker
+   of the two: an address is checkable and a name is a claim. */
+.party-name {
+  font-weight: 600;
+}
+.party-addr {
+  font-size: 0.9em;
+  color: var(--muted);
+}

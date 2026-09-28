@@ -186,6 +186,7 @@ variables, all public by design:
 NEXT_PUBLIC_ARC_CHAIN_ID=5042002
 NEXT_PUBLIC_ARC_RPC_URL=https://rpc.blockdaemon.testnet.arc.network
 NEXT_PUBLIC_AGENT_URL=https://<your-agent>.up.railway.app
+ENS_RPC_URL=<optional: an Ethereum mainnet RPC, to show wallet names beside addresses>
 ```
 
 **Agent → Railway.** The `Dockerfile` is at the repository root rather than under `apps/agent`,

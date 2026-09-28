@@ -1,4 +1,6 @@
+import { Party } from "@/components/Party";
 import { TeamAccount } from "@/components/TeamAccount";
+import { ensNames } from "@/lib/ens";
 import { DirectMessages } from "@/components/DirectMessages";
 import { Proforma } from "@/components/Proforma";
 import { DocumentCheck } from "@/components/DocumentCheck";
@@ -66,6 +68,14 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
     a.revealed && b.revealed ? Number(a.price - b.price) : a.revealed ? -1 : 1,
   );
 
+  /*
+   * Names for everyone shown on this page. Resolved here, on the server, so a reader's browser
+   * never tells an Ethereum endpoint which tenders they are looking at — and so an endpoint that
+   * is slow or missing costs one await rather than a render per row. Empty when ENS is not
+   * configured, which is the default.
+   */
+  const names = await ensNames([rfq.buyer, ...bids.map((b) => b.bidder)]);
+
   return (
     <div className="shell">
       <Header />
@@ -77,9 +87,7 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
         <p className="desk-head-sub">
           {rfq.category ? labelFor(CATEGORIES, rfq.category) : "—"}
           {rfq.region ? ` · ${labelFor(REGIONS, rfq.region)}` : ""} · buyer{" "}
-          <a href={explorerAddress(rfq.buyer)} target="_blank" rel="noreferrer" className="mono">
-            {short(rfq.buyer)}
-          </a>{" "}
+          <Party address={rfq.buyer} name={names[rfq.buyer.toLowerCase()]} />{" "}
           <TeamAccount address={rfq.buyer} />
           {rfq.inviteOnly && " · invite only"}
           {rfq.requiresQualification && " · qualified suppliers only"}
@@ -141,11 +149,16 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
                   <tbody>
                     {sorted.map((b) => (
                       <tr className="row" key={b.bidder}>
-                        <td className="mono" data-label="Supplier">
-                          {short(b.bidder)}
-                          {b.bidder.toLowerCase() === rfq.winner.toLowerCase() && (
-                            <span className="badge badge-inline p-awarded">WON</span>
-                          )}
+                        <td data-label="Supplier">
+                          <Party
+                            address={b.bidder}
+                            name={names[b.bidder.toLowerCase()]}
+                            badge={
+                              b.bidder.toLowerCase() === rfq.winner.toLowerCase() ? (
+                                <span className="badge badge-inline p-awarded">WON</span>
+                              ) : null
+                            }
+                          />
                         </td>
                         <td className="num" data-label="Price">
                           {sealed ? (
