@@ -1522,6 +1522,75 @@ If push is built afterwards, build Web Push, and leave XMTP doing the one thing 
 
 ---
 
+## 6l. The rubric is the buyer's, and what classic procurement gives suppliers instead (2026-09-28)
+
+Prompted by noticing that only the buyer can set the scoring rubric. That is not a quirk of this
+design: **the supplier never authors the award criteria anywhere**, public or private. What classic
+procurement gives them is not authorship but four protections around it, and mapping them is the
+useful exercise because two are absent here.
+
+### The four protections, and where this deployment stands
+
+| | Classic | Here |
+|---|---|---|
+| Criteria published before bidding | Required — EU Directive 2014/24 Art 67, UK PCR 2015, US FAR 15.304, which also makes a buyer state whether non-price factors combined outrank price | ✅ **and hash-fixed.** In classic the published criteria can still be amended by addendum; here `metadataHash` makes that visible to every bidder |
+| Question the criteria before bidding | Yes, answers to all | ✅ the clarification round, same rule |
+| Losing bidders learn how they scored | Debriefing on request — FAR 15.506 | ✅ **stronger**: every bidder's score is published, not just disclosed to whoever asks |
+| Standstill / challenge before the contract binds | Mandatory in EU and UK, roughly 10 days; GAO protest in the US | ❌ **nothing** |
+
+*(Citations from memory and worth checking before they appear in anything client-facing.)*
+
+### Where this is genuinely stronger, and it is not the obvious thing
+
+The obvious claim — "we publish the rubric" — is also true of classic procurement. The real
+difference is that in classic a **panel applies** the criteria. Published weights constrain the
+scoring but do not determine it, and "quality: 8 out of 10" is a judgement nobody can recompute. A
+losing supplier can read the criteria and still have no way to check the arithmetic, because there
+is no arithmetic.
+
+Here the scoring *is* arithmetic against a hash-fixed rubric, so publishing the criteria also
+publishes the answer. That is what lets the memo be re-hashed rather than trusted, and it is the
+sentence worth leading with: **classic procurement publishes the criteria and asks you to trust
+their application; this publishes both.**
+
+### Gap 1: no standstill, and an award is irreversible
+
+An award moves escrow in the same transaction that makes it. A losing bidder who believes the
+rubric was misapplied can prove it from the published memo — and there is no window in which
+proving it changes anything.
+
+For private B2B that is normal; buyers are not obliged to pause. **For anything public-sector it is
+disqualifying**, because the standstill is a statutory requirement rather than a courtesy, and no
+amount of after-the-fact verifiability substitutes for a pause before the contract binds.
+
+Not proposing to build it. Worth recording because it is a clean answer to "can a government buyer
+use this" — today, no — and because §6h's competitive read is about first-time cross-border trade,
+where no standstill exists either. It would become a real question only if the ePerolehan-shaped
+opportunity in `docs/architecture.md` were ever pursued.
+
+### Gap 2: nothing before the tender opens
+
+The place suppliers actually influence criteria in practice is **before** the formal tender — an
+RFI, a market consultation, a buyer asking what is reasonable to require. By the time a solicitation
+is published the criteria are largely settled in both worlds.
+
+Here the clarification round only opens once the terms are already fixed by `metadataHash`, so a
+supplier who points out that a criterion is unrealistic leaves the buyer one remedy: cancel and
+repost. That works — it is why `cancelRFQ` is surfaced — but only before the first sealed bid
+lands, because after that somebody has a deposit at risk on the published terms.
+
+So **cancel-and-repost is the manual form of pre-tender engagement**, and its window is short. A
+buyer posting something unusual would do well to ask suppliers first, somewhere else, which is an
+honest thing for the docs to say rather than a feature to build.
+
+### Related, and already recorded
+
+§6g's *"AI recommends; humans authorize"* covers who may act on a score. This section is about who
+may set the standard the score is measured against — a different question, and one where the answer
+is the same everywhere and the interesting part is what surrounds it.
+
+---
+
 ## 7. Submission checklist
 
 **Programme terms, read 2026-09-24 — four of these change the plan.**

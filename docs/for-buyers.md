@@ -81,6 +81,39 @@ around it.
 Nothing ties the weights to the category you chose. A price-dominant rubric on a consultancy tender
 is permitted and is probably wrong; the form will not stop you.
 
+### Weights say how much a criterion *can* swing, not how much it will
+
+This surprises people, so it is worth the arithmetic. Every criterion is scored as a ratio against
+the best bid received — the cheapest price scores 100, and a bid at twice that price scores 50.
+The same for delivery.
+
+So the influence a criterion actually has depends on **how far apart the bids are on it**, not on
+its weight alone. A real round:
+
+| | Price | Delivery | Score |
+|---|---|---|---|
+| Supplier A | 2.95 | 5 days | **87.5** |
+| Supplier B | 2.80 | 10 days | 75.0 |
+
+B is cheaper and still loses, on a rubric weighted 50 price / 30 delivery. B's price advantage is
+5%, worth 2.5 points. A's delivery advantage is 2×, worth 15. Six times the effect, from the
+criterion carrying the *lower* weight.
+
+Nothing is wrong there — halving a lead time is a bigger operational difference than paying 5% more,
+and the rubric said delivery was worth 30. But if that is not the trade you meant, the fix is the
+rubric rather than the result: raise the price weight, or tighten the delivery window so slow bids
+are **excluded** rather than merely marked down. The window is a hard limit; the rubric is a soft
+one.
+
+In practice prices cluster — suppliers converge on the market rate — while delivery can differ by
+multiples. So delivery often decides a tender that price was supposed to.
+
+### A high score does not mean awardable
+
+The rubric scores every revealed bid, including ones the contract will refuse. A bid over budget
+still gets a number, with a red flag beside it. The flags and the contract's own checks are what
+stop a bad award; the score is not a permission.
+
 ## Requirements
 
 Two kinds, and the difference is deliberate. **Checkable** requirements — a maximum delivery time, a

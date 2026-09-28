@@ -57,6 +57,18 @@ Bids are scored against the weights the buyer published before bidding opened �
 quality. The scoring is arithmetic, and the memo explaining the result is published and anchored on
 the chain.
 
+**Read the weights before you price, because undercutting may not win.** Each criterion is scored as
+a ratio against the best bid received, so what counts is how far apart the bids are on it rather
+than the weight alone. Prices cluster; delivery often does not. A bid 5% cheaper but twice as slow
+loses to one that is quicker, even on a rubric that weights price higher — the price gap is worth a
+couple of points and the delivery gap fifteen. If you can move a lead time more easily than a
+price, that is usually where the tender is decided.
+
+You cannot set the criteria — no supplier can, here or in any procurement process. What you can do
+is **question them while bidding is open**, in the clarification round. Every answer goes to every
+bidder, so asking whether a requirement is realistic costs you nothing and occasionally gets the
+tender reposted. Once bids are in, the terms are fixed for everyone.
+
 So if you lose, you can read exactly why: what each bid scored, what flags were raised, and which
 one was recommended. Re-hash the memo yourself and compare it with the chain. A rationale written
 after the fact hashes differently and fails that check. **You never have to pay to see why you
