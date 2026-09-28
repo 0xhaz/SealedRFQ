@@ -489,6 +489,22 @@ export function RfqActions({
                   milestone escrow. The contract re-checks every policy rule and rejects the award
                   if one fails.
                 </div>
+                {/*
+                  Said here because this is where a buyer discovers they disagree with the rubric,
+                  and the alternative is not the one they expect. Awarding a different bidder is
+                  refused by the contract, so the only other move is to award nobody — and the
+                  price of that is not the deposits, which come back, but that every price is now
+                  public and a re-run cannot be a sealed tender.
+                */}
+                <div className="full note">
+                  <b>This is the only bidder you can award.</b> The recommendation is anchored
+                  against this wallet specifically, so an award naming anyone else is rejected by
+                  the contract — the same rule that stops us awarding around it. If you would
+                  rather have a different bid, the only alternative is to award nobody: let the
+                  deadline pass, and every revealed bidder gets their deposit back. Worth knowing
+                  before you do that — the revealed prices stay public, so a re-posted tender is no
+                  longer sealed and every supplier will know what the others bid.
+                </div>
                 <div className="full">
                   <button type="button" className="btn-primary" disabled={!!busy} onClick={award}>
                     {busy ?? "Award to the recommended bidder"}

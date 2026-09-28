@@ -114,6 +114,33 @@ The rubric scores every revealed bid, including ones the contract will refuse. A
 still gets a number, with a red flag beside it. The flags and the contract's own checks are what
 stop a bad award; the score is not a permission.
 
+### You cannot award around the recommendation
+
+Once the bids are revealed you have **two** choices, not three: award the supplier the evaluator
+named, or award nobody.
+
+Awarding somebody else is not a policy we ask you to respect — the contract refuses it. The
+recommendation is anchored against that specific winner, so an award naming anyone else finds no
+recommendation and the transaction reverts. This is the same rule that stops *us* awarding around
+it, and it is why the tender can claim it was decided by criteria fixed before any bid arrived. A
+buyer free to override afterwards would make the published rubric decoration.
+
+It is stricter than common practice and closer to procurement law than common practice is: in a
+classic tender a panel recommends and a decision-maker may decline, but deviating from the
+published criteria is exactly what gets an award overturned on challenge.
+
+**If you want a different winner, closing without award is the only route — and it is expensive in
+a way that is easy to miss.** Deposits return and nobody is out of pocket, so the cost is not
+financial. The cost is that **every price is now public.** A re-run is no longer a sealed tender:
+each supplier knows precisely what the others bid last time, so the second round is a different
+game, usually a worse one for you, and the fairness claim that made the first round worth entering
+does not apply to it.
+
+So the judgement belongs **before** bidding opens, because that is the only moment it is free. If
+the cheapest bid should win, weight price at 100 and delivery at 0 and the arithmetic will do what
+you meant. If lead time genuinely matters less than the rubric says, change the rubric while you
+still can — not the outcome afterwards, which you cannot.
+
 ## Requirements
 
 Two kinds, and the difference is deliberate. **Checkable** requirements — a maximum delivery time, a

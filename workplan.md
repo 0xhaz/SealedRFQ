@@ -1583,6 +1583,26 @@ So **cancel-and-repost is the manual form of pre-tender engagement**, and its wi
 buyer posting something unusual would do well to ask suppliers first, somewhere else, which is an
 honest thing for the docs to say rather than a feature to build.
 
+### Gap 3: closing without award is a weaker remedy than it looks
+
+A buyer who disagrees with the recommendation cannot award around it — `awardSubject` binds the
+attestation to `keccak256(rfqId, winner)`, so naming anyone else finds no recommendation and
+reverts (`test_award_requiresRecommendationForThatWinner`). That is deliberate and is what makes
+the rubric binding rather than decorative.
+
+Their only alternative is to award nobody and repost. **The cost of that is not the deposits** —
+those return, and nobody is out of pocket. The cost is that **every revealed price is now public**,
+so the re-run cannot be a sealed tender: each supplier knows exactly what the others bid, and the
+fairness claim that made the first round worth entering does not apply to the second.
+
+So the discretion a buyer has is real but front-loaded: it lives entirely in setting the rubric
+before bidding opens, and converts into an expensive, one-way decision afterwards. Documented in
+`docs/for-buyers.md` and surfaced in the award panel itself, which is where a buyer actually
+discovers they disagree.
+
+Nothing to build. Worth recording because the obvious mitigation — letting a buyer re-run a sealed
+tender cleanly — is impossible by construction, and someone will eventually propose it.
+
 ### Related, and already recorded
 
 §6g's *"AI recommends; humans authorize"* covers who may act on a score. This section is about who

@@ -75,7 +75,13 @@ after the fact hashes differently and fails that check. **You never have to pay 
 lost.**
 
 The evaluator recommends; it cannot award. The buyer awards, and only to the supplier the
-recommendation named.
+recommendation named — the contract refuses an award to anyone else, so a buyer who prefers a
+different bid cannot simply take it. Their only alternative is to award nobody, which returns every
+revealed bidder's deposit.
+
+That is worth knowing when you price. **You are bidding against the published rubric, not against
+the buyer's preference**, and nobody can quietly substitute the second for the first after seeing
+what arrived.
 
 ## Delivering, and getting paid
 
