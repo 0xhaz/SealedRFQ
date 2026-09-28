@@ -137,7 +137,7 @@ export function EvaluationPanel({
                   )
                 </span>
               </td>
-              <td className="muted" style={{ fontSize: 11 }} data-label="Flags">
+              <td className="muted" style={{ fontSize: 12 }} data-label="Flags">
                 {s.redFlags.length ? s.redFlags.join("; ") : "—"}
                 {s.unverified?.length ? (
                   <div style={{ marginTop: 4 }}>

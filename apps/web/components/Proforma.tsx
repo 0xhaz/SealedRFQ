@@ -190,7 +190,7 @@ export function Proforma({
           </div>
 
           <div className="full">
-            <pre className="memo" style={{ whiteSpace: "pre-wrap", fontSize: 11, maxHeight: 280 }}>
+            <pre className="memo" style={{ whiteSpace: "pre-wrap", fontSize: 12, maxHeight: 280 }}>
               {text()}
             </pre>
           </div>

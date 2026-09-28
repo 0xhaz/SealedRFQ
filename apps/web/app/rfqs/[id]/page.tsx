@@ -288,7 +288,7 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
                             <td className="num" data-label="Value">{formatUsdc(l.gross)}</td>
                             <td className="num" data-label="Retained">{formatUsdc(l.retained)}</td>
                             <td className="num" data-label="Pays now">{formatUsdc(l.net)}</td>
-                            <td className="muted" style={{ fontSize: 11 }} data-label="State">
+                            <td className="muted" style={{ fontSize: 12 }} data-label="State">
                               {(() => {
                                 const m = indexedMilestones.find((x) => x.idx === l.index);
                                 return m
@@ -312,7 +312,7 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
                         <td className="num" data-label="Pays now">
                           <b>{formatUsdc(ledger.retentionHeld)}</b>
                         </td>
-                        <td className="muted" style={{ fontSize: 11 }} data-label="State">
+                        <td className="muted" style={{ fontSize: 12 }} data-label="State">
                           released at final acceptance
                         </td>
                       </tr>
