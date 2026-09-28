@@ -1456,6 +1456,72 @@ have caught both this and the original §6b breakage.
 
 ---
 
+## 6k. Notifying a buyer, and why XMTP is the wrong tool for it (assessed 2026-09-28)
+
+Prompted by a real gap: a supplier asks a question during bidding and nothing tells the buyer. The
+first fix shipped the same day — an unanswered-question item in the board's work panel — but that
+is still *pull*, and the question behind it was whether the buyer has to keep the page open.
+
+### The constraint that shapes everything
+
+**A wallet address is not a contact method.** Nothing can send to `0x0C01…`. Collecting an email
+would mean accounts, passwords and a database of who is buying what, which is a larger thing to ask
+someone to trust than the contracts are. That is why discovery here is pulled, and it is a position
+worth keeping rather than an omission to fix.
+
+### XMTP does not solve this, and the earlier suggestion that it might was wrong
+
+Recorded because it was said out loud before being checked, and it is the sort of thing that gets
+built on if it is not corrected in writing.
+
+Two properties of the implementation in `apps/web/lib/xmtp.ts`, both already documented at the top
+of that file:
+
+- **Both sides need an identity before either can write.** A buyer who has never signed into XMTP
+  cannot receive anything, so the case that matters most — the buyer who posted a tender and left —
+  is exactly the case it cannot reach.
+- **History lives in the browser that received it.** The message database is local (OPFS). Messages
+  arrive when a client fetches them, so a buyer sees a message by *opening the page* — which is
+  precisely what the work panel already does, without a second identity to establish.
+
+So XMTP here is a private thread, not a notification channel. It is the right tool for the job it
+has and the wrong one for this. It would only push if the buyer independently used a push-capable
+XMTP client, which is a narrow assumption to design around.
+
+### What would actually notify, ranked
+
+1. **Web Push (service worker + Push API)** — the only option that needs no account and no email.
+   A subscription is an opaque browser endpoint; binding it to a wallet is one signature, the same
+   pattern the clarification thread and the supplier profile already use. It produces a real
+   OS-level notification whether or not the tab is open, and it degrades to nothing where the
+   browser refuses permission. **This is the right mechanism if push is wanted.**
+2. **Email** — effective and universal, and the thing this project has declined on purpose. Note
+   the buyer already publishes a contact address for quotations; using it for notifications would
+   be repurposing data published for another reason, which is the kind of move that erodes trust
+   quietly. If email is ever added it should be asked for, separately and optionally.
+3. **XMTP** — see above. Not this.
+
+### What Web Push would cost
+
+- A service worker, a `VAPID` key pair, and a subscriptions table keyed by wallet address, with the
+  subscription proven by a signature so nobody can register alerts for someone else's tenders.
+- A sender in the agent, triggered where a clarification is stored and where a milestone is
+  submitted — the two events somebody else is actively waiting on.
+- An unsubscribe path that works without an account, which falls out of the same signature.
+
+Roughly a day, no contract change, and it fails safe: a buyer with no subscription is exactly where
+they are today.
+
+### Position: not before the submission, and not XMTP when it happens
+
+§7's rule holds — new infrastructure days before a judged deadline is how the failures in §6d
+happened. The work panel closes the practical gap, and the buyer documentation now states the
+consequence plainly: look in once a day while bidding is open.
+
+If push is built afterwards, build Web Push, and leave XMTP doing the one thing it is good at.
+
+---
+
 ## 7. Submission checklist
 
 **Programme terms, read 2026-09-24 — four of these change the plan.**
@@ -1585,6 +1651,11 @@ shipped in one bundled redeploy: open `bidMode` (§6f), the contract-level deliv
 - **Spending tiers and evidence requirements** (§6g) — no contract change, can land any time.
 - **Agent-to-agent counter-offer dialogue** — now assessed and **declined** rather than deferred;
   see §6f above for why it is incompatible with sealed and redundant on open.
+- **Push notification** (§6k) — Web Push, not XMTP. The work panel closes the practical gap; real
+  push is a day's work and new infrastructure, so it waits.
+- **WalletConnect** — the one change that would close two gaps at once: mobile wallets (§6k's
+  sibling problem) and team accounts, which §6i records as blocked on exactly this. Needs a
+  WalletConnect Cloud project id in the environment.
 
 The original reasoning still holds for what is left: a submission judged on *"the quality of what
 you built and whether it is worth taking further"* is better served by one thing that demonstrably
