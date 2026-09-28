@@ -6495,3 +6495,32 @@ button.field-wallet {
   border-radius: 4px;
   background: var(--paper);
 }
+
+/* ---------- phones ----------
+   The form grid is two columns at every width, which on a phone gives two cramped columns rather
+   than one readable one — every field ends up half a screen wide with the label wrapping over
+   three lines. Collapsing it is the single change that makes the tender form usable on a handset,
+   which matters as soon as anyone connects a mobile wallet. */
+@media (max-width: 720px) {
+  .form {
+    grid-template-columns: 1fr;
+    padding: 14px 16px 16px;
+  }
+  /* A duration is a number and its unit: still one control, just narrower. */
+  .duration-input select {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+  /* Two buttons side by side stop fitting long before the screen does. */
+  .button-row > button,
+  .button-row > a {
+    flex: 1 1 auto;
+  }
+}
+
+/* Long hex never wraps on its own, so an address is the one thing that can push a whole page
+   sideways on a narrow screen however careful the layout above it is. */
+.mono,
+.doc-body code {
+  overflow-wrap: anywhere;
+}

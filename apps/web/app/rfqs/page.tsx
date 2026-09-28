@@ -132,8 +132,11 @@ export default async function RfqBoard({
                         ? { label: "award window", at: r.awardDeadline }
                         : null;
                 return (
-                  <tr key={r.id}>
-                    <td>
+                  // `row` + `data-label` opt this table into the card layout phones get: each
+                  // cell becomes a labelled line instead of a column in a seven-wide table that
+                  // would otherwise scroll sideways off the screen.
+                  <tr className="row" key={r.id}>
+                    <td data-label="RFQ">
                       <Link className="linklike" href={`/rfqs/${r.id}`}>
                         № {r.id}
                       </Link>
@@ -144,10 +147,10 @@ export default async function RfqBoard({
                         </span>
                       )}
                     </td>
-                    <td>{r.category ? labelFor(CATEGORIES, r.category) : "—"}</td>
-                    <td className="num">{formatUsdc(r.budget)}</td>
-                    <td className="num">{formatUsdc(r.depositAmount)}</td>
-                    <td className="num">
+                    <td data-label="Category">{r.category ? labelFor(CATEGORIES, r.category) : "—"}</td>
+                    <td className="num" data-label="Budget">{formatUsdc(r.budget)}</td>
+                    <td className="num" data-label="Deposit">{formatUsdc(r.depositAmount)}</td>
+                    <td className="num" data-label="Bids">
                       {r.phase === "Bidding" ? (
                         <span className="mono" title="sealed until the reveal window">
                           {"█ ".repeat(Math.min(r.commitCount, 5)).trim() || "—"}
@@ -156,10 +159,10 @@ export default async function RfqBoard({
                         `${r.revealCount}/${r.commitCount}`
                       )}
                     </td>
-                    <td className="muted">
+                    <td className="muted" data-label="Next deadline">
                       {next ? `${next.label} in ${countdown(next.at)}` : "—"}
                     </td>
-                    <td>
+                    <td data-label="Phase">
                       <PhaseBadge phase={r.phase} winner={r.winner} price={r.awardPrice} />
                     </td>
                   </tr>

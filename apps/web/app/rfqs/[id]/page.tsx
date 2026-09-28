@@ -140,14 +140,14 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
                   </thead>
                   <tbody>
                     {sorted.map((b) => (
-                      <tr key={b.bidder}>
-                        <td className="mono">
+                      <tr className="row" key={b.bidder}>
+                        <td className="mono" data-label="Supplier">
                           {short(b.bidder)}
                           {b.bidder.toLowerCase() === rfq.winner.toLowerCase() && (
                             <span className="badge badge-inline p-awarded">WON</span>
                           )}
                         </td>
-                        <td className="num">
+                        <td className="num" data-label="Price">
                           {sealed ? (
                             <span className="mono" title="sealed">
                               ███████
@@ -158,17 +158,17 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
                             <span className="muted">not revealed</span>
                           )}
                         </td>
-                        <td className="num">
+                        <td className="num" data-label="Delivery">
                           {b.revealed && !sealed ? describeWindow(b.deliverySeconds) : "—"}
                         </td>
                         {hasDocuments && (
-                          <td className="mono" style={{ fontSize: 11 }}>
+                          <td className="mono" style={{ fontSize: 11 }} data-label={rfq.requiresProposal ? "Proposal" : "Quotation"}>
                             {b.revealed && !sealed && b.proposalHash !== `0x${"0".repeat(64)}`
                               ? `${b.proposalHash.slice(0, 14)}…`
                               : "—"}
                           </td>
                         )}
-                        <td>
+                        <td data-label="Deposit">
                           <span className="badge">{b.deposit}</span>{" "}
                           {b.deposit === "Held" &&
                             (rfq.phase === "Awarded" || rfq.phase === "NoAward") && (
@@ -267,15 +267,15 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
                         const done = l.index < engagement.currentMilestone;
                         const current = l.index === engagement.currentMilestone;
                         return (
-                          <tr key={l.index}>
-                            <td>
+                          <tr className="row" key={l.index}>
+                            <td data-label="Milestone">
                               {l.index + 1} of {ledger.lines.length}
                               {current && <span className="badge badge-inline">current</span>}
                             </td>
-                            <td className="num">{formatUsdc(l.gross)}</td>
-                            <td className="num">{formatUsdc(l.retained)}</td>
-                            <td className="num">{formatUsdc(l.net)}</td>
-                            <td className="muted" style={{ fontSize: 11 }}>
+                            <td className="num" data-label="Value">{formatUsdc(l.gross)}</td>
+                            <td className="num" data-label="Retained">{formatUsdc(l.retained)}</td>
+                            <td className="num" data-label="Pays now">{formatUsdc(l.net)}</td>
+                            <td className="muted" style={{ fontSize: 11 }} data-label="State">
                               {(() => {
                                 const m = indexedMilestones.find((x) => x.idx === l.index);
                                 return m
@@ -290,16 +290,16 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
                           </tr>
                         );
                       })}
-                      <tr>
-                        <td>
+                      <tr className="row">
+                        <td data-label="Milestone">
                           <b>Retention</b>
                         </td>
-                        <td className="num">—</td>
-                        <td className="num">{formatUsdc(ledger.retentionHeld)}</td>
-                        <td className="num">
+                        <td className="num" data-label="Value">—</td>
+                        <td className="num" data-label="Retained">{formatUsdc(ledger.retentionHeld)}</td>
+                        <td className="num" data-label="Pays now">
                           <b>{formatUsdc(ledger.retentionHeld)}</b>
                         </td>
-                        <td className="muted" style={{ fontSize: 11 }}>
+                        <td className="muted" style={{ fontSize: 11 }} data-label="State">
                           released at final acceptance
                         </td>
                       </tr>

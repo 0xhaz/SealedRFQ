@@ -117,16 +117,16 @@ export function EvaluationPanel({
         </thead>
         <tbody>
           {memo.scores.map((s) => (
-            <tr key={s.bidder}>
-              <td className="mono">
+            <tr className="row" key={s.bidder}>
+              <td className="mono" data-label="Supplier">
                 {short(s.bidder)}
                 {s.bidder === recommended && (
                   <span className="badge badge-inline p-awarded">RECOMMENDED</span>
                 )}
               </td>
-              <td className="num">{formatUsdc(BigInt(s.price))}</td>
-              <td className="num">{describeWindow(s.deliverySeconds)}</td>
-              <td className="num">
+              <td className="num" data-label="Price">{formatUsdc(BigInt(s.price))}</td>
+              <td className="num" data-label="Delivery">{describeWindow(s.deliverySeconds)}</td>
+              <td className="num" data-label="Score">
                 <b>{(s.totalBps / 100).toFixed(1)}</b>
                 <span className="muted">
                   {" "}
@@ -137,7 +137,7 @@ export function EvaluationPanel({
                   )
                 </span>
               </td>
-              <td className="muted" style={{ fontSize: 11 }}>
+              <td className="muted" style={{ fontSize: 11 }} data-label="Flags">
                 {s.redFlags.length ? s.redFlags.join("; ") : "—"}
                 {s.unverified?.length ? (
                   <div style={{ marginTop: 4 }}>
