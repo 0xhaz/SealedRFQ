@@ -573,7 +573,7 @@ export function BidForm({
                   it.
                 </span>
               </div>
-              <div className="full">
+              <div className="full button-row">
                 <button
                   type="button"
                   className="btn-primary"

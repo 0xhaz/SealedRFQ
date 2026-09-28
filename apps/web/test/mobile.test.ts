@@ -44,4 +44,39 @@ describe("mobile card layout", () => {
       expect(readFileSync(join(process.cwd(), f), "utf8"), f).toContain('className="row"');
     }
   });
+
+  it("gives every pair of adjacent buttons a gap", () => {
+    // Twice now a pair has shipped touching: two hard-edged buttons read as one control with a
+    // seam down it, and the first one's shadow lands on the second. The shape of the bug is a
+    // `</button>` with another button or link as its very next sibling — anything further apart is
+    // separated by something anyway, so looking only for adjacency keeps this from crying wolf.
+    const GAPPED = ["button-row", "filter-row", "pack-actions", "presets"];
+    const offenders: string[] = [];
+
+    for (const f of files) {
+      const src = readFileSync(f, "utf8");
+      // `</button>` then optionally a JSX conditional, then the next button or link.
+      const adjacency = /<\/button>\s*\n\s*(?:\{[^\n]*\n\s*)?<(?:button|a)\b/g;
+      for (const m of src.matchAll(adjacency)) {
+        const before = src.slice(0, m.index);
+        // The nearest enclosing div is the last one opened and not yet closed.
+        let depth = 0;
+        let container: string | null = null;
+        for (const tag of [...before.matchAll(/<div\b[^>]*>|<\/div>/g)].reverse()) {
+          if (tag[0] === "</div>") depth++;
+          else if (depth > 0) depth--;
+          else {
+            container = /className="([^"]*)"/.exec(tag[0])?.[1] ?? "";
+            break;
+          }
+        }
+        if (container !== null && !GAPPED.some((g) => container.includes(g))) {
+          offenders.push(
+            `${f.replace(process.cwd(), ".")}:${before.split("\n").length} "${container}"`,
+          );
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
 });
