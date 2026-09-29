@@ -17,7 +17,15 @@ export type MilestoneLine = {
   gross: bigint;
   /** Held back from this payment until final acceptance. */
   retained: bigint;
-  /** Paid on acceptance of this milestone. */
+  /**
+   * The platform's cut of this milestone.
+   *
+   * Charged on `gross - retained`, because that is what the escrow job is funded with and the fee
+   * is taken inside the job's completion. Zero unless a fee is configured, which it is not on this
+   * deployment.
+   */
+  fee: bigint;
+  /** Reaches the supplier on acceptance of this milestone, after retention and fee. */
   net: bigint;
 };
 
@@ -25,8 +33,16 @@ export type Ledger = {
   lines: MilestoneLine[];
   /** Sum of every line's `net` — what is paid out as work is accepted. */
   paidAcrossMilestones: bigint;
-  /** Released in one go when the last milestone is accepted. */
+  /**
+   * Released in one go when the last milestone is accepted, and **not** charged a platform fee:
+   * final acceptance credits the supplier directly rather than completing an escrow job, so the
+   * fee never sees it.
+   */
   retentionHeld: bigint;
+  /** The platform's total cut across the engagement. */
+  platformFee: bigint;
+  /** What the supplier ends up with if every milestone is accepted: payments plus retention. */
+  supplierReceives: bigint;
   total: bigint;
 };
 
@@ -36,17 +52,35 @@ export function milestoneLedger(
   awardPrice: bigint,
   milestoneBps: readonly number[],
   retentionBps: number,
+  /**
+   * The platform fee in basis points, as the escrow contract holds it.
+   *
+   * Defaults to none, which is this deployment. It is a parameter rather than a constant because
+   * the figure lives on-chain and can be changed until the admin role is renounced — a display
+   * that hardcoded zero would quietly overstate what a supplier receives the day it stopped being
+   * zero, which is the worst moment for it to be wrong.
+   */
+  platformFeeBps = 0,
 ): Ledger {
   const lines: MilestoneLine[] = milestoneBps.map((bps, index) => {
     const gross = (awardPrice * BigInt(bps)) / BPS;
     const retained = (gross * BigInt(retentionBps)) / BPS;
-    return { index, bps, gross, retained, net: gross - retained };
+    // Mirrors the contract: the job is funded with gross - retention, and the fee comes out of
+    // that, not out of gross.
+    const budget = gross - retained;
+    const fee = (budget * BigInt(platformFeeBps)) / BPS;
+    return { index, bps, gross, retained, fee, net: budget - fee };
   });
+
+  const retentionHeld = lines.reduce((s, l) => s + l.retained, 0n);
+  const paidAcrossMilestones = lines.reduce((s, l) => s + l.net, 0n);
 
   return {
     lines,
-    paidAcrossMilestones: lines.reduce((s, l) => s + l.net, 0n),
-    retentionHeld: lines.reduce((s, l) => s + l.retained, 0n),
+    paidAcrossMilestones,
+    retentionHeld,
+    platformFee: lines.reduce((s, l) => s + l.fee, 0n),
+    supplierReceives: paidAcrossMilestones + retentionHeld,
     // Deliberately the sum of the parts rather than awardPrice: integer division drops remainders,
     // and a total that does not equal what the lines add up to would look like a rounding error in
     // the contract rather than in this display.

@@ -16,6 +16,7 @@ import { INCOTERMS, describeWindow, incotermNote, riskPassesAt } from "@sealedrf
 import { generateTerms } from "@/lib/terms";
 import { describeTxError } from "@/lib/txError";
 import {
+  AgenticCommerceAbi,
   RFQRegistryAbi,
   USDC_ADDRESS,
   formatUsdc,
@@ -155,6 +156,19 @@ export function NewRfqForm() {
 
   const split = checkMilestones(milestones);
 
+  /*
+   * The escrow's platform fee, read live. A tender's terms are hashed when it opens, so the clause
+   * has to carry whatever the figure is at that moment — hardcoding zero would publish terms that
+   * were true when they were written and false the day a fee was set.
+   */
+  const { data: feeBpsRaw } = useReadContract({
+    address: contracts.AgenticCommerce,
+    abi: AgenticCommerceAbi,
+    functionName: "platformFeeBP",
+    chainId: chain.id,
+  });
+  const platformFeeBps = Number(feeBpsRaw ?? 0n);
+
   const deliverySec = toSeconds(deliveryAmount, deliveryUnit);
   const acceptSec = toSeconds(acceptAmount, acceptUnit);
 
@@ -162,6 +176,7 @@ export function NewRfqForm() {
   const deadlineError = skew === null ? null : checkDeadlines(deadlines, chainNow);
 
   const termsDraft = generateTerms({
+    platformFeeBps,
     mode,
     budget,
     deposit,

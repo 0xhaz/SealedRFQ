@@ -56,4 +56,37 @@ describe("milestoneMeaning", () => {
   it("falls back readably for a state it does not know", () => {
     expect(milestoneMeaning("Disputed")).toBe("disputed");
   });
+
+  it("takes the platform fee from the post-retention amount, as the contract does", () => {
+    // The escrow job is funded with gross - retention, and the fee is charged inside the job's
+    // completion — so a fee on gross would overstate it and understate what the supplier gets.
+    const l = milestoneLedger(AWARD, SPLIT, 1000, 250); // 10% retention, 2.5% fee
+    for (const line of l.lines) {
+      const budget = line.gross - line.retained;
+      expect(line.fee).toBe((budget * 250n) / 10_000n);
+      expect(line.net).toBe(budget - line.fee);
+    }
+  });
+
+  it("never charges a fee on retention, which is credited directly", () => {
+    // Final acceptance pays retention and the stake to the supplier without completing a job, so
+    // the fee never sees it. Getting this wrong would under-report the supplier's total.
+    const withFee = milestoneLedger(AWARD, SPLIT, 1000, 250);
+    const noFee = milestoneLedger(AWARD, SPLIT, 1000, 0);
+    expect(withFee.retentionHeld).toBe(noFee.retentionHeld);
+    expect(withFee.platformFee).toBe(noFee.paidAcrossMilestones - withFee.paidAcrossMilestones);
+  });
+
+  it("reports what the supplier actually ends up with", () => {
+    const l = milestoneLedger(AWARD, SPLIT, 1000, 250);
+    expect(l.supplierReceives).toBe(l.paidAcrossMilestones + l.retentionHeld);
+    // The quote minus the fee, give or take integer division across the lines.
+    expect(l.total - l.supplierReceives).toBe(l.platformFee);
+  });
+
+  it("changes nothing when no fee is set, which is this deployment", () => {
+    const l = milestoneLedger(AWARD, SPLIT, 1000);
+    expect(l.platformFee).toBe(0n);
+    expect(l.supplierReceives).toBe(l.total);
+  });
 });

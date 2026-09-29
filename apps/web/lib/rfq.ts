@@ -161,6 +161,27 @@ export async function getBidders(id: number, opts?: { expected?: number }) {
   return [...seen];
 }
 
+/**
+ * The platform's cut of each milestone, in basis points, as the escrow contract holds it.
+ *
+ * Read rather than assumed. It is zero on this deployment and can stay zero forever once the admin
+ * role is renounced — but until then it is a live figure, and a supplier quoting against a stale
+ * zero would be quoting for less than they thought.
+ */
+export async function getPlatformFeeBps(): Promise<number> {
+  try {
+    const bps = await publicClient.readContract({
+      ...escrow,
+      functionName: "platformFeeBP",
+    });
+    return Number(bps);
+  } catch {
+    // A fee that cannot be read is shown as none rather than guessed at. The contract is the
+    // authority either way; this only decides what the page says.
+    return 0;
+  }
+}
+
 export async function getEngagement(id: number) {
   const e = await publicClient.readContract({
     ...adapter,

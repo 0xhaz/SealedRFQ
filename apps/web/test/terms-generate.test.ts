@@ -54,6 +54,18 @@ describe("generateTerms", () => {
     expect(t).toMatch(/readable on-chain/i);
   });
 
+  it("names the platform fee only when one is charged", () => {
+    // Silent by default, because this deployment charges nothing and a clause about a zero fee is
+    // noise in a document people are asked to read. Present the moment it is not zero, because it
+    // changes what the supplier receives and they price against these clauses.
+    expect(generateTerms(base)).not.toMatch(/platform fee/i);
+
+    const withFee = generateTerms({ ...base, platformFeeBps: 250 });
+    expect(withFee).toMatch(/2\.50% of each milestone/);
+    expect(withFee).toMatch(/borne by the supplier/i);
+    expect(withFee).toMatch(/not charged on the retention/i);
+  });
+
   it("adds the proposal clause only in RFP mode", () => {
     expect(generateTerms(base)).not.toMatch(/proposal document/i);
     expect(generateTerms({ ...base, mode: "RFP" })).toMatch(/proposal document/i);

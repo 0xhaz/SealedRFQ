@@ -15,7 +15,7 @@ import { agent } from "@/lib/agent";
 import { chain, contracts, explorerAddress } from "@/lib/chain";
 import { readLineItems } from "@/lib/lineItems";
 import { milestoneLedger, milestoneMeaning } from "@/lib/milestones";
-import { countdown, getBid, getBidders, getEngagement, getRfq, getRfqCount } from "@/lib/rfq";
+import { countdown, getBid, getBidders, getEngagement, getRfq, getRfqCount, getPlatformFeeBps} from "@/lib/rfq";
 import { CATEGORIES, REGIONS, labelFor } from "@/lib/taxonomy";
 import { formatUsdc, describeWindow} from "@sealedrfq/shared";
 import Link from "next/link";
@@ -75,6 +75,7 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
    * configured, which is the default.
    */
   const names = await ensNames([rfq.buyer, ...bids.map((b) => b.bidder)]);
+  const platformFeeBps = await getPlatformFeeBps();
 
   return (
     <div className="shell">
@@ -263,6 +264,7 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
                   engagement.price,
                   rfq.milestoneBps,
                   rfq.retentionBps,
+                  platformFeeBps,
                 );
                 return (
                   <table>
@@ -271,6 +273,7 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
                         <th>Milestone</th>
                         <th className="num">Value</th>
                         <th className="num">Retained</th>
+                        {platformFeeBps > 0 && <th className="num">Fee</th>}
                         <th className="num">Pays now</th>
                         <th>State</th>
                       </tr>
@@ -287,6 +290,9 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
                             </td>
                             <td className="num" data-label="Value">{formatUsdc(l.gross)}</td>
                             <td className="num" data-label="Retained">{formatUsdc(l.retained)}</td>
+                            {platformFeeBps > 0 && (
+                              <td className="num" data-label="Fee">−{formatUsdc(l.fee)}</td>
+                            )}
                             <td className="num" data-label="Pays now">{formatUsdc(l.net)}</td>
                             <td className="muted" style={{ fontSize: 12 }} data-label="State">
                               {(() => {
@@ -309,6 +315,11 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
                         </td>
                         <td className="num" data-label="Value">—</td>
                         <td className="num" data-label="Retained">{formatUsdc(ledger.retentionHeld)}</td>
+                        {platformFeeBps > 0 && (
+                          <td className="num" data-label="Fee">
+                            <span className="muted">none</span>
+                          </td>
+                        )}
                         <td className="num" data-label="Pays now">
                           <b>{formatUsdc(ledger.retentionHeld)}</b>
                         </td>

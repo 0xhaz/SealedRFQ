@@ -21,6 +21,8 @@ export type TermsInput = {
   /** Seconds — the unit the contract stores, so the clause and the chain cannot disagree. */
   deliverySec: number;
   acceptSec: number;
+  /** Platform fee in basis points, read from the escrow contract. Zero on this deployment. */
+  platformFeeBps?: number;
   maxDeliveryDays?: string;
   attestations?: string[];
   lineItemCount: number;
@@ -65,6 +67,12 @@ export function generateTerms(p: TermsInput): string {
     `3. Payment. The price is paid across ${split.length || 1} milestone${
       split.length === 1 ? "" : "s"
     }${split.length ? ` of ${split.join("%, ")}%` : ""}. ${p.retentionPct || "0"}% of every milestone payment is retained and released only when the final milestone is accepted.`,
+
+    ...(p.platformFeeBps
+      ? [
+          `3a. Platform fee. ${(p.platformFeeBps / 100).toFixed(2)}% of each milestone payment is deducted by the escrow contract when that milestone is accepted, and is borne by the supplier — the buyer pays the quoted price in full. It is charged after retention is withheld and is not charged on the retention itself, which reaches the supplier in full at final acceptance. A quotation should be priced accordingly.`,
+        ]
+      : []),
 
     `4. Acceptance. The buyer has ${window(p.acceptSec)} from each submission to accept or reject it. Rejection must state a reason. If the buyer does not respond within that window the payment is released to the supplier automatically.`,
 

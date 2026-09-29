@@ -111,6 +111,13 @@ clock.
 Money released is *credited*, not transferred. It waits under **Your payouts** until you withdraw
 it, which is one transaction whenever suits you.
 
+**If a platform fee is set, you pay it, not the buyer.** It is deducted from each milestone inside
+the escrow when that milestone is accepted, so you receive less than you quoted while the buyer
+pays the quoted price in full. It is charged after retention is withheld and never on the retention
+itself, which reaches you whole at final acceptance. The bid page says the rate before you bid and
+the tender's terms state it — **price it in**. It is zero on this deployment, and the bid page says
+nothing at all when it is.
+
 For physical goods there is a transit allowance before that clock starts, so a buyer is not paying
 for a container still at sea. If they confirm receipt, the inspection window runs from arrival
 instead — which is sooner, so it is in their interest as well as yours.

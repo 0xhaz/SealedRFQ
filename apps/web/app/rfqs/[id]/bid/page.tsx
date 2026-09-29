@@ -5,7 +5,7 @@ import { PhaseBadge } from "@/components/PhaseBadge";
 import { RequirementsPanel } from "@/components/RequirementsPanel";
 import { TermsPanel } from "@/components/TermsPanel";
 import { agent } from "@/lib/agent";
-import { countdown, getRfq, getRfqCount } from "@/lib/rfq";
+import { countdown, getRfq, getRfqCount, getPlatformFeeBps} from "@/lib/rfq";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BidForm } from "./BidForm";
@@ -16,6 +16,7 @@ export default async function BidPage({ params }: { params: Promise<{ id: string
   const id = Number((await params).id);
   if (!Number.isInteger(id) || id < 1 || id > (await getRfqCount())) notFound();
   const rfq = await getRfq(id);
+  const platformFeeBps = await getPlatformFeeBps();
   // The document lives off-chain; TermsPanel re-hashes it against the chain rather than trusting it.
   const indexed = await agent.rfq(id);
 
@@ -90,6 +91,20 @@ export default async function BidPage({ params }: { params: Promise<{ id: string
               before bidding opened. If you win, your deposit becomes the performance stake and is
               returned with the final milestone.
             </div>
+            {/*
+              A supplier prices against what reaches them, not against the headline. The fee is
+              charged inside each milestone's escrow, so it never appears as a line the buyer pays
+              — it is simply less arriving. Saying so before the bid is the only useful moment.
+            */}
+            {platformFeeBps > 0 && (
+              <div className="note warn">
+                <b>Price this in: {(platformFeeBps / 100).toFixed(2)}% is deducted from each
+                milestone.</b>{" "}
+                The fee comes out of the escrowed amount when a milestone is accepted, so you
+                receive that much less than you quote. It is charged after retention is held back
+                and never on the retention itself, which reaches you in full at final acceptance.
+              </div>
+            )}
           </div>
           <nav className="page-nav">
             <Link className="btn-nav" href={`/rfqs/${id}`}>
