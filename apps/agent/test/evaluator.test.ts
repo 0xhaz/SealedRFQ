@@ -294,4 +294,28 @@ describe("evaluator scoring", () => {
     expect(again.memo.scores.map((x) => x.bidder)).toEqual(first.memo.scores.map((x) => x.bidder));
   });
 
+
+  it("refuses to anchor a recommendation while bids can still be revealed", async () => {
+    // The paid endpoint is the only way to obtain a memo early, and a memo is what makes an award
+    // possible. Without this a buyer could wait for their preferred supplier plus one weak bid to
+    // reveal, pay for an evaluation, and award on a field that was never complete — with
+    // minRevealedBids at 2 the contract would permit it. The sealed round would go to whoever
+    // revealed first.
+    const future = Math.floor(Date.now() / 1000) + 3600;
+    seedRfq(11, { revealDeadline: future });
+    seedBid(11, S1, "2800000", 21);
+    seedBid(11, S2, "2950000", 14);
+
+    await expect(evaluator.evaluateAndAttest(11)).rejects.toThrow(/still revealing/i);
+  });
+
+  it("lets the same RFQ through once the window has closed", async () => {
+    // A second past the deadline. It still fails here, because anchoring needs a chain this
+    // harness does not provide — but it fails *past* the guard, which is the part being tested.
+    seedRfq(12, { revealDeadline: Math.floor(Date.now() / 1000) - 1 });
+    seedBid(12, S1, "2800000", 21);
+    seedBid(12, S2, "2950000", 14);
+
+    await expect(evaluator.evaluateAndAttest(12)).rejects.not.toThrow(/still revealing/i);
+  });
 });

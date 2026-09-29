@@ -299,6 +299,29 @@ export class EvaluatorService {
 
   /** Anchor the memo on-chain and store it, so anyone can re-hash it against the anchor. */
   async evaluateAndAttest(rfqId: number) {
+    /*
+     * Refuse to anchor a recommendation before bidding has finished revealing.
+     *
+     * Scoring itself is harmless early — a revealed bid is already public. Anchoring is not. An
+     * attestation is what makes an award possible, it is bound to `(rfqId, winner)`, and once one
+     * exists the scheduler skips the RFQ as already scored. So without this check a buyer could
+     * wait until their preferred supplier and one weak bid had revealed, pay for an evaluation,
+     * and award on a memo that never saw the rest of the field — with `minRevealedBids` at 2, the
+     * contract would allow it. The sealed round would be decided by who revealed first.
+     *
+     * The paid endpoint is the only route to an early memo, which is why the guard lives here
+     * rather than in the scheduler: the scheduler already waits for this deadline.
+     */
+    const row = db.select().from(schema.rfqs).where(eq(schema.rfqs.id, rfqId)).get();
+    if (!row) throw new Error(`RFQ ${rfqId} is not indexed yet`);
+    const now = Math.floor(Date.now() / 1000);
+    if (row.revealDeadline > now) {
+      throw new Error(
+        `RFQ ${rfqId} is still revealing: bids can be revealed for another ${row.revealDeadline - now}s. ` +
+          "A recommendation anchored now would not have seen every bid, so it is refused.",
+      );
+    }
+
     const { memo, rubricVerified } = await this.evaluate(rfqId);
     const payloadHash = hashCanonical(memo);
     const winner = memo.decision.bidder;

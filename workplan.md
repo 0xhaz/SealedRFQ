@@ -1677,6 +1677,50 @@ is the same everywhere and the interesting part is what surrounds it.
 
 ---
 
+## 6m. The paid evaluation endpoint could anchor a memo mid-reveal (found and fixed 2026-09-29)
+
+Found by a buyer asking a reasonable question — *does paying over x402 get me a faster
+evaluation?* — which turned out to have a worse answer than "no".
+
+### The hole
+
+Three facts that are individually fine:
+
+1. `EvaluatorService.evaluate` had **no phase guard**. It scored whatever the indexer had marked
+   `revealed = 1`, whenever it was called.
+2. The scheduler *does* wait — it only picks up RFQs whose `revealDeadline` has passed — so the
+   free path was never early. **`POST /rfqs/:id/evaluate`, the x402-metered endpoint, was the only
+   route to a memo before the reveal window closed.**
+3. Once any memo exists the scheduler skips the RFQ as `alreadyScored`, so an early memo is final,
+   and the attestation binds to `(rfqId, winner)` — so whoever it names stays awardable.
+
+Together: a buyer with three bidders could wait until their preferred supplier and one weak bid had
+revealed, pay 0.05 USDC, and receive an anchored recommendation naming the supplier they wanted.
+`minRevealedBids` is 2 on this deployment, so the contract would then permit the award — before the
+third bidder revealed at all.
+
+That decides a sealed round by **who revealed first**, which is precisely the property sealing
+exists to remove. The published claim — every revealed bid scored against criteria fixed
+beforehand — would have been false for any tender awarded that way, and nothing in the memo would
+show it: the memo is a faithful record of an unfaithful moment.
+
+### The fix
+
+`evaluateAndAttest` now refuses while `revealDeadline` is in the future, naming the seconds left.
+Scoring early is harmless — a revealed bid is already public — so the guard is on *anchoring*,
+which is the act that makes an award possible. Two tests: one that the guard fires, one that the
+same RFQ passes it a second after the deadline.
+
+### Worth keeping
+
+The paid path had been reasoned about as a *pricing* question (§6e: demonstration, not revenue) and
+never as a *privilege* one. It was the only endpoint that skipped a check the scheduler applied, and
+that asymmetry is what made it exploitable — not the payment. Any future endpoint that produces an
+attestation needs the same question asked of it: **what can this reach that the scheduled path
+cannot?**
+
+---
+
 ## 7. Submission checklist
 
 **Programme terms, read 2026-09-24 — four of these change the plan.**
