@@ -154,3 +154,33 @@ export function checkMilestones(input: string): MilestoneCheck {
 
   return { bps, totalBps, ok: problem === null, problem };
 }
+
+/**
+ * What an abandoned engagement actually pays out, mirroring `SealedRFQAdapter._abandon`.
+ *
+ * The whole escrowed pot is *not* the buyer's. Damages are capped at what re-procuring would have
+ * cost — the next-cheapest revealed bid less the award — and whatever the supplier staked above
+ * that comes back to them. §6c's position in one line: a security covers a loss, it is not
+ * confiscated because one occurred.
+ *
+ * Computed here rather than quoted as `pot` because the difference is the supplier's money, and a
+ * warning that tells them they lose a stake they are going to get back is worse than saying
+ * nothing.
+ */
+export function abandonSplit(e: {
+  pot: bigint;
+  performanceStake: bigint;
+  retentionHeld: bigint;
+  currentRetention: bigint;
+  excessCost: bigint;
+}): { toBuyer: bigint; toSupplier: bigint; damages: bigint; atRisk: bigint } {
+  // Retention is withheld when a milestone opens, not when it is accepted, so the running total
+  // includes the milestone nobody delivered. Only the part held back from accepted work is the
+  // supplier's to have returned.
+  const earnedRetention = e.retentionHeld - e.currentRetention;
+  const atRisk = e.performanceStake + earnedRetention;
+  // Zero excess cost means the winner was not the cheapest bid, so there is no runner-up to
+  // measure against and the whole stake answers for it.
+  const damages = e.excessCost === 0n ? atRisk : atRisk < e.excessCost ? atRisk : e.excessCost;
+  return { toBuyer: e.pot - (atRisk - damages), toSupplier: atRisk - damages, damages, atRisk };
+}

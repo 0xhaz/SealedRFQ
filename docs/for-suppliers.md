@@ -128,9 +128,11 @@ instead — which is sooner, so it is in their interest as well as yours.
 that can move a delivery deadline, and it stops working the moment the deadline passes. There is a
 private, encrypted thread with them on the tender page for exactly this.
 
-If the window closes with nothing delivered, the buyer recovers what was never earned and damages
-measured at what re-procuring would have cost them — the next-cheapest revealed bid, less what you
-were awarded. **The rest of your stake comes back.** You are not stripped of everything regardless of
+If the window closes with nothing delivered, either side can **settle** the milestone. That is the
+terminal step: it ends the engagement and divides the escrow, and nothing reverses it. The buyer
+recovers what was never earned and damages measured at what re-procuring would have cost them — the
+next-cheapest revealed bid, less what you were awarded. **The rest of your stake comes back**, and
+the panel shows both figures before anyone presses it. You are not stripped of everything regardless of
 what it cost them; the security covers the loss and the surplus is returned.
 
 Note that a delay caused by *your own* supplier is not treated as an excuse anywhere in procurement,

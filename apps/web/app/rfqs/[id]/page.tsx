@@ -473,6 +473,9 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
                       engagement.buyerStake
                     ).toString(),
                     performanceStake: engagement.performanceStake.toString(),
+                    currentRetention: engagement.currentRetention.toString(),
+                    excessCost: engagement.excessCost.toString(),
+                    retentionHeld: engagement.retentionHeld.toString(),
                     deliverable: engagement.deliverable,
                     latestExtension: engagement.latestExtension,
                   }

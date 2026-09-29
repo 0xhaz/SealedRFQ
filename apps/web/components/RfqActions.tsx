@@ -6,6 +6,7 @@ import { agent } from "@/lib/agent";
 import { uploadDocument } from "@/lib/agent";
 import { chain, contracts, explorerTx } from "@/lib/chain";
 import { ZERO_HASH, hashFile, hashText } from "@/lib/docHash";
+import { abandonSplit } from "@/lib/milestones";
 import { describeTxError } from "@/lib/txError";
 import {
   AgenticCommerceAbi,
@@ -56,6 +57,11 @@ type Props = {
     expiredPot: string;
     /** The supplier's own stake inside that total — named separately because it is theirs. */
     performanceStake: string;
+    /** Retention against the undelivered milestone: not the supplier's to have back. */
+    currentRetention: string;
+    /** Next-cheapest revealed bid less the award. Zero means damages are uncapped. */
+    excessCost: string;
+    retentionHeld: string;
     /** When the buyer said the goods arrived. Zero until they do. */
     receivedAt: number;
     /** Allowance for goods in transit when receipt is never confirmed. Zero for a file. */
@@ -618,7 +624,13 @@ export function RfqActions({
                 >
                   {busy ?? "Submit deliverable"}
                 </button>
-                {deliveryClosed && !jobExpired && (
+                {/*
+                  Shown for the whole time the window is shut, not only before the job expires.
+                  It used to disappear at exactly the moment the loss became permanent, leaving a
+                  disabled Submit button with no explanation beside a settlement offer — which
+                  reads as the page contradicting itself.
+                */}
+                {deliveryClosed && (
                   <div className="note warn" style={{ marginTop: 10 }}>
                     <b>The delivery window for this milestone closed on{" "}
                     {new Date((engagement?.deliveryDeadline ?? 0) * 1000)
@@ -626,10 +638,10 @@ export function RfqActions({
                       .replace("T", " ")
                       .slice(0, 16)}
                     .</b>{" "}
-                    The contract will not accept a submission now, so nothing can be sent from here.
-                    Once the window has passed either side can settle the milestone, which returns
-                    the escrow to the buyer along with the performance stake. Talk to the buyer
-                    before that happens.
+                    The contract will not accept a submission now, so nothing can be sent from
+                    here and the button below is inert. {jobExpired
+                      ? "Either side can now settle the milestone, which ends the engagement — the panel below says exactly how the escrow divides."
+                      : "Shortly either side will be able to settle it, which ends the engagement. Talk to the buyer before that happens."}
                   </div>
                 )}
                 {!deliveryClosed && (
@@ -723,12 +735,49 @@ export function RfqActions({
           {engagement?.status === "Active" && !awaitingReview && deliveryClosed && jobExpired && (
             <div className="full note warn" style={{ marginTop: 10 }}>
               <b>This milestone can now be settled.</b> Nothing was delivered before the window
-              closed, so the contract hands the buyer{" "}
-              <b>{formatUsdc(BigInt(engagement?.expiredPot ?? "0"))} USDC</b> — the unpaid
-              price, the retention held back from milestones already accepted, this
-              milestone's escrow, and the supplier's{" "}
-              <b>{formatUsdc(BigInt(engagement?.performanceStake ?? "0"))} USDC</b>{" "}
-              performance stake. The engagement ends there and nothing about it can be undone.
+              closed, so the engagement ends here and the escrow is divided. Nothing about it can
+              be undone.
+              {(() => {
+                /*
+                 * The whole pot is not the buyer's, and quoting it as though it were told a
+                 * supplier they had lost a stake they are about to get back. Damages are capped at
+                 * what re-procuring would have cost — the next-cheapest revealed bid less the
+                 * award — and the surplus returns. Computed with the contract's own arithmetic.
+                 */
+                const split = abandonSplit({
+                  pot: BigInt(engagement?.expiredPot ?? "0"),
+                  performanceStake: BigInt(engagement?.performanceStake ?? "0"),
+                  retentionHeld: BigInt(engagement?.retentionHeld ?? "0"),
+                  currentRetention: BigInt(engagement?.currentRetention ?? "0"),
+                  excessCost: BigInt(engagement?.excessCost ?? "0"),
+                });
+                return (
+                  <>
+                    <div style={{ marginTop: 8 }}>
+                      <b>To the buyer: {formatUsdc(split.toBuyer)} USDC</b> — the unpaid price, the
+                      retention held back from milestones already accepted, this milestone&apos;s
+                      escrow, and {formatUsdc(split.damages)} USDC of the supplier&apos;s stake as
+                      damages.
+                    </div>
+                    <div style={{ marginTop: 6 }}>
+                      {split.toSupplier > 0n ? (
+                        <>
+                          <b>Back to the supplier: {formatUsdc(split.toSupplier)} USDC.</b> Damages
+                          are capped at what re-procuring would actually have cost, and the stake
+                          above that is theirs — a security covers a loss rather than being
+                          confiscated because one occurred.
+                        </>
+                      ) : (
+                        <>
+                          <b>Nothing returns to the supplier.</b> The whole of what they staked is
+                          taken, because this award was not the cheapest revealed bid — there is no
+                          runner-up to measure the buyer&apos;s loss against, so nothing bounds it.
+                        </>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
               <div style={{ marginTop: 10 }}>
                 <button
                   type="button"
@@ -746,7 +795,7 @@ export function RfqActions({
                     }
                   }}
                 >
-                  {busy ?? "Settle the expired milestone"}
+                  {busy ?? "End the engagement and divide the escrow"}
                 </button>
                 <span className="under-button">
                   Either party may do this; the contract decides where the money goes.

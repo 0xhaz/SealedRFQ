@@ -231,6 +231,16 @@ export async function getEngagement(id: number) {
     submittedAt: Number(e.submittedAt),
     receivedAt: Number(e.receivedAt),
     transitWindow: Number(e.transitWindow),
+    /**
+     * Retention withheld from the milestone currently open, which is not the supplier's to keep
+     * if they never deliver it — `_abandon` subtracts it before working out what is at risk.
+     */
+    currentRetention: e.currentRetention,
+    /**
+     * What re-procuring would have cost the buyer: the next-cheapest revealed bid less the award.
+     * Zero when the winner was not the cheapest bid, and zero means damages are uncapped.
+     */
+    excessCost: e.excessCost,
     deliverable: e.deliverable,
   };
 }
