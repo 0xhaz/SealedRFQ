@@ -76,6 +76,12 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
    */
   const names = await ensNames([rfq.buyer, ...bids.map((b) => b.bidder)]);
   const platformFeeBps = await getPlatformFeeBps();
+  /*
+   * The winning supplier's published profile, for the proforma's seller name. Signed by their own
+   * wallet, so it is at least theirs to claim — still a claim, which is why the document says so
+   * and the field stays editable.
+   */
+  const supplierProfile = engagement ? await agent.supplier(engagement.supplier) : null;
 
   return (
     <div className="shell">
@@ -369,6 +375,8 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
               incoterm={shipment?.incoterm}
               namedPlace={shipment?.namedPlace}
               lineItems={readLineItems(published)}
+              supplierName={supplierProfile?.profile?.name}
+              supplierCountry={supplierProfile?.profile?.country || undefined}
             />
           )}
 

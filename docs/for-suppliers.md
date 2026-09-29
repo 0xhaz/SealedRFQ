@@ -121,8 +121,11 @@ nothing at all when it is.
 **Shipping across a border?** The tender page offers a **proforma invoice** once you have been
 awarded — the document customs and import licensing ask for before goods move. It is built from
 figures the tender already fixed, so the total and the milestone schedule cannot drift from what
-was agreed; you supply only the two things the tender cannot know, the country of origin and the
-HS code. Print it to PDF from the panel. You probably do not need it: escrow already shows the
+was agreed; you supply what the tender cannot know: both parties' **legal names and postal addresses**, the
+country of origin and the HS code. Your name is prefilled if you have published a profile, since
+that is signed by your wallet, but it stays editable — the name a business ships under is often not
+the name in a directory. A wallet address identifies neither party to an import authority, so the
+panel says plainly when the document is still missing something customs will want. Print it to PDF from the panel. You probably do not need it: escrow already shows the
 buyer's funds are committed, which is what a proforma is usually asked to assert, and it can be
 checked on-chain rather than taken on trust.
 

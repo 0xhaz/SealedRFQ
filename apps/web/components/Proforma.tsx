@@ -52,6 +52,23 @@ export function Proforma({
   const { address, isConnected } = useAccount();
   const [open, setOpen] = useState(false);
   const [origin, setOrigin] = useState(supplierCountry ?? "");
+  /*
+   * Legal names and postal addresses for both parties.
+   *
+   * Customs wants to know who is shipping and who is receiving, and a wallet address answers
+   * neither — an import licence naming `0x5481…B9Ae` as the seller is a document that will be
+   * handed back. The seller's name is prefilled from their published profile where they have one,
+   * because that is at least signed by the wallet it describes, but everything here stays editable:
+   * a trading name on a customs form is frequently not the name in a directory.
+   *
+   * Typed here and used here. None of it is stored, hashed or sent anywhere — it is a party's own
+   * detail about themselves, needed for one document, and collecting it would make this project
+   * hold personal data it has no reason to keep.
+   */
+  const [sellerName, setSellerName] = useState(supplierName ?? "");
+  const [sellerAddress, setSellerAddress] = useState("");
+  const [buyerName, setBuyerName] = useState("");
+  const [buyerAddress, setBuyerAddress] = useState("");
   const [hsCodes, setHsCodes] = useState("");
   const [validUntil, setValidUntil] = useState("");
   const [notes, setNotes] = useState("");
@@ -81,8 +98,15 @@ export function Proforma({
     return renderProforma(
       buildProforma({
         rfqId,
-        seller: { name: supplierName, address: supplier, country: origin.trim() || undefined },
-        buyer: { address: buyer },
+        seller: {
+          name: sellerName.trim() || undefined,
+          address: [sellerAddress.trim(), supplier].filter(Boolean).join("\n"),
+          country: origin.trim() || undefined,
+        },
+        buyer: {
+          name: buyerName.trim() || undefined,
+          address: [buyerAddress.trim(), buyer].filter(Boolean).join("\n"),
+        },
         awardPrice,
         incoterm,
         namedPlace,
@@ -151,6 +175,51 @@ export function Proforma({
       ) : (
         <div className="form" style={{ padding: "0 20px 16px" }}>
           <div className="field">
+            <label htmlFor="pf-seller-name">Seller — legal name</label>
+            <input
+              id="pf-seller-name"
+              value={sellerName}
+              placeholder="The name the business trades and ships under"
+              onChange={(e) => setSellerName(e.target.value)}
+            />
+            <span className="field-hint">
+              {supplierName
+                ? "Prefilled from the supplier's published profile, which they signed. Edit it if the shipping name differs."
+                : "This supplier has not published a name, so it has to be typed."}
+            </span>
+          </div>
+          <div className="field">
+            <label htmlFor="pf-buyer-name">Buyer — legal name</label>
+            <input
+              id="pf-buyer-name"
+              value={buyerName}
+              placeholder="The importing business"
+              onChange={(e) => setBuyerName(e.target.value)}
+            />
+          </div>
+          <div className="field full">
+            <label htmlFor="pf-seller-addr">Seller — address</label>
+            <input
+              id="pf-seller-addr"
+              value={sellerAddress}
+              placeholder="Street, city, postcode, country"
+              onChange={(e) => setSellerAddress(e.target.value)}
+            />
+          </div>
+          <div className="field full">
+            <label htmlFor="pf-buyer-addr">Buyer — address</label>
+            <input
+              id="pf-buyer-addr"
+              value={buyerAddress}
+              placeholder="Where the goods are being imported to"
+              onChange={(e) => setBuyerAddress(e.target.value)}
+            />
+            <span className="field-hint">
+              Postal addresses, not wallet addresses — both are printed, but customs reads this
+              one. Nothing typed here is stored or sent anywhere; it goes into the document only.
+            </span>
+          </div>
+          <div className="field">
             <label htmlFor="pf-origin">Country of origin</label>
             <input
               id="pf-origin"
@@ -192,6 +261,28 @@ export function Proforma({
               onChange={(e) => setNotes(e.target.value)}
             />
           </div>
+
+          {(() => {
+            // Said before the button rather than after the rejection. A proforma missing a party's
+            // name is not a weaker document, it is one that gets handed back.
+            const missing = [
+              !sellerName.trim() && "the seller's name",
+              !buyerName.trim() && "the buyer's name",
+              !sellerAddress.trim() && "the seller's address",
+              !buyerAddress.trim() && "the buyer's address",
+              !origin.trim() && "the country of origin",
+              !hsCodes.trim() && "an HS code",
+            ].filter(Boolean) as string[];
+            if (missing.length === 0) return null;
+            return (
+              <div className="full note warn">
+                <b>Customs will refuse this as it stands.</b> It is missing {missing.join(", ")}.
+                A wallet address identifies neither party to an import authority, so the document
+                prints both but the names are what it is read by. You can still generate it — it is
+                your document — but expect it back.
+              </div>
+            );
+          })()}
 
           <div className="full note">
             Total <b>{formatUsdc(BigInt(awardPrice))} USDC</b>, the milestone schedule and the
