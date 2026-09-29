@@ -11,6 +11,7 @@ import {
   AgenticCommerceAbi,
   RFQRegistryAbi,
   SealedRFQAdapterAbi,
+  describeWindow,
   formatUsdc,
 } from "@sealedrfq/shared";
 import { useRouter } from "next/navigation";
@@ -661,13 +662,31 @@ export function RfqActions({
                   escrow job itself would expire before they could be paid. It cannot be extended
                   once the window has closed, so do it before{" "}
                   <b>{fmt(engagement.deliveryDeadline)}</b>.
+                  <br />
+                  <br />
+                  {/*
+                    The ceiling is always exactly one acceptance window past the current deadline:
+                    the job expires at `deadline + transit + 2 × acceptance`, and an extension has
+                    to leave a transit and one inspection inside that. A buyer who set a five-minute
+                    acceptance window gets five minutes of room here and no explanation, which reads
+                    as the form being broken rather than as arithmetic.
+                  */}
+                  That gives you <b>{describeWindow(engagement.acceptanceWindow)}</b> of room,
+                  because the most an extension can add is one acceptance window — the escrow job
+                  has to outlast the new deadline plus a full inspection. If you need more than
+                  that, the acceptance window is the figure to set higher next time.
                 </div>
                 <div className="field full">
                   <label htmlFor="new-deadline">New delivery deadline</label>
                   <input
                     id="new-deadline"
                     type="datetime-local"
-                    value={newDeadline}
+                    {...{
+                      /* Starts at the latest permitted moment rather than empty. An empty picker
+                         opens on midnight, which is before the current deadline and therefore
+                         invalid — so the first thing a buyer saw was their own entry rejected. */
+                    }}
+                    value={newDeadline || toLocal(engagement.latestExtension)}
                     min={toLocal(engagement.deliveryDeadline + 60)}
                     max={toLocal(engagement.latestExtension)}
                     onChange={(e) => setNewDeadline(e.target.value)}
@@ -677,9 +696,10 @@ export function RfqActions({
                   <button
                     type="button"
                     className="chip"
-                    disabled={Boolean(busy) || !newDeadline}
+                    disabled={Boolean(busy)}
                     onClick={() => {
-                      const t = Math.floor(new Date(newDeadline).getTime() / 1000);
+                      const picked = newDeadline || toLocal(engagement.latestExtension);
+                      const t = Math.floor(new Date(picked).getTime() / 1000);
                       if (Number.isFinite(t)) extend(t);
                     }}
                   >

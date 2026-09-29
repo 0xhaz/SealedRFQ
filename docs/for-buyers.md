@@ -247,6 +247,13 @@ is at the top of the board and says nothing at all when there is nothing to do.
 **The supplier is running late.** You can extend the delivery window, but only *before* it closes.
 Afterwards nothing can reopen it — that would be reversing a forfeiture rather than preventing one.
 
+**How far you can push it is set by your acceptance window, not by you.** The milestone's escrow
+job expires at the deadline plus a transit allowance plus two acceptance windows, and an extension
+has to leave a transit and one full inspection inside that — so the most it can ever add is
+**exactly one acceptance window**. Set acceptance to three days and you can extend by three days;
+set it to five minutes and five minutes is all the room there is. If you expect to need slack, that
+is the figure to raise when you post the tender.
+
 **Nothing was delivered.** Once the window closes you recover everything that was never earned, plus
 damages measured at what re-procuring would have cost — the next-cheapest revealed bid, less what
 you awarded. The remainder of the supplier's stake returns to them.
