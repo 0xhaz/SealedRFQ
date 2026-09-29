@@ -22,3 +22,17 @@ describe("clickable affordances", () => {
     expect(css.slice(base, base + 120)).not.toMatch(/!important/);
   });
 });
+
+describe("printing one document from a busy page", () => {
+  it("isolates the print target by visibility, not display", () => {
+    // `display: none` on ancestors would take the target down with them, however visible it
+    // declares itself. The visibility trick is what makes a nested element printable alone.
+    expect(css).toMatch(/body\.printing-doc \*\s*\{[^}]*visibility:\s*hidden/);
+    expect(css).toMatch(/body\.printing-doc \.print-target[^{]*\{[^}]*visibility:\s*visible/);
+  });
+
+  it("lets the proforma grow past its on-screen scroll box when printed", () => {
+    // On screen it is a 280px preview. On paper a clipped customs document is worse than none.
+    expect(css).toMatch(/\.proforma-doc\s*\{[^}]*max-height:\s*none/);
+  });
+});

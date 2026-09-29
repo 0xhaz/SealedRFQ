@@ -6045,6 +6045,36 @@ button.field-wallet {
     text-decoration: none;
     color: inherit;
   }
+
+  /*
+   * Printing one document out of a page full of them.
+   *
+   * `visibility` rather than `display`, because hiding ancestors with `display: none` would take
+   * the target down with them however visible it claims to be. Everything is hidden, the target
+   * and its contents are put back, and it is lifted to the top-left so it does not print after
+   * several pages of whitespace where the rest of the page used to be.
+   */
+  body.printing-doc * {
+    visibility: hidden;
+  }
+  body.printing-doc .print-target,
+  body.printing-doc .print-target * {
+    visibility: visible;
+  }
+  body.printing-doc .print-target {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+  /* The on-screen preview is a scrolling box; on paper it has to be the whole document. */
+  .proforma-doc {
+    max-height: none !important;
+    overflow: visible !important;
+    border: none;
+    background: #fff;
+    color: #000;
+  }
 }
 
 /* Generated terms: the button sits above the box it fills. */

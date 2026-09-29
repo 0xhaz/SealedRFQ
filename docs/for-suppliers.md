@@ -118,6 +118,14 @@ itself, which reaches you whole at final acceptance. The bid page says the rate 
 the tender's terms state it — **price it in**. It is zero on this deployment, and the bid page says
 nothing at all when it is.
 
+**Shipping across a border?** The tender page offers a **proforma invoice** once you have been
+awarded — the document customs and import licensing ask for before goods move. It is built from
+figures the tender already fixed, so the total and the milestone schedule cannot drift from what
+was agreed; you supply only the two things the tender cannot know, the country of origin and the
+HS code. Print it to PDF from the panel. You probably do not need it: escrow already shows the
+buyer's funds are committed, which is what a proforma is usually asked to assert, and it can be
+checked on-chain rather than taken on trust.
+
 For physical goods there is a transit allowance before that clock starts, so a buyer is not paying
 for a container still at sea. If they confirm receipt, the inspection window runs from arrival
 instead — which is sooner, so it is in their interest as well as yours.

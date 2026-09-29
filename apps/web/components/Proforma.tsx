@@ -14,6 +14,11 @@ import { useAccount } from "wagmi";
  * be checked on-chain rather than asserted on paper. What escrow does not answer is customs: import
  * licensing in many jurisdictions wants this document before goods move.
  *
+ * Produced as a printed page rather than a generated PDF. The browser already makes PDFs, a
+ * customs authority will not accept a .txt, and a PDF library would be a megabyte of dependency to
+ * reproduce what `window.print()` does — the tender pack takes the same route for the same reason.
+ * The text download stays for anyone who wants to paste the figures somewhere else.
+ *
  * Two fields are asked of the supplier rather than taken from the tender. The tender does not know
  * where the goods were produced or how they are classified for tariff, and guessing either would
  * put a wrong answer on a customs document — which is worse than leaving it blank, because a blank
@@ -103,6 +108,21 @@ export function Proforma({
     URL.revokeObjectURL(a.href);
   }
 
+  /**
+   * Print, which is how this becomes a PDF.
+   *
+   * A customs authority will not take a .txt, and the browser already makes PDFs — so the document
+   * is printed rather than built with a PDF library, the same way the tender pack is. The class
+   * hides everything else on the page for the duration: without it the print carries the tender,
+   * the bids and the actions panel, and the proforma arrives on page three.
+   */
+  function print() {
+    document.body.classList.add("printing-doc");
+    const restore = () => document.body.classList.remove("printing-doc");
+    window.addEventListener("afterprint", restore, { once: true });
+    window.print();
+  }
+
   return (
     <div className="panel">
       <div className="head">
@@ -180,17 +200,20 @@ export function Proforma({
             anything a customs authority commonly wants that you have left blank.
           </div>
 
-          <div className="full filter-row">
-            <button type="button" className="btn-primary" onClick={download}>
-              Download proforma
+          <div className="full button-row">
+            <button type="button" className="btn-primary" onClick={print}>
+              Print / save as PDF
+            </button>
+            <button type="button" className="btn-outline" onClick={download}>
+              Download as text
             </button>
             <button type="button" className="chip" onClick={() => setOpen(false)}>
               cancel
             </button>
           </div>
 
-          <div className="full">
-            <pre className="memo" style={{ whiteSpace: "pre-wrap", fontSize: 12, maxHeight: 280 }}>
+          <div className="full print-target">
+            <pre className="memo proforma-doc" style={{ whiteSpace: "pre-wrap", fontSize: 12 }}>
               {text()}
             </pre>
           </div>
