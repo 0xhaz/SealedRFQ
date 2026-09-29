@@ -70,3 +70,53 @@ export function milestoneMeaning(state: string, automatic?: boolean | null): str
       return state.toLowerCase();
   }
 }
+
+/**
+ * The most milestones the contract will accept, mirrored from `RFQBase.MAX_MILESTONES`.
+ *
+ * Checked here as well as there because a tenth-and-first milestone is not a revert anyone can
+ * read: `InvalidMilestones` arrives after the wallet has been opened and the gas paid.
+ */
+export const MAX_MILESTONES = 10;
+
+export type MilestoneCheck = {
+  /** Basis points per milestone, in order. Empty when nothing parses. */
+  bps: number[];
+  /** Their sum in basis points. 10,000 is a complete split. */
+  totalBps: number;
+  ok: boolean;
+  /** Why it is not acceptable, phrased for the person typing. Null when it is. */
+  problem: string | null;
+};
+
+/**
+ * Parse and check a milestone split, for the form and its submit path both.
+ *
+ * One function deliberately. The form used to check the split again at submit time in its own
+ * inline arithmetic, which is how a field shows no complaint and then throws on the last click —
+ * the two only agree for as long as somebody keeps them in step.
+ */
+export function checkMilestones(input: string): MilestoneCheck {
+  const parts = input
+    .split(",")
+    .map((m) => m.trim())
+    .filter(Boolean);
+
+  const bps = parts.map((m) => Math.round(Number(m) * 100));
+  const totalBps = bps.reduce((a, b) => a + b, 0);
+
+  const problem =
+    parts.length === 0
+      ? "Enter at least one milestone."
+      : bps.some((n) => !Number.isFinite(n))
+        ? "Every milestone must be a number."
+        : bps.some((n) => n <= 0)
+          ? "Every milestone must be above zero — a milestone worth nothing still has to be delivered and accepted."
+          : parts.length > MAX_MILESTONES
+            ? `At most ${MAX_MILESTONES} milestones; this has ${parts.length}. The contract refuses more.`
+            : totalBps !== 10_000
+              ? `These add up to ${totalBps / 100}%, not 100%.`
+              : null;
+
+  return { bps, totalBps, ok: problem === null, problem };
+}

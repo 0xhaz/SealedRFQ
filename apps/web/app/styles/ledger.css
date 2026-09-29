@@ -5096,6 +5096,9 @@ button.field-wallet {
 .field input[aria-invalid="true"],
 .field textarea[aria-invalid="true"] {
   border-color: #d92d2d;
+  /* A red edge alone says "wrong" without saying how, so it always rides with the message
+     underneath. The halo is there to draw the eye down to that message, not to shout. */
+  box-shadow: 0 0 0 2px rgba(217, 45, 45, 0.12);
 }
 
 /* dev-resources hero row sits quieter than the product links */

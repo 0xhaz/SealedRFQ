@@ -127,6 +127,10 @@ which is safest for you and hardest to get a manufacturer to accept.
 More milestones means less money exposed at any moment, and more times you have to turn up and
 inspect. That is the whole trade-off.
 
+The field adds them up as you type and shows what each one is worth at your published budget, so a
+split that is five per cent short — the usual way this goes wrong, by deleting a stage and
+forgetting the rest — says so before you sign anything rather than reverting afterwards.
+
 ## Scoring rubric
 
 **Rubric weights — price / delivery / quality.** How the evaluator scores, published before bidding

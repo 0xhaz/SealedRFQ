@@ -6,6 +6,7 @@ import { agent, uploadDocument } from "@/lib/agent";
 import { chain, contracts, explorerTx } from "@/lib/chain";
 import { type Deadlines, PRESETS, applyPreset, checkDeadlines, toUnix } from "@/lib/deadlines";
 import { hashFile } from "@/lib/docHash";
+import { checkMilestones, milestoneLedger } from "@/lib/milestones";
 import { DURATION_UNITS, type DurationUnit, MIN_DELIVERY_SECONDS, toSeconds } from "@/lib/duration";
 import { MAX_INVITEES, parseInvitees } from "@/lib/invitees";
 import { type LineItemRow, emptyRow, toLineItems } from "@/lib/lineItems";
@@ -152,6 +153,8 @@ export function NewRfqForm() {
     };
   }, [config]);
 
+  const split = checkMilestones(milestones);
+
   const deliverySec = toSeconds(deliveryAmount, deliveryUnit);
   const acceptSec = toSeconds(acceptAmount, acceptUnit);
 
@@ -223,19 +226,13 @@ export function NewRfqForm() {
       const budgetUnits = parseUsdc(budget);
       const depositUnits = parseUsdc(deposit);
       const stakeBps = Math.round(Number(stakePct) * 100);
-      const bps = milestones
-        .split(",")
-        .map((m) => Math.round(Number(m.trim()) * 100))
-        .filter((n) => Number.isFinite(n));
 
       if (budgetUnits <= 0n || depositUnits <= 0n)
         throw new Error("Budget and deposit must be above zero");
       if (stakeBps < MIN_STAKE_BPS)
         throw new Error(`Buyer stake must be at least ${MIN_STAKE_BPS / 100}%`);
-      if (bps.length === 0 || bps.some((b) => b <= 0))
-        throw new Error("Milestones must be positive percentages");
-      if (bps.reduce((a, b) => a + b, 0) !== 10_000)
-        throw new Error("Milestone percentages must add up to 100");
+      // The same check the field shows live, so the form cannot look content and then throw here.
+      if (!split.ok) throw new Error(split.problem ?? "Check the milestone split");
       if (deliverySec < MIN_DELIVERY_SECONDS) {
         throw new Error("Delivery window must be at least 5 minutes");
       }
@@ -335,7 +332,7 @@ export function NewRfqForm() {
         // container still at sea, and what stops that protection becoming a way to never pay.
         transitWindow: incoterm ? Math.max(0, Number(transitDays) || 0) * 86_400 : 0,
         bidMode: bidMode === "open" ? 1 : 0,
-        milestoneBps: bps,
+        milestoneBps: split.bps,
         invitees: visibility === "invited" ? invitees : ([] as `0x${string}`[]),
         requiresQualification: false,
         requiresProposal: mode === "RFP",
@@ -812,7 +809,50 @@ export function NewRfqForm() {
               id="milestones"
               value={milestones}
               onChange={(e) => setMilestones(e.target.value)}
+              aria-invalid={!split.ok}
+              aria-describedby="milestones-check"
             />
+            {/*
+              The running total, shown whether or not it is right. A split that is wrong by five
+              percent looks identical to a correct one until something adds it up, and the first
+              thing that did was a revert after the wallet had already opened.
+            */}
+            <span
+              id="milestones-check"
+              className={split.ok ? "field-hint" : "field-hint warn"}
+              role={split.ok ? undefined : "alert"}
+            >
+              {split.problem ? (
+                <>
+                  <b>{split.problem}</b>
+                  {split.totalBps > 0 && split.totalBps !== 10_000 && (
+                    <>
+                      {" "}
+                      {split.totalBps < 10_000
+                        ? `Add ${(10_000 - split.totalBps) / 100}% more.`
+                        : `Remove ${(split.totalBps - 10_000) / 100}%.`}
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
+                  {split.bps.length} milestone{split.bps.length === 1 ? "" : "s"} totalling 100%
+                  {parseUsdc(budget || "0") > 0n && (
+                    <>
+                      {" — "}
+                      {milestoneLedger(
+                        parseUsdc(budget),
+                        split.bps,
+                        Math.round(Number(retentionPct || "0") * 100),
+                      )
+                        .lines.map((l) => formatUsdc(l.gross))
+                        .join(" · ")}{" "}
+                      USDC at the published budget
+                    </>
+                  )}
+                </>
+              )}
+            </span>
             {/*
               Bulk goods are not bought in equal thirds. The trade convention is a deposit against
               production and the balance against shipping documents, so it is offered rather than
