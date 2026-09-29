@@ -127,6 +127,14 @@ one milestone, not the whole contract.
 If the buyer goes quiet, the milestone releases anyway once the acceptance window passes. A supplier
 who has delivered cannot be held hostage by silence.
 
+Where a deployment charges a **platform fee**, it is taken here — a percentage of each milestone,
+deducted inside the escrow as that milestone is accepted, and borne by the supplier rather than
+added to the buyer's bill. Nothing accrues: it transfers to the treasury in the same transaction
+that pays the supplier, so no operator ever holds a balance of other people's money in transit.
+Retention is exempt, because final acceptance credits it directly rather than through an escrow
+job. The rate is published on the bid page and written into the tender's terms before anyone bids,
+because it changes what a supplier receives and they price against it. **It is zero here.**
+
 If the supplier goes quiet, the delivery window closes and the buyer recovers what was never earned
 — plus damages measured against what re-procuring would actually have cost, which the tender already
 knows because the next-cheapest bid was revealed. The rest of the supplier's stake comes back. A

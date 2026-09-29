@@ -752,6 +752,38 @@ touches it. A fee on settlement here *is* Option A. The warning attached to the 
 is an open standard with zero protocol fees and should not be anyone's moat — is right, and is
 already the position in this section: x402 demonstrates the rail and earns nothing.
 
+### The fee had to become visible before it could ever be switched on (2026-09-29)
+
+`AgenticCommerce.approve` takes `platformFeeBP` out of each milestone as it is accepted, and the
+whole display layer was unaware of it. `milestoneLedger` computed gross, retained and net from
+retention alone — so the day a fee was set, every figure a supplier read would have overstated what
+reaches them, on the tender page, the proforma and the new-tender preview alike.
+
+Two details that had to be read out of the contracts rather than assumed, and that a plausible
+implementation would get wrong:
+
+- The escrow job is funded with **`gross − retention`**, and the fee is charged on *that*. A fee on
+  gross would overstate the deduction.
+- **Retention is never charged a fee.** Final acceptance credits it to the supplier directly rather
+  than completing an escrow job, so it never passes through `approve`.
+
+So the supplier receives `(gross − retention) × (1 − fee)` per milestone plus the full retention,
+and the engagement's total fee is `fee × (price − retention)`.
+
+`milestoneLedger` now takes the rate, defaulting to none. The rate is read live — the new-tender
+form via wagmi, the server pages via `getPlatformFeeBps` — because terms are hashed when a tender
+opens and a hardcoded zero would publish a clause that was true when written and false the day the
+fee changed.
+
+**Who bears it, stated everywhere:** the supplier. The buyer pays the quoted price in full. That is
+what the contract does, which makes publishing the rate *before* bidding a correctness requirement
+rather than a courtesy — a supplier who learns of it after winning was quoted a different deal from
+the one they bid on.
+
+Surfaced conditionally, so a zero fee shows nothing anywhere: bid page warning, a `Fee` column in
+the milestone ledger, clause 3a in the generated terms, and all five published docs. `platformFeeBP`
+is 0 on this deployment and `evaluatorFeeBP` must stay 0 for the stuck-funds reason above.
+
 ### Does the evaluator need a model? Mostly no — and `mock` is a misleading name
 
 The scorer is deterministic: weighted rubric arithmetic plus rule-based red flags, reproducible

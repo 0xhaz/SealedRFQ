@@ -68,6 +68,13 @@ behave.
 final milestone is accepted. Ordinary construction and manufacturing practice: it is what makes
 finishing matter more to a supplier than finishing *a milestone*. 5–10% is typical.
 
+**Not a field, but it belongs here: the platform fee.** If the deployment charges one, it is
+deducted from each milestone as that milestone is accepted and is borne by the **supplier** — you
+pay the price you agreed, and they receive that much less. You cannot set it and it is not part of
+your budget arithmetic, but it is published on the bid page and written into your terms, because a
+supplier who found out after winning would have bid on a different deal. It is **zero** on this
+deployment, and nothing about it appears anywhere while that is true.
+
 ## Timetable
 
 The four preset buttons set every date and window together. **Demo** is for walking the system
