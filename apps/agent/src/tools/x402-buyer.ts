@@ -20,7 +20,14 @@ import { type Hex, formatUnits } from "viem";
 const CHAINS: Record<number, "arc" | "arcTestnet"> = { 5042: "arc", 5042002: "arcTestnet" };
 
 const chainId = Number(process.env.ARC_CHAIN_ID ?? 5042002);
-const agentUrl = (process.env.AGENT_URL ?? "http://127.0.0.1:4020").replace(/\/$/, "");
+/**
+ * Which agent to pay. `AGENT_URL`, not `AGENT` — the latter is what the walkthrough exports for
+ * `curl`, and getting them confused silently aims this at localhost instead of failing.
+ */
+const agentUrl = (
+  process.env.AGENT_URL ??
+  (process.env.AGENT ? `${process.env.AGENT}` : "http://127.0.0.1:4020")
+).replace(/\/$/, "");
 // A dedicated key is allowed so the payer need not be the buyer persona, but the buyer is the
 // honest default: it is the party that wants an RFQ scored.
 const privateKey = (process.env.X402_BUYER_PK ?? process.env.BUYER_PK) as Hex | undefined;
@@ -50,6 +57,9 @@ async function balances() {
   console.log(
     `gateway    ${b.gateway.formattedAvailable} USDC available of ${b.gateway.formattedTotal} total`,
   );
+  // Printed here because `balances` never calls the agent — it reads the chain and the Gateway —
+  // so a wrong or unset URL looks perfectly healthy until `pay` fails with `fetch failed`.
+  console.log(`agent      ${agentUrl}${process.env.AGENT_URL ? "" : "  (default — AGENT_URL unset)"}`);
   if (b.gateway.available === 0n) {
     console.log("\nnothing deposited yet, so a paid call would be refused: run `deposit 1` first.");
   }
@@ -130,6 +140,16 @@ const run = async () => {
 };
 
 run().catch((e) => {
-  console.error(`\nfailed: ${e instanceof Error ? e.message : e}`);
+  const msg = e instanceof Error ? e.message : String(e);
+  console.error(`\nfailed: ${msg}`);
+  // `fetch failed` names nothing, and the commonest cause by far is an agent URL that was never
+  // set — which leaves this pointed at a localhost port with nothing behind it.
+  if (/fetch failed|ECONNREFUSED|ENOTFOUND/i.test(msg)) {
+    console.error(`  while calling ${agentUrl}`);
+    if (!process.env.AGENT_URL) {
+      console.error("  AGENT_URL is not set, so that is a default rather than a choice.");
+      console.error("  export AGENT_URL=https://<your-agent-host>");
+    }
+  }
   process.exit(1);
 });
