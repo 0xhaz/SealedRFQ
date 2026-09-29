@@ -51,6 +51,13 @@ deposit rolls into their performance stake rather than being returned.
 **Your stake.** Your own skin in the game, held until the engagement finishes. It is what makes the
 tender credible to a supplier who has been let down before.
 
+**A platform fee, if one is set, comes out of the supplier's side.** It is deducted from each
+milestone as it is accepted, so you pay the price you agreed and the supplier receives less. That
+makes it their cost to price in rather than a surcharge on you — but it is also why the rate is
+published on the bid page and written into the tender's terms: a supplier who only discovers it
+after winning has been quoted a different deal from the one they bid. It is zero on this
+deployment, and nothing about it appears anywhere while that is true.
+
 **Retention.** A percentage withheld from each milestone and released when the last is accepted.
 Standard practice, and the reason a supplier finishing the job matters more to them than finishing
 a milestone.
