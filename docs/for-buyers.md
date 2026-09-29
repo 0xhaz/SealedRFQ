@@ -261,9 +261,30 @@ has to leave a transit and one full inspection inside that — so the most it ca
 set it to five minutes and five minutes is all the room there is. If you expect to need slack, that
 is the figure to raise when you post the tender.
 
-**Nothing was delivered.** Once the window closes you recover everything that was never earned, plus
-damages measured at what re-procuring would have cost — the next-cheapest revealed bid, less what
-you awarded. The remainder of the supplier's stake returns to them.
+### Nothing was delivered
+
+The window closing does not move any money. Somebody has to **settle** the milestone, which ends the
+engagement and divides the escrow — a transaction either party can send, because the contract
+decides the split and neither side can influence it.
+
+**There is a wait first.** The milestone's escrow job outlives the delivery deadline by the transit
+allowance plus two acceptance windows, and settlement is refused until then. So between the window
+closing and settlement becoming possible there is a period where nothing can happen: the supplier
+cannot deliver and nobody can settle. The Actions panel says which of the two you are in.
+
+**What you get back is not everything.** You recover the unpaid price, the retention held from
+milestones already accepted, and this milestone's escrow. From the supplier's stake you recover
+**damages, capped at what re-procuring would actually have cost you** — the next-cheapest revealed
+bid, less what you awarded. Whatever they staked above that returns to them. A security covers a
+loss; it is not confiscated because one occurred.
+
+**One case takes the whole stake, and it follows from your own award.** The cap only exists because
+there is a runner-up to measure against. If you awarded a bid that was *not* the cheapest revealed,
+there is no such measure — `excessCost` is zero and nothing bounds the damages, so the entire stake
+goes to you. That is worth knowing before you award: choosing a dearer bid buys you a stronger
+remedy if it fails.
+
+The panel shows both figures, to the cent, before anyone presses the button.
 
 **The work is wrong.** Reject the milestone with a reason. The reason is recorded, the money stays
 locked, and the supplier may dispute it. A rejection nobody can read is indistinguishable from no

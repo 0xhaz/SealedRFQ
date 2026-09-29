@@ -129,10 +129,22 @@ that can move a delivery deadline, and it stops working the moment the deadline 
 private, encrypted thread with them on the tender page for exactly this.
 
 If the window closes with nothing delivered, either side can **settle** the milestone. That is the
-terminal step: it ends the engagement and divides the escrow, and nothing reverses it. The buyer
-recovers what was never earned and damages measured at what re-procuring would have cost them — the
-next-cheapest revealed bid, less what you were awarded. **The rest of your stake comes back**, and
-the panel shows both figures before anyone presses it. You are not stripped of everything regardless of
+terminal step: it ends the engagement and divides the escrow, and nothing reverses it. There is a
+gap first — settlement is refused until the milestone's escrow job expires, which is the transit
+allowance plus two acceptance windows after your deadline — so for a while you can neither deliver
+nor be settled against.
+
+The buyer recovers what was never earned, and damages from your stake **capped at what re-procuring
+would actually have cost them**: the next-cheapest revealed bid, less what you were awarded. **The
+rest of your stake comes back.** If the runner-up was 2.95 and you were awarded 2.80, the buyer's
+loss is 0.15 and that is all the damages can be, however much you staked.
+
+**With one exception.** That cap exists because there is a runner-up to measure against. If you won
+on something other than the lowest price, `excessCost` is zero, nothing bounds the loss, and the
+whole of what you staked is taken. Worth knowing when you bid above the cheapest and expect to win
+on delivery or record: it is a better tender to win and a worse one to fail.
+
+The panel shows both figures before anyone presses the button, so you can see exactly what you keep. You are not stripped of everything regardless of
 what it cost them; the security covers the loss and the surplus is returned.
 
 Note that a delay caused by *your own* supplier is not treated as an excuse anywhere in procurement,

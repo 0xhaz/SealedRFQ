@@ -408,13 +408,16 @@ export function RfqActions({
     engagement?.deliveryDeadline && Date.now() / 1000 > engagement.deliveryDeadline,
   );
   /**
-   * The ERC-8183 job outlives the delivery window by `2 × acceptanceWindow`, and `settleExpired`
-   * reverts `NotExpired` until that later moment. Between the two the contract permits nothing at
+   * The ERC-8183 job outlives the delivery window by a transit allowance plus `2 ×
+   * acceptanceWindow`, and `settleExpired` reverts `NotExpired` until that later moment. The
+   * transit term matters: leaving it out agreed with the contract on every file tender, where it
+   * is zero, and offered a button that reverts on every goods tender, where it is not. Between the two the contract permits nothing at
    * all — so the panel says the window has shut but does not offer an exit that would fail.
    */
   const jobExpired = Boolean(
     engagement &&
-      Date.now() / 1000 > engagement.deliveryDeadline + 2 * engagement.acceptanceWindow,
+      Date.now() / 1000 >
+        engagement.deliveryDeadline + engagement.transitWindow + 2 * engagement.acceptanceWindow,
   );
 
   return (

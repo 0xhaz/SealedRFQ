@@ -133,6 +133,22 @@ taken once. There is no reveal step and therefore nothing to forfeit by missing 
 
 ## After an award
 
+**Know what failing costs before you bid, because it is not one number.** If a milestone's window
+closes undelivered, either party can call `settleExpired(rfqId)` — refused until the escrow job
+expires, which is `deliveryDeadline + transitWindow + 2 × acceptanceWindow`. The split is:
+
+```
+earnedRetention = retentionHeld − currentRetention   # not the undelivered milestone's share
+atRisk          = performanceStake + earnedRetention
+damages         = excessCost == 0 ? atRisk : min(atRisk, excessCost)
+back to you     = atRisk − damages
+```
+
+`excessCost` is the next-cheapest revealed bid less the award, and it is **zero unless you won on
+the lowest price**. So a bid that wins on delivery or record rather than price carries an unbounded
+downside: the whole stake, not a capped share of it. Both figures are readable from
+`getEngagement(rfqId)` at any time.
+
 ```
 AgenticCommerce.submit(jobId, deliverableHash, "")
 ```

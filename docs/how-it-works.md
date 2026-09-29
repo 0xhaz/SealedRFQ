@@ -135,10 +135,16 @@ Retention is exempt, because final acceptance credits it directly rather than th
 job. The rate is published on the bid page and written into the tender's terms before anyone bids,
 because it changes what a supplier receives and they price against it. **It is zero here.**
 
-If the supplier goes quiet, the delivery window closes and the buyer recovers what was never earned
-— plus damages measured against what re-procuring would actually have cost, which the tender already
-knows because the next-cheapest bid was revealed. The rest of the supplier's stake comes back. A
-security is there to cover a loss, not to be confiscated because one occurred.
+If the supplier goes quiet, the delivery window closes and either party can settle the milestone —
+a transaction, not an automatic consequence, because money here moves only when somebody sends one.
+The buyer recovers what was never earned, plus damages measured against what re-procuring would
+actually have cost, which the tender already knows because the next-cheapest bid was revealed. The
+rest of the supplier's stake comes back. A security is there to cover a loss, not to be confiscated
+because one occurred.
+
+That cap has a condition worth stating: it needs a runner-up to measure against. A buyer who
+awarded something other than the cheapest revealed bid has no such measure, so nothing bounds the
+damages and the whole stake answers for the failure.
 
 ## What this cannot do
 
