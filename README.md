@@ -74,7 +74,16 @@ still works; its addresses are kept in `contracts/deployments/archive/` because 
 against it are part of the record and its explorer links remain valid for them.
 
 `contracts/deployments/evidence-5042002.json` lists one explorer link per lifecycle step of the last
-full run, including the policy firewall rejecting an AI-recommended over-budget award.
+full run, including the policy firewall rejecting an AI-recommended over-budget award. Every entry
+resolves on the current contracts — it is regenerated from the broadcast receipts after each
+deploy, never hand-maintained.
+
+The x402 payment is recorded separately in `contracts/deployments/x402-<chainId>.json`, because it
+has no explorer link to give: Circle's Gateway batches settlement off-chain and returns no
+transaction hash to the payer. The paywall and the payment are real and the record carries the
+challenge terms, the amount and the balance either side of it — but the settlement is Circle's to
+publish, not ours, and the pack says so rather than implying an on-chain trail that does not
+exist.
 
 Run it yourself: `./script/demo.sh testnet`.
 

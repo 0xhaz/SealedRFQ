@@ -15,6 +15,8 @@
  *   node dist/tools/x402-buyer.js withdraw 0.5
  */
 import { GatewayClient } from "@circle-fin/x402-batching/client";
+import { writeFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { type Hex, formatUnits } from "viem";
 
 const CHAINS: Record<number, "arc" | "arcTestnet"> = { 5042: "arc", 5042002: "arcTestnet" };
@@ -87,9 +89,11 @@ async function pay(rfqId: string) {
     return;
   }
   const header = probe.headers.get("PAYMENT-REQUIRED");
+  let terms: unknown = null;
   if (header) {
-    const terms = JSON.parse(Buffer.from(header, "base64").toString());
-    console.log(`terms: ${JSON.stringify(terms.accepts?.[0] ?? terms)}`);
+    const parsed = JSON.parse(Buffer.from(header, "base64").toString());
+    terms = parsed.accepts?.[0] ?? parsed;
+    console.log(`terms: ${JSON.stringify(terms)}`);
   }
 
   const before = await gateway.getBalances();
@@ -102,6 +106,34 @@ async function pay(rfqId: string) {
     `gateway balance ${before.gateway.formattedAvailable} -> ${after.gateway.formattedAvailable}`,
   );
   console.log(`\nresponse:\n${JSON.stringify(data, null, 2).slice(0, 1200)}`);
+
+  /*
+   * Write what just happened, so the evidence pack does not have to be hand-typed from a terminal.
+   *
+   * This cannot join `evidence-<chain>.json`, whose whole promise is one explorer link per step:
+   * the Gateway batches settlement off-chain and hands back no transaction hash, so there is no
+   * link to give. Recording it separately keeps that promise intact and is honest about which
+   * half of the rail is on-chain — the paywall and the payment are real, the settlement is
+   * Circle's to publish, not ours.
+   */
+  const memo = (data as { memo?: { inputsHash?: string; rubricHash?: string } } | null)?.memo;
+  const record = {
+    chainId,
+    resource: url,
+    terms,
+    paidAtomic: String(amount),
+    paid: formatUnits(BigInt(amount as string | number | bigint), 6),
+    gatewayBefore: before.gateway.formattedAvailable,
+    gatewayAfter: after.gateway.formattedAvailable,
+    payer: gateway.address,
+    at: new Date().toISOString(),
+    settlement: "Circle Gateway, batched off-chain — no transaction hash is returned to the payer",
+    memoInputsHash: memo?.inputsHash ?? null,
+    memoRubricHash: memo?.rubricHash ?? null,
+  };
+  const out = new URL(`../../../../contracts/deployments/x402-${chainId}.json`, import.meta.url);
+  await writeFile(out, `${JSON.stringify(record, null, 2)}\n`);
+  console.log(`\nwrote ${fileURLToPath(out)}`);
 }
 
 async function withdraw(amount: string) {

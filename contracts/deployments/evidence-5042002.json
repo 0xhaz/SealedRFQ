@@ -2,166 +2,166 @@
   "chainId": 5042002,
   "explorer": "https://explorer.testnet.arc.io",
   "contracts": {
-    "AgenticCommerce": "0xe98D25AB2ED549E699B8ECf40e03817bfA83e36b",
-    "AttestationLog": "0xF79126bdBE73d023Fd6FA57fB05E746a839a6096",
-    "ProcurementPolicy": "0xC3B99CaEa00A4f8918DDf44Be4DB257853B101F0",
-    "RFQRegistry": "0xb727F5A8031591bc7e1ed0E626f5cE1108626D61",
-    "SealedRFQAdapter": "0xC72B8a49020a9B9dACb384b88CDB9580770fA9C0",
+    "AgenticCommerce": "0xeAbaBEc32b8d2e5a060440117275DE7D2BC511c6",
+    "AttestationLog": "0xBE3b811E8c812910E8bCC662Deff9C0CB829C24a",
+    "ProcurementPolicy": "0xa92F54993dDBc38C35f60445A1e4c38bc7e73B9F",
+    "RFQRegistry": "0x597577573654D0b4cA085BDBE5474fe38e126984",
+    "SealedRFQAdapter": "0xD63Be85613D24701678978AF208d72E38025d34c",
     "admin": "0x7a3c60eBB395bE2E3a4fb4e3356B7ba9FA8360c9",
     "chainId": 5042002,
-    "startBlock": 63207583,
+    "startBlock": 64202436,
     "usdc": "0x3600000000000000000000000000000000000000"
   },
   "steps": [
     {
       "step": "RFQ created and funded (buyer, ERC-2612 permit)",
       "status": "0x1",
-      "tx": "0x6741e580bc6acc6f1aa1c6ff3e0ffd6673514f8888d7d4a0944b69ea0c8ecfe5",
-      "url": "https://explorer.testnet.arc.io/tx/0x6741e580bc6acc6f1aa1c6ff3e0ffd6673514f8888d7d4a0944b69ea0c8ecfe5"
+      "tx": "0x4871360ca93d631cd20a15655161edfdf20e04e4c18e261447abdc721c739d81",
+      "url": "https://explorer.testnet.arc.io/tx/0x4871360ca93d631cd20a15655161edfdf20e04e4c18e261447abdc721c739d81"
     },
     {
       "step": "sealed bid committed + deposit (supplier)",
       "status": "0x1",
-      "tx": "0x13c2c73dd2b468b02d934a649d1b2a1517c2f2a6b067fef43ea6c1e3d6ef2d34",
-      "url": "https://explorer.testnet.arc.io/tx/0x13c2c73dd2b468b02d934a649d1b2a1517c2f2a6b067fef43ea6c1e3d6ef2d34"
+      "tx": "0x2e63bc85cc5cfc8c89e9728a4678aeed67f20c54228461c93448fde5dc125388",
+      "url": "https://explorer.testnet.arc.io/tx/0x2e63bc85cc5cfc8c89e9728a4678aeed67f20c54228461c93448fde5dc125388"
     },
     {
       "step": "sealed bid committed + deposit (supplier)",
       "status": "0x1",
-      "tx": "0xec64663f403ee47e1ff9110ba0820be14b1fa4e41a012b7ca239b75af02539b5",
-      "url": "https://explorer.testnet.arc.io/tx/0xec64663f403ee47e1ff9110ba0820be14b1fa4e41a012b7ca239b75af02539b5"
+      "tx": "0x5034754eb516389bbea0e32f36eca2cf38cab9aa5840ecb1a1aa3bdcb7c47c98",
+      "url": "https://explorer.testnet.arc.io/tx/0x5034754eb516389bbea0e32f36eca2cf38cab9aa5840ecb1a1aa3bdcb7c47c98"
     },
     {
       "step": "sealed bid committed + deposit (supplier)",
       "status": "0x1",
-      "tx": "0xdcac5a3fbdd6800cf9322c1b6b640d0b59f295ae0fe298e774d9de73ebaf4920",
-      "url": "https://explorer.testnet.arc.io/tx/0xdcac5a3fbdd6800cf9322c1b6b640d0b59f295ae0fe298e774d9de73ebaf4920"
+      "tx": "0xfe60490b58223ec9422b03935db06f3a899aa866dd600327996200b6080405ac",
+      "url": "https://explorer.testnet.arc.io/tx/0xfe60490b58223ec9422b03935db06f3a899aa866dd600327996200b6080405ac"
     },
     {
       "step": "sealed bid revealed (supplier)",
       "status": "0x1",
-      "tx": "0x0f5bc5b16feeb7a213c57030c6e7785c3acc39fb383cb600fc7f42fb5742b682",
-      "url": "https://explorer.testnet.arc.io/tx/0x0f5bc5b16feeb7a213c57030c6e7785c3acc39fb383cb600fc7f42fb5742b682"
+      "tx": "0x42c9a302cb81e6ae79079e492109361dbfec68a6a7f293e5306aeec5148f3130",
+      "url": "https://explorer.testnet.arc.io/tx/0x42c9a302cb81e6ae79079e492109361dbfec68a6a7f293e5306aeec5148f3130"
     },
     {
       "step": "sealed bid revealed (supplier)",
       "status": "0x1",
-      "tx": "0x8867be3f096cfe7efbf0ab4a84e4c77736a8668f4af50b843fd79e856ed36703",
-      "url": "https://explorer.testnet.arc.io/tx/0x8867be3f096cfe7efbf0ab4a84e4c77736a8668f4af50b843fd79e856ed36703"
+      "tx": "0xa30efaa876e2162de876a6fd8ead11f1f084721a7ec3d44ae8376902961b74ea",
+      "url": "https://explorer.testnet.arc.io/tx/0xa30efaa876e2162de876a6fd8ead11f1f084721a7ec3d44ae8376902961b74ea"
     },
     {
       "step": "sealed bid revealed (supplier)",
       "status": "0x1",
-      "tx": "0x5d5484da12f2f83f0994d6c2b0ed6278e0dfc79c8e238274a68e4d112ddaba14",
-      "url": "https://explorer.testnet.arc.io/tx/0x5d5484da12f2f83f0994d6c2b0ed6278e0dfc79c8e238274a68e4d112ddaba14"
+      "tx": "0xd423f9ce1faa408d4387936b15e909add111d0aec6dfc1f7e8a612bea16891a0",
+      "url": "https://explorer.testnet.arc.io/tx/0xd423f9ce1faa408d4387936b15e909add111d0aec6dfc1f7e8a612bea16891a0"
     },
     {
       "step": "AI decision anchored (EVALUATOR)",
       "status": "0x1",
-      "tx": "0xcbd022c2727a1cd7d633d1291fb30f12f9ad562cd4791abb28308f2e2d0d4e31",
-      "url": "https://explorer.testnet.arc.io/tx/0xcbd022c2727a1cd7d633d1291fb30f12f9ad562cd4791abb28308f2e2d0d4e31"
+      "tx": "0x5c6ce70e8dab68fd7c95ad78974c996f5dab85a71f219e7f9358f88f6b864947",
+      "url": "https://explorer.testnet.arc.io/tx/0x5c6ce70e8dab68fd7c95ad78974c996f5dab85a71f219e7f9358f88f6b864947"
     },
     {
       "step": "AI decision anchored (EVALUATOR)",
       "status": "0x1",
-      "tx": "0x2f487186a72af159328d8e7488c0450c028020c83b36530dbe7810d95dc8eeb1",
-      "url": "https://explorer.testnet.arc.io/tx/0x2f487186a72af159328d8e7488c0450c028020c83b36530dbe7810d95dc8eeb1"
+      "tx": "0x4b2b6d7879555d5a9ff2c981ea3b56d8b3c64e4c82d511b2941433de260bab84",
+      "url": "https://explorer.testnet.arc.io/tx/0x4b2b6d7879555d5a9ff2c981ea3b56d8b3c64e4c82d511b2941433de260bab84"
     },
     {
       "step": "AI decision anchored (EVALUATOR)",
       "status": "0x1",
-      "tx": "0xcc61ab626252d9d745204dad72f40a139e35f39bc945a676e478d6e63dc2eb98",
-      "url": "https://explorer.testnet.arc.io/tx/0xcc61ab626252d9d745204dad72f40a139e35f39bc945a676e478d6e63dc2eb98"
+      "tx": "0x0aa5174cd652b407fc3ca84954c6570e670e1058043e23412351c8a6c5a5ffc5",
+      "url": "https://explorer.testnet.arc.io/tx/0x0aa5174cd652b407fc3ca84954c6570e670e1058043e23412351c8a6c5a5ffc5"
     },
     {
       "step": "award (AWARDER, policy-checked)",
       "status": "0x1",
-      "tx": "0x480f85c99bb88f990e76fb6b8035d8e59f2f8d9d975d753d7d82c1e2cce7e5a6",
-      "url": "https://explorer.testnet.arc.io/tx/0x480f85c99bb88f990e76fb6b8035d8e59f2f8d9d975d753d7d82c1e2cce7e5a6"
+      "tx": "0x2906c23b474c8adeba7183c6473c0a8fc95945d8710f5241b4353d9241af7776",
+      "url": "https://explorer.testnet.arc.io/tx/0x2906c23b474c8adeba7183c6473c0a8fc95945d8710f5241b4353d9241af7776"
     },
     {
       "step": "losing deposit refunded (permissionless)",
       "status": "0x1",
-      "tx": "0x9ac9bb611ce20e8df18a94ed05908f7a4dee9b51b4a92a50084b32a08e228bea",
-      "url": "https://explorer.testnet.arc.io/tx/0x9ac9bb611ce20e8df18a94ed05908f7a4dee9b51b4a92a50084b32a08e228bea"
+      "tx": "0x7d80ca8ea03f70ebecb9e088177a99d7b6f9a565a21abfdfb176993a5219b50d",
+      "url": "https://explorer.testnet.arc.io/tx/0x7d80ca8ea03f70ebecb9e088177a99d7b6f9a565a21abfdfb176993a5219b50d"
     },
     {
       "step": "losing deposit refunded (permissionless)",
       "status": "0x1",
-      "tx": "0x8eb96b549bc00233d6265793364a1004f56a4888e7b49f169673483ad821d313",
-      "url": "https://explorer.testnet.arc.io/tx/0x8eb96b549bc00233d6265793364a1004f56a4888e7b49f169673483ad821d313"
+      "tx": "0xdd85afdd9c98316dae87ccf71f6057fc37f07ae117d26e856b6ead0abcf037df",
+      "url": "https://explorer.testnet.arc.io/tx/0xdd85afdd9c98316dae87ccf71f6057fc37f07ae117d26e856b6ead0abcf037df"
     },
     {
       "step": "milestone deliverable submitted (supplier, ERC-8183)",
       "status": "0x1",
-      "tx": "0x51714cdc024c5c4ebcd578779c4d13466de236ddf776878d14701ca37564bb1d",
-      "url": "https://explorer.testnet.arc.io/tx/0x51714cdc024c5c4ebcd578779c4d13466de236ddf776878d14701ca37564bb1d"
+      "tx": "0xae9a5f9d5b7233992986fec238f6f8be6af4a303beee2eef8b0aaf42df51d84e",
+      "url": "https://explorer.testnet.arc.io/tx/0xae9a5f9d5b7233992986fec238f6f8be6af4a303beee2eef8b0aaf42df51d84e"
     },
     {
       "step": "milestone accepted and paid (buyer)",
       "status": "0x1",
-      "tx": "0x9f68d00d19117ff76fbab7a8391dda7a39464ceae9e05d1f9d99f554eff38809",
-      "url": "https://explorer.testnet.arc.io/tx/0x9f68d00d19117ff76fbab7a8391dda7a39464ceae9e05d1f9d99f554eff38809"
+      "tx": "0x83065d2e01b6d58bb737dec518f5740faa22dc958f02e2ee6489f3ddc05efc7a",
+      "url": "https://explorer.testnet.arc.io/tx/0x83065d2e01b6d58bb737dec518f5740faa22dc958f02e2ee6489f3ddc05efc7a"
     },
     {
       "step": "milestone deliverable submitted (supplier, ERC-8183)",
       "status": "0x1",
-      "tx": "0xdf690dae1a35ae97717d069efd733e80ddbaac32b6a6de3d12efbe54b79a8e89",
-      "url": "https://explorer.testnet.arc.io/tx/0xdf690dae1a35ae97717d069efd733e80ddbaac32b6a6de3d12efbe54b79a8e89"
+      "tx": "0x7ae30a1ce47aad7d6925c3b9c31b944069af964403edd63f9ea3182a6e3da5ea",
+      "url": "https://explorer.testnet.arc.io/tx/0x7ae30a1ce47aad7d6925c3b9c31b944069af964403edd63f9ea3182a6e3da5ea"
     },
     {
       "step": "milestone auto-released after buyer silence (anyone)",
       "status": "0x1",
-      "tx": "0xad6651b972c95a46ce1364eaf992580c5dc4d0d77360ed18569a7b2ee4265b23",
-      "url": "https://explorer.testnet.arc.io/tx/0xad6651b972c95a46ce1364eaf992580c5dc4d0d77360ed18569a7b2ee4265b23"
+      "tx": "0x479875f989565c05617a323546c334a351a30021f2696103f0a7e1b5572497d1",
+      "url": "https://explorer.testnet.arc.io/tx/0x479875f989565c05617a323546c334a351a30021f2696103f0a7e1b5572497d1"
     },
     {
       "step": "milestone deliverable submitted (supplier, ERC-8183)",
       "status": "0x1",
-      "tx": "0x23b3789ef8e39a3a1d62e78b1ff21dc4e6cc2e9b855a474492e402ecec7374a5",
-      "url": "https://explorer.testnet.arc.io/tx/0x23b3789ef8e39a3a1d62e78b1ff21dc4e6cc2e9b855a474492e402ecec7374a5"
+      "tx": "0xd8c71f27b1f2e3b1f987845550e91bf3dfe03d09b71c15ee37e4ff6575f63e2d",
+      "url": "https://explorer.testnet.arc.io/tx/0xd8c71f27b1f2e3b1f987845550e91bf3dfe03d09b71c15ee37e4ff6575f63e2d"
     },
     {
       "step": "milestone accepted and paid (buyer)",
       "status": "0x1",
-      "tx": "0xd69f1e42bd9b009dbde160653881385b3be9b703afc4fe7f9cd5b3e083772e82",
-      "url": "https://explorer.testnet.arc.io/tx/0xd69f1e42bd9b009dbde160653881385b3be9b703afc4fe7f9cd5b3e083772e82"
+      "tx": "0xc3d7a79722e85e3e573404e65747a6b9f41eb49e4bfb9ab2efb43e0195e3089f",
+      "url": "https://explorer.testnet.arc.io/tx/0xc3d7a79722e85e3e573404e65747a6b9f41eb49e4bfb9ab2efb43e0195e3089f"
     },
     {
       "step": "pull payment withdrawn",
       "status": "0x1",
-      "tx": "0x8f8a339bcaacf9c1afa8b648ae5617de4f5ffada61d9e75afcda235200e0ec90",
-      "url": "https://explorer.testnet.arc.io/tx/0x8f8a339bcaacf9c1afa8b648ae5617de4f5ffada61d9e75afcda235200e0ec90"
+      "tx": "0xa2b17fb79012cbd522472ef8b180e3ba6617931641b2732a91f11cd3358e9fd6",
+      "url": "https://explorer.testnet.arc.io/tx/0xa2b17fb79012cbd522472ef8b180e3ba6617931641b2732a91f11cd3358e9fd6"
     },
     {
       "step": "pull payment withdrawn",
       "status": "0x1",
-      "tx": "0xe81340c023832a652d255dcc14cd38a83eec8c2ac2198b7bf0262fbbb04a54c0",
-      "url": "https://explorer.testnet.arc.io/tx/0xe81340c023832a652d255dcc14cd38a83eec8c2ac2198b7bf0262fbbb04a54c0"
+      "tx": "0x8659e1f3c54a26fd760dbc4e7f3232a5a90d5440787bc0d9a4b9b6f25d7554ee",
+      "url": "https://explorer.testnet.arc.io/tx/0x8659e1f3c54a26fd760dbc4e7f3232a5a90d5440787bc0d9a4b9b6f25d7554ee"
     },
     {
       "step": "pull payment withdrawn",
       "status": "0x1",
-      "tx": "0x2669a2f6e5bd5bff1067f22d7c9cb7a3895b1059387f63ca44ec551968dd6db8",
-      "url": "https://explorer.testnet.arc.io/tx/0x2669a2f6e5bd5bff1067f22d7c9cb7a3895b1059387f63ca44ec551968dd6db8"
+      "tx": "0xdabebe0bf6a7c8fb1ea569b57d10b524b60b29afded42bc3b6ac11bb249eb6f5",
+      "url": "https://explorer.testnet.arc.io/tx/0xdabebe0bf6a7c8fb1ea569b57d10b524b60b29afded42bc3b6ac11bb249eb6f5"
     },
     {
       "step": "pull payment withdrawn",
       "status": "0x1",
-      "tx": "0xd874cd0c8f230a54bee660844aa88f19921f79f5454233151d3e447b22f2a172",
-      "url": "https://explorer.testnet.arc.io/tx/0xd874cd0c8f230a54bee660844aa88f19921f79f5454233151d3e447b22f2a172"
+      "tx": "0xef4a4f6dc72f8219d3d367588ebffaca361412a2d0a71b87b81a91a18a1aba3a",
+      "url": "https://explorer.testnet.arc.io/tx/0xef4a4f6dc72f8219d3d367588ebffaca361412a2d0a71b87b81a91a18a1aba3a"
     },
     {
       "step": "pull payment withdrawn",
       "status": "0x1",
-      "tx": "0xce4eb0059fbdbc71dc08ededcf8b5dca71362e21552bff370f1755508b8f1a10",
-      "url": "https://explorer.testnet.arc.io/tx/0xce4eb0059fbdbc71dc08ededcf8b5dca71362e21552bff370f1755508b8f1a10"
+      "tx": "0x7d5eb624da89aa9209d9db7a37543515e4633a9386635c523c1553245169e3d2",
+      "url": "https://explorer.testnet.arc.io/tx/0x7d5eb624da89aa9209d9db7a37543515e4633a9386635c523c1553245169e3d2"
     },
     {
       "step": "POLICY FIREWALL: over-budget award rejected by the contract",
       "status": "0x0",
-      "tx": "0xa749b830c25f57da6a5680fd9ffe3f64df60f159187c323d68af5cae5c2a9853",
-      "url": "https://explorer.testnet.arc.io/tx/0xa749b830c25f57da6a5680fd9ffe3f64df60f159187c323d68af5cae5c2a9853"
+      "tx": "0x18b8ebeeba7c0617b7d68541357fdc24e979d13cc579262a81206f8b2e98e8af",
+      "url": "https://explorer.testnet.arc.io/tx/0x18b8ebeeba7c0617b7d68541357fdc24e979d13cc579262a81206f8b2e98e8af"
     }
   ]
 }
