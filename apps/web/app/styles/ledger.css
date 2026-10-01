@@ -6049,32 +6049,37 @@ button.field-wallet {
   /*
    * Printing one document out of a page full of them.
    *
-   * `visibility` rather than `display`, because hiding ancestors with `display: none` would take
-   * the target down with them however visible it claims to be. Everything is hidden, the target
-   * and its contents are put back, and it is lifted to the top-left so it does not print after
-   * several pages of whitespace where the rest of the page used to be.
+   * `display: none`, not `visibility: hidden`. Hidden elements keep their space, so the first
+   * attempt printed a one-page invoice across six: five of them were the tender page's layout,
+   * blank but still occupying paper. Only removing them from flow removes the pages.
+   *
+   * That is possible here because the printable copy is portalled to `<body>` rather than left
+   * inside the panel — nothing that must stay visible has a hidden ancestor.
    */
-  body.printing-doc * {
-    visibility: hidden;
+  body.printing-doc > *:not(.print-sheet) {
+    display: none !important;
   }
-  body.printing-doc .print-target,
-  body.printing-doc .print-target * {
-    visibility: visible;
-  }
-  body.printing-doc .print-target {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-  }
-  /* The on-screen preview is a scrolling box; on paper it has to be the whole document. */
-  .proforma-doc {
-    max-height: none !important;
-    overflow: visible !important;
+  body.printing-doc .print-sheet {
+    display: block;
+    margin: 0;
+    padding: 0;
     border: none;
     background: #fff;
     color: #000;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    /* Grows onto a second page only if the text needs one. */
+    max-height: none;
+    overflow: visible;
   }
+}
+
+/* The portalled copy exists all the time so printing needs no round trip; it is only ever seen
+   on paper. */
+.print-sheet {
+  display: none;
 }
 
 /* Generated terms: the button sits above the box it fills. */

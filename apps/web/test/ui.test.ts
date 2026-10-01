@@ -24,15 +24,23 @@ describe("clickable affordances", () => {
 });
 
 describe("printing one document from a busy page", () => {
-  it("isolates the print target by visibility, not display", () => {
-    // `display: none` on ancestors would take the target down with them, however visible it
-    // declares itself. The visibility trick is what makes a nested element printable alone.
-    expect(css).toMatch(/body\.printing-doc \*\s*\{[^}]*visibility:\s*hidden/);
-    expect(css).toMatch(/body\.printing-doc \.print-target[^{]*\{[^}]*visibility:\s*visible/);
+  it("removes the rest of the page from flow rather than merely hiding it", () => {
+    // `visibility: hidden` keeps an element's space. The first attempt used it and printed a
+    // one-page invoice across six — five of them the tender page's layout, blank but still taking
+    // paper. Only `display: none` reclaims the height, which is why the printable copy is
+    // portalled out of the panel: nothing that must stay visible may have a hidden ancestor.
+    expect(css).toMatch(/body\.printing-doc > \*:not\(\.print-sheet\)\s*\{[^}]*display:\s*none/);
+    expect(css).not.toMatch(/body\.printing-doc \*\s*\{[^}]*visibility:\s*hidden/);
   });
 
-  it("lets the proforma grow past its on-screen scroll box when printed", () => {
-    // On screen it is a 280px preview. On paper a clipped customs document is worse than none.
-    expect(css).toMatch(/\.proforma-doc\s*\{[^}]*max-height:\s*none/);
+  it("keeps the printable copy off the screen and on the paper", () => {
+    expect(css).toMatch(/\.print-sheet\s*\{\s*display:\s*none/);
+    expect(css).toMatch(/body\.printing-doc \.print-sheet\s*\{[^}]*display:\s*block/);
+  });
+
+  it("lets the document run onto a second page only if its text needs one", () => {
+    const sheet = /body\.printing-doc \.print-sheet\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+    expect(sheet).toMatch(/max-height:\s*none/);
+    expect(sheet).toMatch(/overflow:\s*visible/);
   });
 });

@@ -2,7 +2,8 @@
 
 import { milestoneLedger } from "@/lib/milestones";
 import { type ProformaLine, buildProforma, formatUsdc, renderProforma } from "@sealedrfq/shared";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useAccount } from "wagmi";
 
 /**
@@ -70,6 +71,15 @@ export function Proforma({
   const [buyerName, setBuyerName] = useState("");
   const [buyerAddress, setBuyerAddress] = useState("");
   const [hsCodes, setHsCodes] = useState("");
+  /**
+   * Whether the DOM exists yet, for the portalled print copy below.
+   *
+   * Above the early return, with every other hook. Placed after it — which is where it started —
+   * the hook count changed the moment a third party opened the page, and React tore the tree down
+   * with error #310.
+   */
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const [validUntil, setValidUntil] = useState("");
   const [notes, setNotes] = useState("");
 
@@ -146,6 +156,16 @@ export function Proforma({
     window.addEventListener("afterprint", restore, { once: true });
     window.print();
   }
+
+  /*
+   * The printable copy lives at the top of `<body>`, not inside the panel.
+   *
+   * Hiding the page with `visibility` left every hidden element occupying its space, so the sheet
+   * stayed as tall as the whole tender page and a one-page invoice printed across six. Height is
+   * what had to go, and only `display: none` removes it — which cannot be used on the ancestors of
+   * something that must stay visible. Moving the copy out of that subtree solves both: the page
+   * collapses entirely, and the document is exactly as long as its own text.
+   */
 
   return (
     <div className="panel">
@@ -303,11 +323,17 @@ export function Proforma({
             </button>
           </div>
 
-          <div className="full print-target">
+          <div className="full">
             <pre className="memo proforma-doc" style={{ whiteSpace: "pre-wrap", fontSize: 12 }}>
               {text()}
             </pre>
           </div>
+
+          {mounted &&
+            createPortal(
+              <pre className="print-sheet">{text()}</pre>,
+              document.body,
+            )}
         </div>
       )}
     </div>
