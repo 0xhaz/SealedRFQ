@@ -1817,10 +1817,40 @@ The first instinct was to disable it as a public-procurement norm misapplied to 
 was wrong, and the correction is worth recording: **the cap polices exactly the abuse this project
 was built around** — someone with authority over a budget steering work to a favoured supplier.
 
-It works *because a buyer cannot opt out*. The policy is global, set by the operator, and once
-`ADMIN_ROLE` is renounced it is permanent. A rogue buyer cannot relax it for themselves. That is a
-stronger guarantee than any procurement suite offers, and throwing it away to unblock a demo would
-have traded the product's purpose for convenience.
+What it does, stated at the size it actually is — the first draft of this section overclaimed and
+the correction matters more than the claim did.
+
+**A buyer cannot relax the rule.** The policy is global, set only by `ADMIN_ROLE`, and every
+`award()` passes through `checkAward`. There is no per-tender flag and no way to point the registry
+at a different policy. Once both admin roles are renounced the values are frozen for the life of the
+deployment — nobody can change them, including us. That part is real and is genuinely unusual:
+enterprise suites are buyer-licensed, so the buyer's own administrator configures the limits and can
+lift them with a click. **Here the rule-setter and the rule-subject are different parties, and after
+renunciation the rule-setter no longer exists.**
+
+**But the rule is keyed on an address, and anyone may post a tender.**
+
+```solidity
+mapping(address buyer => uint256) public buyerAwardedTotal;
+```
+
+`createRFQ` has no qualification gate — that exists only for bidders. So a buyer who wants to
+concentrate posts the next tender from a fresh wallet and their history resets to zero. The cap
+binds whoever keeps one address, which is the buyer building a track record, and does not bind
+whoever is determined to evade it. For an anti-corruption control that is close to backwards.
+
+**What survives is that evasion is visible.** Rotating wallets is on-chain, permanent, and destroys
+the award history a legitimate buyer wants to accumulate. In a procurement suite the equivalent move
+is an administrator editing a setting, in a log their own organisation controls. So the honest claim
+is **harder to evade, and the evasion is evidence** — not prevented.
+
+Making it genuinely binding needs buyer identity, which is §6h's dormant `requiresQualification`
+hook applied to the buyer side rather than the bidder side. That is a separate piece of work and
+should not be smuggled into a parameter change.
+
+Keep it, calibrate it, and describe it as raising the cost and visibility of funnelling. Throwing it
+away to unblock a demo would have traded the product's purpose for convenience; claiming it prevents
+abuse would trade accuracy for a better sentence.
 
 What it needs is calibration, not removal.
 

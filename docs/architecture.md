@@ -108,6 +108,15 @@ Faktura's win came from its *agent governance* pattern, not the factoring produc
 
 ### Port — high payoff, directly serves Arc judging criteria
 1. **"AI proposes, the contract disposes" → `ProcurementPolicy`.** On-chain, admin-set, enforced in `award()` / `releaseMilestone()`: max award vs. published budget, min bidder count, bond-to-bid ratio (bps), hash of the published scoring rubric, award window, per-supplier concentration cap. AI evaluator scores bids off-chain; contract reverts with typed errors (`AwardExceedsBudget`, `InsufficientBidders`, `RubricMismatch`) if violated. Demo preset: **"Policy firewall"** — AI recommends an over-budget award, contract reverts, failed tx linked. Framed as *anti-corruption by construction*.
+
+> **Correction, 2026-10-01 — see workplan §6n.** That framing is sound for the checks that bind a
+> *tender* (budget cap, minimum bidders, deposit ratio, rubric match): those cannot be evaded,
+> because they are evaluated against the tender in front of them. It is an overclaim for the
+> **concentration cap**, which is keyed on the buyer's address while `createRFQ` is open to anyone —
+> so a buyer wanting to funnel work simply posts from a fresh wallet. What survives is that doing so
+> is on-chain, permanent and destroys the track record a legitimate buyer wants. Describe it as
+> raising the cost and visibility of funnelling, not as preventing it. Making it bind needs buyer
+> identity, which is a separate piece of work.
 2. **Attestation log for every AI decision.** `attest(actor, kind, subjectId, payloadHash, model, ts)` — SHA-256 of each bid-evaluation memo and the award justification anchored on Arc, for approvals *and* rejections. Tamper-proof "why this supplier won" audit trail — the ePerolehan/transparency narrative with teeth. Provide a `verifyDecisionHash` path (re-hash memo, compare on-chain).
 3. **Least-privilege agent keys (roles).** `EVALUATOR` (scores + attests; cannot award), `AWARDER` (awards within policy only), `VERIFIER` (confirms milestones; can only release, never award or refund bonds), `ADMIN` (rotates keys, sets policy). Typed errors on every mutating entrypoint.
 4. **Evidence pack + Judge Mode.** Reuse the `DORAHACKS.md` pattern: one explorer-linkable Arc mainnet tx per lifecycle step (create → commit → reveal → attest → award → bond refund → milestone release → policy revert). Live "judge mode" presets with small-capped, budgeted demo keys; safe showcase as fallback. Arc's sub-second finality makes live mode far snappier than Casper's 30–120 s blocks.
