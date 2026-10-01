@@ -84,7 +84,13 @@ through in one sitting — minutes, not days — and is not a tender anyone shou
 price: a day for something off a shelf, a week or two for anything that needs quoting from a
 factory.
 
-**Revealing closes.** Sealed tenders only in spirit — the window exists either way. Every bidder
+**Revealing closes.** **On an open tender this window is dead time.** Nothing is revealed — every
+price was public as it arrived — but the contract still requires the deadline and scoring still
+waits for it, so the tender sits fully decided and unscoreable until it passes. The form offers to
+shorten it to a few minutes when you choose open; take the offer, because paying for a faster
+evaluation will not help, and nothing about the wait protects anybody.
+
+On a sealed tender the window is the point. The rest of this applies there: Every bidder
 must return and reveal in this window or forfeit their deposit. **Do not make it tight.** An hour
 is fine for people watching for it; overnight is kinder and costs you nothing. The commonest cause
 of a forfeited deposit is a reveal window that closed while someone slept.

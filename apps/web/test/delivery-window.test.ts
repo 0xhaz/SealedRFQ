@@ -40,3 +40,29 @@ describe("a bid can express any window a buyer can set", () => {
     expect(toSeconds(demo!.windows.accept[0], demo!.windows.accept[1])).toBeLessThan(3600);
   });
 });
+
+/**
+ * An open tender reveals nothing — `placeOpenBid` marks a bid revealed as it lands — but the
+ * contract still demands `bidDeadline < revealDeadline`, and both evaluation paths wait for it.
+ * The window is therefore dead time on the one mode chosen for speed, and the form offers to
+ * shorten it rather than leaving a buyer to discover the delay after posting.
+ */
+describe("the reveal window in open mode", () => {
+  it("still has to exist, so it can only be shortened and not removed", () => {
+    // `_validate` rejects revealDeadline == bidDeadline, so the form cannot offer zero.
+    const FIVE_MINUTES = 5 * 60;
+    expect(FIVE_MINUTES).toBeGreaterThan(0);
+  });
+
+  it("is worth shortening on a real timetable and not on a demo one", () => {
+    // The offer is gated at fifteen minutes. Every preset a buyer would actually use has a reveal
+    // window far above that — hours or a day of nothing — while Demo's ten minutes is beneath
+    // mentioning. If a real preset ever dropped below the threshold the offer would silently stop
+    // appearing, which is the failure this guards.
+    const gap = (p: (typeof PRESETS)[number]) => (p.offsets[1] - p.offsets[0]) * 60;
+    for (const p of PRESETS.filter((x) => x.label !== "Demo")) {
+      expect(gap(p), `${p.label} reveal window`).toBeGreaterThan(15 * 60);
+    }
+    expect(gap(PRESETS.find((p) => p.label === "Demo")!)).toBeLessThanOrEqual(15 * 60);
+  });
+});

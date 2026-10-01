@@ -39,6 +39,10 @@ record that this tender's prices were visible, because it cannot claim otherwise
 can watch each other to cut a price can also watch each other to *hold* one, which a sealed round
 makes impossible.
 
+One practical wrinkle: an open tender still carries a reveal window, and nothing uses it. Scoring
+waits for that deadline whichever mode you chose, so on an open tender the round sits decided and
+unscoreable until it passes. Shorten it when you post — the form offers to.
+
 ## The figures
 
 **Budget.** The most you will pay. The contract refuses an award above it, so this is a limit rather

@@ -4,7 +4,7 @@ import { LineItemsEditor } from "@/components/LineItemsEditor";
 import { WalletChip } from "@/components/WalletChip";
 import { agent, uploadDocument } from "@/lib/agent";
 import { chain, contracts, explorerTx } from "@/lib/chain";
-import { type Deadlines, PRESETS, applyPreset, checkDeadlines, toUnix } from "@/lib/deadlines";
+import { type Deadlines, PRESETS, applyPreset, checkDeadlines, toUnix, toLocalInput} from "@/lib/deadlines";
 import { hashFile } from "@/lib/docHash";
 import { checkMilestones, milestoneLedger } from "@/lib/milestones";
 import { DURATION_UNITS, type DurationUnit, MIN_DELIVERY_SECONDS, toSeconds } from "@/lib/duration";
@@ -155,6 +155,13 @@ export function NewRfqForm() {
   }, [config]);
 
   const split = checkMilestones(milestones);
+
+  /** How long the reveal window runs. Dead time in open mode; the point of the thing in sealed. */
+  const revealGapSeconds = (() => {
+    const bid = toUnix(deadlines.bid);
+    const reveal = toUnix(deadlines.reveal);
+    return bid && reveal ? reveal - bid : 0;
+  })();
 
   /*
    * The escrow's platform fee, read live. A tender's terms are hashed when it opens, so the clause
@@ -498,6 +505,32 @@ export function NewRfqForm() {
                 Suppliers who can watch each other to undercut can also watch each other to{" "}
                 <i>hold</i> a price, which a sealed round makes impossible. For anything
                 contestable, or where you may have to show the award was fair, use sealed.
+              </div>
+            )}
+            {/*
+              An open tender reveals nothing — `placeOpenBid` marks a bid revealed as it lands — but
+              the contract still requires a reveal deadline and both evaluation paths wait for it.
+              So the window is dead time on the one mode chosen for speed. Offered rather than
+              applied: these are the buyer's dates, and silently rewriting one they set is worse
+              than telling them what it costs.
+            */}
+            {bidMode === "open" && revealGapSeconds > 15 * 60 && (
+              <div className="note">
+                <b>Your reveal window is {describeWindow(revealGapSeconds)} of dead time.</b> An
+                open tender has nothing to reveal — every price is public as it arrives — but
+                scoring still waits for this deadline, so the tender sits fully decided and
+                unscoreable until it passes.{" "}
+                <button
+                  type="button"
+                  className="linklike"
+                  onClick={() => {
+                    const bid = toUnix(deadlines.bid);
+                    if (bid) setDeadlines({ ...deadlines, reveal: toLocalInput(bid + 5 * 60) });
+                  }}
+                >
+                  Shorten it to five minutes
+                </button>
+                .
               </div>
             )}
           </fieldset>

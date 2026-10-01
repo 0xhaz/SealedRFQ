@@ -991,6 +991,43 @@ is the product's identity. On open tenders it is redundant — an agent that wan
 simply bid one. Revisit only if scope variation is taken on, and then as a variation-order
 mechanism, not as chat.
 
+### An open tender waits out a reveal window it never uses (found 2026-10-01)
+
+Surfaced by asking whether x402 behaves differently across the two modes. It does not — same
+endpoint, same price, same memo, same 402 terms. The asymmetry is underneath it, and it costs open
+tenders the one thing they are chosen for.
+
+`RFQRegistry._validate` requires `bidDeadline < revealDeadline < awardDeadline` for **every**
+tender. On an open tender `placeOpenBid` sets `b.revealed = true` as the bid lands, so there is
+nothing to reveal — but the phase machine still passes through `Phase.Reveal`, and both evaluation
+paths wait for `revealDeadline`:
+
+- the scheduler selects on `revealDeadline <= now`
+- `evaluateAndAttest` refuses before it (§6m's guard)
+
+So between bidding closing and the reveal window expiring, an open tender is **fully determined and
+cannot be scored**. Every price is public, every bid final, the winner arithmetically decided, and
+nothing can happen. Paying over x402 does not shorten it: the guard is about the window, not about
+payment. On the 2-week preset that is a full day of dead time on a tender picked for speed.
+
+**The guard is not the thing to change.** The integrity reason holds in open mode and arguably
+harder — bidders can watch each other there, so a buyer able to buy an early evaluation could wait
+for a favourable moment, anchor a recommendation naming whoever leads, and award before anyone
+responded. §6m's reasoning applies unchanged.
+
+**The deadline is the thing to change**, in two steps of very different cost:
+
+1. **Free, in the form.** When `bidMode === "open"`, the presets should offer a reveal window of
+   minutes rather than the day or six hours they currently give. It protects nothing, and a buyer
+   has no reason to want it. No contract change; the contract will accept any ordering that keeps
+   `bidDeadline < revealDeadline`.
+2. **Contract-level, for the bundle.** Allowing `revealDeadline == bidDeadline` in open mode would
+   remove the gap entirely. `_validate` rejects that today. Worth doing only alongside something
+   else that needs a redeploy — the saving over step 1 is seconds.
+
+Recorded rather than built: step 1 is a presets change and belongs with whatever else touches that
+form, and step 2 is redeploy-gated.
+
 ### Position (revised 2026-09-24 — deadline pressure lifted)
 
 Sealed stays the **default and the identity**. Escrow with milestones is a crowded space and §6c
