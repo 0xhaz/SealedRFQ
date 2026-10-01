@@ -627,7 +627,12 @@ authority.** After any deploy, read `broadcast/Deploy.s.sol/<chainId>/run-latest
       renounced. `maxSupplierShareBps` must exceed 50% or ordinary purchasing is blocked;
       `concentrationFloor` must exceed the largest plausible first tender. Simulate one and confirm
       it passes before renouncing anything
-- [ ] `setPlatformFee(rate, treasury)` at the rate decided in §6e — treasury address confirmed twice
+- [ ] **Launch at `platformFeeBP = 0`** and keep the admin roles through the grant decision (§6e's
+      sequencing). The fee cannot fund $35/month hosting at any realistic early volume, so there is
+      nothing to buy by setting it early and a quarter of real tender sizes to gain by waiting
+- [ ] *Later, once:* `setPlatformFee(rate, treasury)` at **0.25% with a $250 cap** per §6e —
+      treasury address confirmed twice, and note a cap needs a contract change the percentage alone
+      does not
 - [ ] Confirm `evaluatorFeeBP` is `0` and will stay there (stuck-funds bug, §6e)
 - [ ] Renounce **both** `ADMIN_ROLE` and `DEFAULT_ADMIN_ROLE` on AgenticCommerce, in that order, and
       read both back as false — renouncing only the first leaves the second able to grant it back
@@ -788,6 +793,94 @@ the one they bid on.
 Surfaced conditionally, so a zero fee shows nothing anywhere: bid page warning, a `Fee` column in
 the milestone ledger, clause 3a in the generated terms, and all five published docs. `platformFeeBP`
 is 0 on this deployment and `evaluatorFeeBP` must stay 0 for the stuck-funds reason above.
+
+### The arithmetic behind the rate, and the models declined (2026-10-01)
+
+§6e settled the *mechanism* — a rate set once, then frozen by renouncing both admin roles. What it
+lacked was the number and the reasoning for it. Measured rather than estimated, against Arc mainnet
+gas at 22.36 gwei.
+
+**What this costs to run.**
+
+| | |
+|---|---|
+| Contract deploy + configure, mainnet | **0.23 USDC**, one-off (measured from the testnet broadcast receipts: 10,079,251 gas) |
+| Per tender, borne by us | **0.0022 USDC** — one attestation. Everything else is paid by whoever sends it |
+| Railway + Vercel + domain | **$35.25/month** |
+
+Costs barely move with volume, so almost all revenue is margin and the whole question is what the
+rate should be rather than whether it covers anything.
+
+**Profit on a plausible mix** — 45% at $2k, 35% at $8k, 15% at $25k, 5% at $120k:
+
+| tenders/mo | GMV | flat 0.25% | taper, cap $250 | fixed $10 |
+|---|---|---|---|---|
+| 5 | $67k | **+$116** | +$111 | +$15 |
+| 25 | $336k | +$721 | +$696 | +$215 |
+| 100 | $1.3M | +$2,991 | +$2,891 | +$965 |
+
+**Profitable at five tenders a month.** Break-even is $15,700 of monthly tender value at 0.25%, or
+$39,000 at 0.1% — or, for a fixed fee, 3.5 tenders a month, which is the honest shape given the
+cost is per-tender rather than per-dollar.
+
+**Recommended: 0.25% with a $250 cap.** Below roughly $110k the cap never binds, so it is simply the
+flat rate for every tender realistically expected — it costs nothing in the near term and buys a
+sentence a large supplier will want: *this will never cost more than $250*. Two numbers to freeze
+rather than five.
+
+Note a **fixed dollar fee is not possible today**: `AgenticCommerce` holds `platformFeeBP`, a
+percentage applied uniformly. A per-tender amount needs a contract change — free before mainnet,
+impossible after renunciation.
+
+#### Rising tiers: declined
+
+A schedule rising with tender value (0.1% to $5k, 0.5% to $10k, and so on) fails on four counts.
+
+**It invites splitting.** With the rate applied to the whole value, a $5,001 tender pays $25 where
+$4,999 pays $5 — twenty dollars for two of value. A $10,000 purchase run as two $4,999 tenders pays
+$10 instead of $100, a 90% saving for fragmenting a purchase. That is worse than lost revenue: it
+makes tenders less competitive and repeats the evasion pattern that already weakens §6n's
+concentration cap. Marginal brackets would remove the cliff; the rest of the objection survives.
+
+**The supplier pays, so rising rates are inverted.** The fee comes out of the milestone payment. At
+the top tier a supplier on a $1M tender surrenders 1% of everything they receive while one on a $5k
+tender gives up $5 — the schedule tells suppliers that the larger the job, the worse the terms, and
+pushes the best of them away from the most valuable tenders. Marketplaces taper for this reason.
+
+**Our cost does not vary with size.** One attestation, 0.0022 USDC, whether the tender is $1,000 or
+$1,000,000. A rising rate is value capture, which is a legitimate choice but has to be argued as one
+— harder when the payer is the supplier rather than the buyer.
+
+**It multiplies what becomes permanent.** One rate chosen without traction is already a blind
+commitment; a schedule is four or five numbers, each frozen forever by the renunciation that makes
+the fee claim worth anything.
+
+#### Subscription: declined
+
+Procurement is episodic. A buyer must run a tender **every three weeks** before a $29 seat beats
+0.25% on a $10k tender; at four purchases a year a subscription costs them $87 per tender against
+$22.50. They would respond rationally — subscribe for the month they are buying, cancel after —
+which yields barely more than a transaction fee for a relationship that has to be re-sold each time.
+
+**The decisive objection is architectural, not arithmetic.** Monthly billing needs an identity, a
+stored payment method, dunning and a record of who is buying what. §6k declined email notifications
+for exactly that reason: *accounts, passwords and a database of who is buying what is a larger thing
+to trust than the contracts are.* A transaction fee needs none of it — the contract takes its cut at
+settlement, nobody signs up, and there is nothing to cancel. It fits episodic use because it charges
+only when there is a transaction to charge against.
+
+Where subscription *would* fit is not the buyer. Suppliers are the side with continuous engagement,
+but §6h found charging them for network access is precisely what makes Ariba resented, and a thin
+market cannot afford to deter the side it most needs. The hosted agent is already subscription-
+shaped and sells to an organisation running its own deployment — a different product, a different
+customer, and no escrow.
+
+#### Sequencing
+
+None of this is urgent at $35/month. **Launch at zero, keep the keys through the grant decision
+(§7), observe real tender sizes for a quarter, then set the rate and renounce once.** The figures
+above are the decision to be made *then*, with data — the modelling exists so that decision is quick
+rather than so it can be made now.
 
 ### Does the evaluator need a model? Mostly no — and `mock` is a misleading name
 
