@@ -2,7 +2,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { hashCanonical } from "@sealedrfq/shared";
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 // The db module reads DATABASE_URL when it is first imported, so point it at a scratch file first.
 process.env.DATABASE_URL = `file:${join(mkdtempSync(join(tmpdir(), "sealedrfq-")), "test.db")}`;
@@ -317,5 +317,26 @@ describe("evaluator scoring", () => {
     seedBid(12, S2, "2950000", 14);
 
     await expect(evaluator.evaluateAndAttest(12)).rejects.not.toThrow(/still revealing/i);
+  });
+});
+
+describe("what the attestation says scored the bids", () => {
+  it("records the deterministic scorer, because that is what ran", async () => {
+    // The model id is anchored on-chain and is therefore permanent. It used to be whatever
+    // `LLM_PROVIDER` was set to, written verbatim — so a model that was never called could be
+    // named against a decision made by arithmetic, for ever.
+    const { EvaluatorService } = await import("../src/modules/evaluator/evaluator.service.js");
+    expect(EvaluatorService.modelId()).toBe("deterministic-rubric-v1");
+  });
+
+  it("refuses to start under a provider name nothing implements", async () => {
+    const before = process.env.LLM_PROVIDER;
+    process.env.LLM_PROVIDER = "claude-opus-5";
+    vi.resetModules();
+    await expect(import("../src/modules/evaluator/evaluator.service.js")).rejects.toThrow(
+      /not implemented/i,
+    );
+    process.env.LLM_PROVIDER = before;
+    vi.resetModules();
   });
 });

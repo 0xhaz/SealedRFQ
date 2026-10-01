@@ -31,12 +31,29 @@ const DEFAULT_RUBRIC: Rubric = { price: 50, delivery: 30, quality: 20 };
  * Must fit in 31 bytes: the AttestationLog stores it as a `bytes32`.
  */
 const DETERMINISTIC = "deterministic-rubric-v1";
-const MODEL =
-  !process.env.LLM_PROVIDER ||
-  process.env.LLM_PROVIDER === "mock" ||
-  process.env.LLM_PROVIDER === "rubric"
-    ? DETERMINISTIC
-    : process.env.LLM_PROVIDER;
+
+/**
+ * What scored the bids, recorded in the attestation and therefore permanent.
+ *
+ * It used to accept any string and write it verbatim, so `LLM_PROVIDER=claude-opus-5` would anchor
+ * "claude-opus-5" against a decision made by arithmetic — a model that was never called, named
+ * on-chain, for ever, by the one system whose argument is that claims should be checkable. No
+ * provider is implemented: there is no SDK in `package.json`, no API key is read and no request is
+ * made anywhere.
+ *
+ * So anything other than the deterministic scorer is refused at startup rather than mislabelled at
+ * attestation time. When a provider is genuinely wired in, this is the line that admits it.
+ */
+const ACCEPTED = new Set(["", "mock", "rubric", DETERMINISTIC]);
+const RAW = process.env.LLM_PROVIDER ?? "";
+if (!ACCEPTED.has(RAW)) {
+  throw new Error(
+    `LLM_PROVIDER="${RAW}" names a provider that is not implemented. The evaluator scores ` +
+      "deterministically and calls no model, so recording that name in an attestation would be " +
+      `false. Unset it, or use "rubric".`,
+  );
+}
+const MODEL = DETERMINISTIC;
 
 /**
  * Scores revealed bids against the rubric the buyer published *before* bidding opened.

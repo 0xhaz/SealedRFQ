@@ -146,6 +146,14 @@ Faktura's win came from its *agent governance* pattern, not the factoring produc
 
 - **Commit-reveal sealed bids are in the MVP.** `SealedBid` is small and self-contained (`commit(hash)`, `reveal(price, days, salt)`, forfeit on no-reveal) and is the headline privacy hook. Open-bid fallback remains the late-stage panic switch only.
 - **Evaluator: mock-first, LLM swap-in.** Scorer sits behind `score(rfq, bids, rubric) → memo`; deterministic rubric scorer proves the contract + attestation path; Anthropic/OpenAI key plugs in for the demo video. Decide which the video shows on ~Oct 5.
+
+> **Resolved, 2026-10-01 — the swap-in is not happening, and that is the stronger answer.** §6e
+> concluded the deterministic scorer is not a placeholder but the point: a decision worth money
+> should be one a losing supplier can recompute, and a model that answers differently on a second
+> run cannot be checked at all. No provider SDK is installed, no API key is read, and no request is
+> made. `LLM_PROVIDER` now refuses anything but the deterministic scorer at startup — previously it
+> wrote whatever string it was given into the attestation, so a model that never ran could be named
+> on-chain permanently.
 - **Wallet: MetaMask with custom Arc network first.** Circle Wallets (embedded) only if week 3 is calm — scores "uses Circle products" and avoids the USDC-as-gas symbol warning.
 - **ERC-8183: write our own minimal `AgenticCommerce` from the spec** (~200 lines) rather than pull a reference implementation — draft-status standards have divergent implementations; we control the hook surface.
   - *Revised 2026-09-20:* Arc's own testnet ERC-8183 deployment (`0x0747EE…4583`, verified) turned out to be the EIP's reference implementation. We now **port that reference, ABI-identical**, so Arc tooling decodes our instance the same way. Deltas: not upgradeable; `setBudget` callable by client or provider (EIP text). The adapter is each job's client + **evaluator** + hook, which is what makes on-chain auto-release possible.
