@@ -622,6 +622,11 @@ authority.** After any deploy, read `broadcast/Deploy.s.sol/<chainId>/run-latest
 `eth_getCode` returns bytecode at each address, and only then trust the JSON.
 
 **Mainnet, before the first real tender:**
+- [ ] **`setPolicy` with calibrated concentration values (§6n).** Shipping today's figures would
+      make every buyer's first purchase above 100 USDC revert, permanently once `ADMIN_ROLE` is
+      renounced. `maxSupplierShareBps` must exceed 50% or ordinary purchasing is blocked;
+      `concentrationFloor` must exceed the largest plausible first tender. Simulate one and confirm
+      it passes before renouncing anything
 - [ ] `setPlatformFee(rate, treasury)` at the rate decided in §6e — treasury address confirmed twice
 - [ ] Confirm `evaluatorFeeBP` is `0` and will stay there (stuck-funds bug, §6e)
 - [ ] Renounce **both** `ADMIN_ROLE` and `DEFAULT_ADMIN_ROLE` on AgenticCommerce, in that order, and
@@ -1787,6 +1792,90 @@ never as a *privilege* one. It was the only endpoint that skipped a check the sc
 that asymmetry is what made it exploitable — not the payment. Any future endpoint that produces an
 attestation needs the same question asked of it: **what can this reach that the scheduled path
 cannot?**
+
+---
+
+## 6n. The concentration cap blocks every real first purchase (found 2026-10-01)
+
+Found by working through a $10,000 example. Simulated against the live policy, it reverts:
+
+```
+ConcentrationCapExceeded(shareBps: 10000, maxBps: 4000)
+```
+
+**Any first award above `concentrationFloor` is impossible.** The rule caps one supplier at 40% of
+a buyer's *cumulative* awarded value, and applies once that total passes the floor — 100 USDC. On a
+first award the share is always 100%. The demos never hit it because they awarded 2.80 USDC, below
+the floor.
+
+To award $10,000 to one supplier today, a buyer would first need roughly $15,000 of prior awards to
+*other* suppliers. No real buyer's first purchase clears that.
+
+### Keep the mechanism — it is one of the reasons this exists
+
+The first instinct was to disable it as a public-procurement norm misapplied to private B2B. That
+was wrong, and the correction is worth recording: **the cap polices exactly the abuse this project
+was built around** — someone with authority over a budget steering work to a favoured supplier.
+
+It works *because a buyer cannot opt out*. The policy is global, set by the operator, and once
+`ADMIN_ROLE` is renounced it is permanent. A rogue buyer cannot relax it for themselves. That is a
+stronger guarantee than any procurement suite offers, and throwing it away to unblock a demo would
+have traded the product's purpose for convenience.
+
+What it needs is calibration, not removal.
+
+### What the numbers say
+
+Modelled over repeated $10k awards, comparing the pattern the cap exists to catch against ordinary
+purchasing:
+
+| floor | cap | abuse blocked at | buyer gives one supplier half their work |
+|---|---|---|---|
+| 100 | 40% | award #1 | **blocked at #1** |
+| 25,000 | 40% | #3 | **blocked at #3** |
+| 50,000 | 40% | #5 | **blocked at #5** |
+| 50,000 | 60% | #5 | never blocked |
+| 100,000 | 60% | #10 | never blocked |
+
+Two findings:
+
+**The share cap must exceed 50%.** At 40% a buyer who gives one supplier half their work — entirely
+normal, and the usual shape of a preferred-supplier relationship — is blocked. A cap that cannot
+tell favouritism from a good supplier is not policing abuse, it is policing commerce.
+
+**The floor is an abuse budget, and should be named as one.** It is the concentration permitted
+before the rule engages, and it cannot be zero: a first award is always 100% concentrated, so there
+is no pattern to detect yet. The only question is how much value passes before the mechanism starts.
+
+**Recommended: `concentrationFloor` 50,000 USDC, `maxSupplierShareBps` 6000.** Catches sustained
+funnelling from the fifth award while never obstructing a buyer spreading work normally. Both
+figures assume tenders in the $10k range — a deployment expecting $100k tenders wants the floor
+scaled with them, or a first purchase is blocked again.
+
+### The structural fix, which is free only until mainnet
+
+Measuring the exemption in **value** is what couples the cap to tender size and forces the floor to
+be guessed against an unknown market. Measuring it in **award count** — "the cap applies from a
+buyer's third award" — decouples it entirely: a first purchase of any size passes, and a pattern is
+only judged once there is one to judge.
+
+That needs a counter per buyer, which is a storage change and therefore a redeploy. **Pre-mainnet
+that costs 0.23 USDC and nothing else.** After renunciation it is impossible, because the policy
+freezes with the role.
+
+### Do not get this wrong on mainnet
+
+`setPolicy` dies with `ADMIN_ROLE`, and §6e's whole pricing decision turns on renouncing it. So
+these values are permanent from that moment. Before renouncing:
+
+- [ ] `maxSupplierShareBps` above 50%, or normal purchasing is blocked forever
+- [ ] `concentrationFloor` scaled to the tender sizes actually expected
+- [ ] Decide on count-based exemption while a redeploy is still free
+- [ ] Simulate a first award at the largest plausible tender value and confirm it passes
+
+The related `agentAwardCap` is a different parameter and is **correct at 100 USDC**: it bounds what
+an agent may award unattended, and a large tender needing a human signature is the intended
+behaviour, not a limitation.
 
 ---
 
