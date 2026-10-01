@@ -622,6 +622,11 @@ authority.** After any deploy, read `broadcast/Deploy.s.sol/<chainId>/run-latest
 `eth_getCode` returns bytecode at each address, and only then trust the JSON.
 
 **Mainnet, before the first real tender:**
+- [ ] **Run `./script/preflight-policy.sh <largest first tender>` and have it pass.** The policy is
+      entirely env-driven in `Deploy.s.sol`, so calibration needs no code change — but the defaults
+      are the testnet values and they fail the check. §6n's recommended mainnet settings are in
+      `.env.example`: `POLICY_MAX_SUPPLIER_SHARE_BPS=6000`,
+      `POLICY_CONCENTRATION_FLOOR=250000000000` ($250k)
 - [ ] **`setPolicy` with calibrated concentration values (§6n).** Shipping today's figures would
       make every buyer's first purchase above 100 USDC revert, permanently once `ADMIN_ROLE` is
       renounced. `maxSupplierShareBps` must exceed 50% or ordinary purchasing is blocked;
@@ -2099,6 +2104,19 @@ answers.
 3. **Rolling review with a fixed pool.** Submitting early has real value beyond comfort — slots may
    go as they are reviewed. The bar is *"something real that runs"* and *"promise counts for more
    than traction"*, so submit when it genuinely works, not when it is complete.
+**No contract drift as of 2026-10-02.** The only change to `contracts/src` since the live testnet
+deploy is `a3646bb` (delivery in seconds), committed at 10:20 and deployed at 11:00 the same
+morning — so the testnet contracts *are* the current source, and mainnet would deploy exactly what
+has been exercised. Re-run this check before deploying: `git log --oneline <deploy-commit>..HEAD --
+contracts/src` should be empty or already-deployed.
+
+**The two contract changes §6n and §6e flagged as "free before mainnet" are deliberately not in
+this deploy.** Count-based concentration exemption and a fee cap would both be *untested* contract
+code going straight to a chain with real money, which is the rule §7 exists to enforce. Deploy the
+exercised contracts, do not renounce (§7 says not before 21 Oct anyway), and decide on those two
+while a redeploy is still cheap — which it is until the first real mainnet tender, not until
+renunciation.
+
 4. **The bundle does not go to mainnet.** Earlier sequencing said one bundled redeploy carrying open
    mode, §6b and gap 4. That was written when the schedule was not binding and mainnet was optional.
    It is now reversed: **deploy to mainnet only what has been walked end to end on testnet.**
@@ -2152,8 +2170,8 @@ add a second service before the post-grant bundle, not now.
 
 ### Order of work
 
-- [ ] **Walk the current testnet deployment end to end.** Nothing else counts until what is already
-      live is known to work — first real exercise of receipt confirmation, transit windows,
+- [x] **Walked the current testnet deployment end to end — done 2026-10-02, no issues.** First real
+      exercise of receipt confirmation, transit windows, extensions and compensatory settlement — first real exercise of receipt confirmation, transit windows,
       extensions and compensatory settlement
 - [x] **Stale Railway build — fixed 2026-09-26.** `$AGENT/meta` had reported `RFQRegistry`
       `0xb727F5A8…` (the *second* deploy, `d632a7e`); it now reports `0x0D414d45…` from the third
