@@ -1852,6 +1852,36 @@ funnelling from the fifth award while never obstructing a buyer spreading work n
 figures assume tenders in the $10k range — a deployment expecting $100k tenders wants the floor
 scaled with them, or a first purchase is blocked again.
 
+### At $100k and above the floor stops working as a floor
+
+Tested on-chain. A first award is refused whenever it **reaches** the floor, because a first award
+is always 100% concentrated:
+
+| first award | floor | result |
+|---|---|---|
+| $100k | $50k | **blocked** |
+| $100k | $250k | passes |
+| $1M | $250k | **blocked** |
+
+So `concentrationFloor` is not only an abuse budget. It is simultaneously a **ceiling on first
+purchases**, and the two readings pull in opposite directions: admitting a $1M first tender needs a
+floor above $1M, which permits $1M of funnelling to one supplier before the cap engages. One number
+cannot serve both, and the larger the tenders a deployment expects, the more useless the mechanism
+becomes at the thing it is for.
+
+That is not a calibration problem. It is the value-based exemption being the wrong shape.
+
+### Other things that bite at that size, none of them bugs
+
+- **Bid deposit at 5% is $5,000 on a $100k tender**, per bidder, held until reveal. That is a
+  serious barrier to bidding and will thin the field — which also pushes against
+  `minRevealedBids`. A buyer wanting competition on a large tender should lower `depositAmount`
+  deliberately rather than leave it proportional.
+- **The buyer escrows budget plus stake before anyone bids** — $105,000 liquid on a $100k tender,
+  committed from posting. §6h already names this as the structural objection to enterprise
+  adoption; at this size it is the dominant one.
+- **`agentAwardCap` at 100 USDC means a human signs.** Correct and intended.
+
 ### The structural fix, which is free only until mainnet
 
 Measuring the exemption in **value** is what couples the cap to tender size and forces the floor to
@@ -1862,6 +1892,12 @@ only judged once there is one to judge.
 That needs a counter per buyer, which is a storage change and therefore a redeploy. **Pre-mainnet
 that costs 0.23 USDC and nothing else.** After renunciation it is impossible, because the policy
 freezes with the role.
+
+**The $100k finding makes this the recommendation rather than an option.** A count-based exemption
+has no ceiling property at all: a first purchase of any size passes because there is no pattern
+yet, and concentration is judged from the Nth award regardless of what the tenders are worth. It
+removes the conflict instead of balancing it, and it stops the policy needing to be guessed against
+a market nobody has seen.
 
 ### Do not get this wrong on mainnet
 

@@ -89,4 +89,30 @@ contract ConcentrationTest is Test {
         );
         _check(p, 10_000e6, 50_000e6, 50_000e6);
     }
+
+    /**
+     * The floor is not only an abuse budget — it is a **ceiling on first awards**.
+     *
+     * A first award is always 100% concentrated, so it is refused whenever it reaches the floor.
+     * Raising the floor to admit a larger first purchase raises, by exactly the same amount, how
+     * much may be funnelled to one supplier before the cap engages. The two purposes pull against
+     * each other and cannot both be satisfied by one number.
+     */
+    function test_100k_first_award_with_50k_floor() public {
+        // Deploy first: vm.expectRevert binds to the very next call, and `new` is a call.
+        ProcurementPolicy p = _policy(50_000e6, 6_000);
+        vm.expectRevert(abi.encodeWithSelector(
+            IProcurementPolicy.ConcentrationCapExceeded.selector, 10_000, 6_000));
+        _check(p, 100_000e6, 0, 0);
+    }
+    function test_100k_first_award_with_scaled_floor() public {
+        _check(_policy(250_000e6, 6_000), 100_000e6, 0, 0); // no revert
+    }
+    function test_one_million_first_award_with_scaled_floor() public {
+        // A floor below the award is a floor that does not exempt it: 1M >= 250k, share 100%.
+        ProcurementPolicy p = _policy(250_000e6, 6_000);
+        vm.expectRevert(abi.encodeWithSelector(
+            IProcurementPolicy.ConcentrationCapExceeded.selector, 10_000, 6_000));
+        _check(p, 1_000_000e6, 0, 0);
+    }
 }
