@@ -215,7 +215,7 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
             )}
           </div>
 
-          <Payouts />
+          <Payouts buyer={rfq.buyer} supplier={engagement?.supplier} />
 
           <EvaluationPanel rfqId={id} evaluation={evaluation} audit={audit} />
 
@@ -238,7 +238,14 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
               </div>
               <div className="kv">
                 <span>Retention held</span>
-                <b>{formatUsdc(engagement.retentionHeld)} USDC</b>
+                <b>
+                  {formatUsdc(engagement.retentionHeld)} USDC
+                  {engagement.retentionHeld === 0n && engagement.status === "Completed" && (
+                    // Zero here is ambiguous on a finished engagement: nothing was ever withheld,
+                    // or it was withheld and has since been paid out. Only one of those is true.
+                    <span className="hint"> · released to the supplier</span>
+                  )}
+                </b>
               </div>
               <div className="kv">
                 <span>Performance stake</span>
@@ -330,7 +337,15 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
                           <b>{formatUsdc(ledger.retentionHeld)}</b>
                         </td>
                         <td className="muted" style={{ fontSize: 12 }} data-label="State">
-                          released at final acceptance
+                          {/*
+                            The table is the schedule; the header above is the state. Once the
+                            engagement completes, `retentionHeld` on-chain is zero while this row
+                            still shows the figure it was — which reads as money still owed sitting
+                            next to a header saying there is none.
+                          */}
+                          {engagement.retentionHeld === 0n && engagement.status === "Completed"
+                            ? "released — claim it under Your payouts"
+                            : "released at final acceptance"}
                         </td>
                       </tr>
                     </tbody>

@@ -17,10 +17,26 @@ import { waitForTransactionReceipt } from "wagmi/actions";
  * and never know.
  *
  * Two balances, because two contracts hold money for different reasons: the registry refunds bid
- * deposits and unused budget, the adapter pays milestones, retention and stakes. Showing one total
- * would be friendlier and would hide which contract to ask.
+ * deposits and unused budget, the adapter settles engagements. Showing one total would be
+ * friendlier and would hide which contract to ask.
+ *
+ * The labels used to describe only the supplier's side — "milestones, retention and stakes" — which
+ * left a buyer reading that they had been paid for milestones they had bought. Where the page knows
+ * which side of *this* tender the wallet is on, the wording follows. Where it does not, it names
+ * both.
+ *
+ * Both balances are the wallet's total across **every** tender, not this one. Said out loud,
+ * because the panel sits on a tender page and is read as belonging to it.
  */
-export function Payouts() {
+export function Payouts({
+  buyer,
+  supplier,
+}: {
+  /** This tender's buyer, when the page knows one. */
+  buyer?: string;
+  /** This tender's supplier, once an award exists. */
+  supplier?: string;
+} = {}) {
   const { address, isConnected, chainId } = useAccount();
   const config = useConfig();
   const { writeContractAsync } = useWriteContract();
@@ -29,6 +45,9 @@ export function Payouts() {
   const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
 
   const enabled = Boolean(address) && chainId === chain.id;
+  const me = address?.toLowerCase();
+  const viewerIsBuyer = Boolean(me && buyer && me === buyer.toLowerCase());
+  const viewerIsSupplier = Boolean(me && supplier && me === supplier.toLowerCase());
 
   const registry = useReadContract({
     abi: RFQRegistryAbi,
@@ -83,20 +102,30 @@ export function Payouts() {
 
       {total === 0n ? (
         <div className="note">
-          Nothing owed to this wallet right now. Refunded deposits, milestone payments, retention
-          and stakes all appear here when they are released.
+          Nothing owed to this wallet right now.{" "}
+          {viewerIsBuyer
+            ? "Unused budget, your returned stake, forfeited deposits and anything recovered from an engagement appear here when they are released."
+            : viewerIsSupplier
+              ? "Milestone payments, retention and your stake appear here when they are released."
+              : "Refunded deposits, milestone payments, retention and stakes all appear here when they are released."}
         </div>
       ) : (
         <>
           <div className="note">
-            <b>{formatUsdc(total)} USDC</b> is credited to this wallet. It stays in the contract
-            until you withdraw it — releasing a payment credits you rather than transferring, so
-            nobody can block a settlement by refusing to receive it.
+            <b>{formatUsdc(total)} USDC</b> is credited to this wallet{" "}
+            <b>across every tender</b>, not only this one. It stays in the contract until you
+            withdraw it — releasing a payment credits you rather than transferring, so nobody can
+            block a settlement by refusing to receive it.
           </div>
           {fromAdapter > 0n && (
             <div className="payout-row">
               <span>
-                Milestones, retention and stakes <b>{formatUsdc(fromAdapter)} USDC</b>
+                {viewerIsBuyer
+                  ? "Returned stake and anything recovered from an engagement"
+                  : viewerIsSupplier
+                    ? "Milestone payments, retention and your stake"
+                    : "Engagement settlements — milestones, retention and stakes"}{" "}
+                <b>{formatUsdc(fromAdapter)} USDC</b>
               </span>
               <button
                 type="button"
@@ -111,7 +140,12 @@ export function Payouts() {
           {fromRegistry > 0n && (
             <div className="payout-row">
               <span>
-                Bid deposits and unused budget <b>{formatUsdc(fromRegistry)} USDC</b>
+                {viewerIsBuyer
+                  ? "Unused budget and forfeited deposits"
+                  : viewerIsSupplier
+                    ? "Refunded bid deposits"
+                    : "Bid deposits and unused budget"}{" "}
+                <b>{formatUsdc(fromRegistry)} USDC</b>
               </span>
               <button
                 type="button"

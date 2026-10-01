@@ -249,6 +249,26 @@ The practical consequence: if you post a tender and never return until the award
 have missed every question asked in between. Look in once a day while bidding is open — the panel
 is at the top of the board and says nothing at all when there is nothing to do.
 
+## Money that comes back to you
+
+You will see a balance under **Your payouts**, and it is not the escrowed budget of a live tender —
+that stays committed until milestones are accepted. A buyer is credited from five places:
+
+- **Unused budget**, the moment you award. Publish 3.00, award 2.80, and 0.20 returns immediately.
+- **Your stake**, when the engagement reaches final acceptance.
+- **Forfeited deposits**, from any bidder who sealed a bid and never revealed.
+- **A cancelled or no-award tender** — the whole escrow, once it is closed.
+- **An abandoned engagement** — what was never earned, plus capped damages.
+
+It is **credited, not sent**. Every settlement path ends by crediting an address and leaving the
+owner to claim it, which is what stops a participant blocking a settlement by refusing to receive.
+One transaction collects it whenever suits you.
+
+Two things that catch people: the figure is your wallet's total **across every tender**, so a
+balance shown on one tender's page may have come from another. And finishing bidding releases
+nothing — the budget leaves escrow milestone by milestone, or in one go if the tender is closed
+without an award.
+
 ## When something goes wrong
 
 **The supplier is running late.** You can extend the delivery window, but only *before* it closes.
