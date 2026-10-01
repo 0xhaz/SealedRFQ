@@ -634,6 +634,33 @@ authority.** After any deploy, read `broadcast/Deploy.s.sol/<chainId>/run-latest
       treasury address confirmed twice, and note a cap needs a contract change the percentage alone
       does not
 - [ ] Confirm `evaluatorFeeBP` is `0` and will stay there (stuck-funds bug, §6e)
+- [ ] **Move the keys to hardware before renouncing anything.** Everything is transferable until
+      the moment it is not: `grantRole` hands over either admin role, `setPlatformFee(0, treasury)`
+      moves the treasury, and the role keys are grantable the same way. So deploying from the
+      current wallet costs nothing — but renouncing while the treasury points at a temporary key
+      strands fee revenue at an address nobody wants, permanently.
+
+      Trezor has no Arc entry in Suite, which is a *display* limitation rather than a signing one:
+      Arc is EVM and Trezor signs EIP-155 transactions for chains it does not recognise, usually
+      showing "unknown network". The route is MetaMask with the Trezor as signer. **Verify it
+      empirically on testnet first** — connect the device in MetaMask on 5042002 and send 0.01
+      USDC. Five minutes, and it de-risks the entire handover.
+
+      Order, once confirmed:
+      1. `grantRole(DEFAULT_ADMIN_ROLE, hardware)` and `grantRole(ADMIN_ROLE, hardware)`
+      2. Read both back with `hasRole` **from the new wallet**, not from the old one
+      3. `setPlatformFee(0, hardwareTreasury)` — the treasury freezes with the role
+      4. Renounce from the old wallet, both roles
+      5. Confirm the old wallet reads `false` for both
+
+      The handover is **one-step and unforgiving**: plain `AccessControl`, no two-step accept, so a
+      grant to a mistyped address cannot be reversed and cannot be re-granted once renounced. And
+      both roles must move — `DEFAULT_ADMIN_ROLE` can grant `ADMIN_ROLE` back, so transferring only
+      one leaves the old wallet in control.
+
+      Circle Wallets are available on Arc but are MPC with Circle holding key shares. Acceptable for
+      role keys that only attest and award; wrong for the treasury and admin of a project whose
+      argument is that the operator cannot reach the money.
 - [ ] Renounce **both** `ADMIN_ROLE` and `DEFAULT_ADMIN_ROLE` on AgenticCommerce, in that order, and
       read both back as false — renouncing only the first leaves the second able to grant it back
 - [ ] Decide `AWARDER` deliberately. Holding it means the agent can award unattended — convenient,
