@@ -51,7 +51,13 @@ cd contracts && forge test   # unit tests (MockUSDC) + read-only Arc forks
 cd contracts && FOUNDRY_PROFILE=arc ARC_TESTNET_RPC_URL=https://rpc.testnet.arc.io arc-forge test
 ```
 
-Keys live in `.env.testnet` / `.env.mainnet` (gitignored); see `.env.example`.
+Keys live in `.env.testnet` / `.env.mainnet` (gitignored); see `.env.example`. `chmod 600` them —
+copying one to the other does not carry the mode across, and a 644 file holding mainnet keys is
+readable by anything running as you.
+
+`ADMIN_PK` is the deployer, and that address becomes `ADMIN_ROLE`, `DEFAULT_ADMIN_ROLE` and the
+initial `platformTreasury`. **Use a wallet that only administers** — one that also posts tenders
+makes the operator a participant, and the arrangement is permanent once the roles are renounced.
 
 ## Live on Arc testnet (chain 5042002)
 

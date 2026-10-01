@@ -634,6 +634,22 @@ authority.** After any deploy, read `broadcast/Deploy.s.sol/<chainId>/run-latest
       treasury address confirmed twice, and note a cap needs a contract change the percentage alone
       does not
 - [ ] Confirm `evaluatorFeeBP` is `0` and will stay there (stuck-funds bug, §6e)
+- [ ] **Deploy from a wallet that only ever administers.** `ADMIN_PK` becomes `ADMIN_ROLE`,
+      `DEFAULT_ADMIN_ROLE` and the initial `platformTreasury` — so using a wallet that also posts
+      tenders makes the operator a participant on their own deployment. Three consequences, none
+      fatal and all permanent once renounced:
+
+      - §6n's concentration cap would govern the operator's own purchasing, on a policy they set
+      - fee income would arrive in the wallet buying with, so §6e's *taken to date* figure cannot be
+        reconciled against a balance
+      - the README's *what the operator can and cannot do* table becomes much harder to write
+        honestly
+
+      One extra address fixes all three, and the separation is free before renouncing and impossible
+      afterwards. Keep the buying wallet for buying.
+
+      Check the key file's permissions too: copying `.env.testnet` does not carry its mode across,
+      and `.env.mainnet` landed world-readable (644) the first time. `chmod 600`.
 - [ ] **Move the keys to hardware before renouncing anything.** Everything is transferable until
       the moment it is not: `grantRole` hands over either admin role, `setPlatformFee(0, treasury)`
       moves the treasury, and the role keys are grantable the same way. So deploying from the
