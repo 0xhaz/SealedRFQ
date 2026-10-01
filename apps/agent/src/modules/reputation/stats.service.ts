@@ -44,6 +44,15 @@ export type DeploymentStats = {
     rejected: number;
     /** Released because the buyer said nothing, not because they approved. */
     automatic: number;
+    /**
+     * Total escrowed value of every milestone that has been accepted, in 6-decimal units.
+     *
+     * The base a platform fee is charged on: the contract takes its cut from the job budget, which
+     * is a milestone's share less retention. Reported as a base rather than as a fee because the
+     * rate is not stored historically — multiplying here would bake in today's rate and quietly
+     * misreport any milestone accepted under a different one.
+     */
+    acceptedValue: string;
   };
   indexedBlock: number;
 };
@@ -90,6 +99,11 @@ export class StatsService {
       milestones: {
         total: milestones.length,
         accepted: milestones.filter((m) => m.state === "Accepted").length,
+        acceptedValue: sum(
+          milestones
+            .filter((m) => m.state === "Accepted")
+            .map((m) => ({ v: m.jobBudget })),
+        ),
         rejected: milestones.filter((m) => m.state === "Rejected").length,
         automatic: milestones.filter((m) => m.automatic).length,
       },

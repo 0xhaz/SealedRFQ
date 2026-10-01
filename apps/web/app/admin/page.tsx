@@ -131,7 +131,7 @@ export default async function AdminPage() {
           </div>
         </div>
 
-        <AdminPanel />
+        <AdminPanel acceptedValue={stats.milestones.acceptedValue} />
       </div>
     </div>
   );

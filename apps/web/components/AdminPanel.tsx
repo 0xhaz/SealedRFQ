@@ -37,7 +37,10 @@ import { simulateContract, waitForTransactionReceipt } from "wagmi/actions";
 
 const ADAPTER_ROLES: RoleName[] = ["ADMIN", "VERIFIER", "ARBITER", "REGISTRY"];
 
-export function AdminPanel() {
+export function AdminPanel({
+  /** Escrowed value of every accepted milestone, from the indexer. The fee's base. */
+  acceptedValue = "0",
+}: { acceptedValue?: string } = {}) {
   const { address, isConnected, chainId } = useAccount();
   const config = useConfig();
   const { writeContractAsync } = useWriteContract();
@@ -203,12 +206,33 @@ export function AdminPanel() {
             {treasury ? `${treasury.slice(0, 6)}…${treasury.slice(-4)}` : "—"} ↗
           </a>
         </div>
+        <div className="kv">
+          <span>Taken to date</span>
+          <b>
+            {/*
+              Computed from indexed milestones rather than read from a balance, because no balance
+              exists — the fee leaves in the same transaction that pays the supplier.
+            */}
+            {formatUsdc((BigInt(acceptedValue) * BigInt(platformFeeBP)) / 10_000n)} USDC
+            <span className="hint">
+              {" "}
+              · {formatUsdc(BigInt(acceptedValue))} accepted at {(platformFeeBP / 100).toFixed(2)}%
+            </span>
+          </b>
+        </div>
         <div className="note">
           <b>There is nothing to withdraw here.</b> A platform fee is transferred straight to the
           treasury wallet at the moment a milestone releases, so no balance builds up in the
           contracts. It is also taken <i>out of</i> the supplier's milestone payment rather than
           added on top, so raising it quietly reduces what a supplier receives against the price
           they were awarded.
+          <br />
+          <br />
+          <b>&ldquo;Taken to date&rdquo; is arithmetic, not a balance.</b> It applies the current
+          rate to every milestone accepted so far. The contract keeps no history of rate changes,
+          so if the rate has ever moved this is what today&apos;s rate would have produced rather
+          than what was actually transferred. The treasury wallet is the authoritative record, and
+          the link above opens it.
         </div>
         {evaluatorFeeBP > 0 && (
           <div className="field-err" role="alert">

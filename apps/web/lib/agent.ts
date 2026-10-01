@@ -234,7 +234,14 @@ export type DeploymentStats = {
     abandoned: number;
     disputed: number;
   };
-  milestones: { total: number; accepted: number; rejected: number; automatic: number };
+  milestones: {
+    total: number;
+    accepted: number;
+    rejected: number;
+    automatic: number;
+    /** Escrowed value of accepted milestones — the base a platform fee is charged on. */
+    acceptedValue: string;
+  };
   indexedBlock: number;
 };
 
@@ -333,7 +340,7 @@ export const agent = {
       rfqs: { total: 0, awarded: 0, closedNoAward: 0, budgetTotal: "0", awardedValue: "0" },
       bids: { total: 0, revealed: 0, abandoned: 0, uniqueBidders: 0 },
       engagements: { total: 0, active: 0, completed: 0, abandoned: 0, disputed: 0 },
-      milestones: { total: 0, accepted: 0, rejected: 0, automatic: 0 },
+      milestones: { total: 0, accepted: 0, rejected: 0, automatic: 0, acceptedValue: "0" },
       indexedBlock: 0,
     }),
   /**
