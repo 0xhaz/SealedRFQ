@@ -343,8 +343,14 @@ export default async function RfqDetail({ params }: { params: Promise<{ id: stri
                             still shows the figure it was — which reads as money still owed sitting
                             next to a header saying there is none.
                           */}
+                          {/*
+                            States that it was released, not that it is waiting. This table cannot
+                            see `withdrawable`, so telling a supplier to go and claim something
+                            they may have claimed already sends them to a panel saying nothing is
+                            owed — which reads as money having gone missing.
+                          */}
                           {engagement.retentionHeld === 0n && engagement.status === "Completed"
-                            ? "released — claim it under Your payouts"
+                            ? "released with the final milestone"
                             : "released at final acceptance"}
                         </td>
                       </tr>

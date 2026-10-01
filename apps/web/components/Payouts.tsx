@@ -102,7 +102,13 @@ export function Payouts({
 
       {total === 0n ? (
         <div className="note">
-          Nothing owed to this wallet right now.{" "}
+          {/*
+            "Nothing owed" is read as "nothing arrived" by someone who has just watched a payment
+            release. Both readings are consistent with a zero balance, and only one of them is a
+            problem — so say that a claimed payout leaves exactly this.
+          */}
+          <b>Nothing owed to this wallet right now</b> — which is also what you see once you have
+          withdrawn: a claimed balance returns to zero and the payment is in your wallet.{" "}
           {viewerIsBuyer
             ? "Unused budget, your returned stake, forfeited deposits and anything recovered from an engagement appear here when they are released."
             : viewerIsSupplier

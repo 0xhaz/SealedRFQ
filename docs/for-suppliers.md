@@ -111,6 +111,11 @@ clock.
 Money released is *credited*, not transferred. It waits under **Your payouts** until you withdraw
 it, which is one transaction whenever suits you.
 
+Once you have withdrawn, that panel reads **"nothing owed"** again — a claimed balance returns to
+zero and the money is in your wallet. The engagement will still say the retention was released,
+because it was; the balance is what is left to collect, not a record of what you were paid. The
+chain has the record: your withdrawal is a transaction like any other.
+
 **If a platform fee is set, you pay it, not the buyer.** It is deducted from each milestone inside
 the escrow when that milestone is accepted, so you receive less than you quoted while the buyer
 pays the quoted price in full. It is charged after retention is withheld and never on the retention
