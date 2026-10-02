@@ -23,6 +23,14 @@ const POLL_MS = Number(process.env.INDEXER_POLL_MS ?? 4_000);
  * the web app). Backfilling a few seconds slower is not worth rate-limiting the whole project.
  */
 const CHUNK_PAUSE_MS = Number(process.env.INDEXER_CHUNK_PAUSE_MS ?? 250);
+/**
+ * How long a silence has to last before the indexer is considered stuck rather than busy.
+ *
+ * Generous on purpose: a backfill still counts as healthy because each chunk advances the cursor,
+ * so a pass that is minutes from the head reports fine. What this catches is the opposite case —
+ * an indexer that has stopped advancing at all.
+ */
+const STALE_MS = Math.max(POLL_MS * 5, 60_000);
 
 const label = (hex: string) =>
   Buffer.from(hex.slice(2).replace(/(00)+$/, ""), "hex")
@@ -42,19 +50,90 @@ export class IndexerService implements OnModuleInit {
   private readonly log = new Logger(IndexerService.name);
   private running = false;
   private chunk = MAX_CHUNK;
+  /**
+   * Whether this process indexes at all, read once so a later env change cannot make the health
+   * report disagree with what the loop is doing.
+   */
+  readonly enabled = process.env.INDEXER_ENABLED !== "false";
+  private startedAt = Date.now();
+  private lastSuccessAt: number | null = null;
+  private lastError: string | null = null;
+  private headBlock: number | null = null;
 
   constructor(private readonly chain: ChainService) {}
 
   onModuleInit() {
-    if (process.env.INDEXER_ENABLED === "false") return;
+    if (!this.enabled) {
+      // Said out loud. Left as a bare `return`, a deployment with INDEXER_ENABLED=false looks
+      // exactly like a working one — the board is empty, the logs are clean, and the only clue is
+      // a block number of zero that could equally mean "started a second ago".
+      this.log.warn(
+        "INDEXER_ENABLED=false — not indexing. The board and supplier stats will stay empty.",
+      );
+      return;
+    }
+    this.log.log(
+      `indexing from block ${this.chain.deployment.startBlock} on chain ${this.chain.chainId}`,
+    );
     void this.loop();
+  }
+
+  /**
+   * What the indexer is actually doing, for `/health`.
+   *
+   * A cursor of zero is reported as `null` rather than 0, because the two mean different things: no
+   * row at all is an indexer that has never completed a chunk, which is the failure worth paging
+   * about, and block 0 is a legitimate position on a chain that has only just started.
+   */
+  status() {
+    const row = db.select().from(schema.cursor).where(eq(schema.cursor.id, 1)).get();
+    const indexedBlock = row?.lastBlock ?? null;
+    const lag =
+      this.headBlock !== null && indexedBlock !== null ? this.headBlock - indexedBlock : null;
+    const silentFor = Date.now() - (this.lastSuccessAt ?? this.startedAt);
+    /*
+     * Two ways to be stuck, and they do not deserve the same patience.
+     *
+     * A pass that has never once succeeded and has already recorded an error is broken now, not
+     * possibly-slow — a wrong chain id or an unreachable RPC will fail identically on the
+     * thousandth attempt, and waiting out the stale window before admitting it only delays the
+     * rollback. Having succeeded at least once, the grace period applies: a backfill advances the
+     * cursor on every chunk, so silence past that window means it stopped rather than slowed.
+     */
+    const brokenFromTheStart =
+      this.enabled && this.lastSuccessAt === null && this.lastError !== null;
+    const stuck = brokenFromTheStart || (this.enabled && silentFor > STALE_MS);
+    return {
+      enabled: this.enabled,
+      indexedBlock,
+      headBlock: this.headBlock,
+      startBlock: this.chain.deployment.startBlock,
+      lag,
+      // A backfill is caught up when it is within one chunk of the head.
+      caughtUp: lag !== null ? BigInt(lag) <= this.chunk : null,
+      lastSuccessAt: this.lastSuccessAt ? new Date(this.lastSuccessAt).toISOString() : null,
+      lastError: this.lastError,
+      ok: !stuck,
+      reason: !this.enabled
+        ? // Not a failure — an API-only replica is a legitimate deployment — but said in the
+          // payload rather than left for someone to infer from a false.
+          "indexing is switched off (INDEXER_ENABLED=false), so history will not advance"
+        : stuck
+          ? this.lastSuccessAt === null
+            ? `the indexer has not completed a pass since starting${this.lastError ? `: ${this.lastError}` : ""}`
+            : `the indexer has not advanced for ${Math.round(silentFor / 1000)}s${this.lastError ? `: ${this.lastError}` : ""}`
+          : null,
+    };
   }
 
   private async loop() {
     while (true) {
       try {
         await this.tick();
+        this.lastSuccessAt = Date.now();
+        this.lastError = null;
       } catch (e) {
+        this.lastError = e instanceof Error ? e.message : String(e);
         if (this.isRateLimited(e)) {
           this.log.warn("RPC rate-limited the indexer; backing off for 30s");
           await new Promise((r) => setTimeout(r, 30_000));
@@ -71,7 +150,19 @@ export class IndexerService implements OnModuleInit {
     this.running = true;
     try {
       const latest = await this.chain.publicClient.getBlockNumber();
+      this.headBlock = Number(latest);
       let from = BigInt(this.cursor() || this.chain.deployment.startBlock);
+      /*
+       * A start block beyond the head is not a quiet chain, it is the wrong deployment file — the
+       * usual cause being an ARC_CHAIN_ID that does not match the contracts the agent loaded. The
+       * loop below would simply not execute, tick would return successfully, and the indexer would
+       * report healthy forever while indexing nothing. So it is raised rather than skipped.
+       */
+      if (from > latest) {
+        throw new Error(
+          `start block ${from} is ahead of chain head ${latest}: deployment ${this.chain.deployment.chainId} does not belong to this RPC`,
+        );
+      }
       while (from <= latest) {
         const to = from + this.chunk - 1n > latest ? latest : from + this.chunk - 1n;
         try {

@@ -177,10 +177,19 @@ export class ApiController {
     res.send(bytes);
   }
 
+  /**
+   * Liveness, and honestly.
+   *
+   * It used to return `{ ok: true, indexedBlock: 0 }` whether the indexer was disabled, stuck on a
+   * mismatched deployment, or three seconds old — which is how a testnet deployment sat at block
+   * zero with tenders on-chain and nothing said so. A 503 when the indexer has stopped advancing
+   * is what makes a platform healthcheck notice.
+   */
   @Get("health")
-  health() {
-    const cursor = db.select().from(schema.cursor).where(eq(schema.cursor.id, 1)).get();
-    return { ok: true, indexedBlock: cursor?.lastBlock ?? 0 };
+  health(@Res({ passthrough: true }) res: { statusCode: number }) {
+    const indexer = this.indexer.status();
+    if (!indexer.ok) res.statusCode = 503;
+    return { ok: indexer.ok, indexer };
   }
 
   /** What this agent is and what it can do — which roles it actually holds keys for. */
@@ -395,6 +404,7 @@ export class ApiController {
   @UseGuards(TokenGuard)
   async reindex() {
     await this.indexer.tick();
-    return this.health();
+    const indexer = this.indexer.status();
+    return { ok: indexer.ok, indexer };
   }
 }
