@@ -5,6 +5,9 @@ deposit, an AI evaluator scores them against a rubric published before bidding o
 procurement policy enforces the award, and the winner is paid milestone by milestone through
 ERC-8183 escrow.
 
+**Live on Arc mainnet: [www.sealedrfq.com](https://www.sealedrfq.com)** — chain 5042, real USDC.
+Contract addresses [below](#live-on-arc-mainnet-chain-5042).
+
 > Work in progress for the Arc Microgrants program. Plan: [`workplan.md`](workplan.md).
 > Design: [`docs/architecture.md`](docs/architecture.md) · Stack: [`docs/techstack.md`](docs/techstack.md).
 
@@ -59,7 +62,32 @@ readable by anything running as you.
 initial `platformTreasury`. **Use a wallet that only administers** — one that also posts tenders
 makes the operator a participant, and the arrangement is permanent once the roles are renounced.
 
-## Live on Arc testnet (chain 5042002)
+## Live on Arc mainnet (chain 5042)
+
+Deployed **2026-10-02** at block 23850939. Settlement and gas are both USDC at
+`0x3600000000000000000000000000000000000000`.
+
+| Contract | Address |
+|---|---|
+| `RFQRegistry` | [`0x0a63a12c852d92A7c187bCa6968f9abF4720420c`](https://explorer.arc.io/address/0x0a63a12c852d92A7c187bCa6968f9abF4720420c) |
+| `SealedRFQAdapter` | [`0xA2437fC10632A37cBe5F854C43D553A8e212700d`](https://explorer.arc.io/address/0xA2437fC10632A37cBe5F854C43D553A8e212700d) |
+| `AgenticCommerce` (ERC-8183) | [`0x03Fd0F608a8e1beE036D1d5A7a9C05349ad52534`](https://explorer.arc.io/address/0x03Fd0F608a8e1beE036D1d5A7a9C05349ad52534) |
+| `ProcurementPolicy` | [`0xbd56363310dDC5c7A1716b158982b91aCfd05c43`](https://explorer.arc.io/address/0xbd56363310dDC5c7A1716b158982b91aCfd05c43) |
+| `AttestationLog` | [`0x986C49d9701a9d57dbF3786a44C108b1518542b8`](https://explorer.arc.io/address/0x986C49d9701a9d57dbF3786a44C108b1518542b8) |
+
+The whole deploy cost **0.1954 USDC**. The policy is live at a 60% supplier concentration cap above
+a $250,000 floor, a $100,000 budget ceiling, a $100 cap on what the agent may award unattended, and
+a minimum of two revealed bids.
+
+The platform fee is **0 BP**. The rate is readable on-chain before anyone bids, and the supplier
+pays it rather than the buyer, so a fee introduced later cannot be applied retroactively to a
+tender already priced against a published rate.
+
+`ADMIN_ROLE` and `DEFAULT_ADMIN_ROLE` are **not yet renounced**. Both are one-way, and renouncing
+them freezes the policy and the fee permanently — which is the point, but it is worth doing after
+the parameters have been exercised rather than before.
+
+## Also on Arc testnet (chain 5042002)
 
 | Contract | Address |
 |---|---|
