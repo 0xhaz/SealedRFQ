@@ -2195,15 +2195,64 @@ add a second service before the post-grant bundle, not now.
       `NEXT_PUBLIC_SITE_URL` so `metadataBase` resolves to it rather than the default
 - [ ] **Repo public** — a hard requirement, still private as of 2026-09-25 (`gh repo view` reports
       `PRIVATE`). Nothing else on this list can substitute for it
-- [ ] Fund the mainnet deployer **and all four role keys** with USDC on Arc mainnet (~0.63 USDC for
-      the deploy at testnet rates; check mainnet). An unfunded EVALUATOR looks like the scheduler
-      silently not running
-- [ ] Deploy to mainnet, **addresses taken from the broadcast receipts and confirmed to hold code**
-      (§6d — the testnet deploy wrote five addresses that held nothing)
-- [ ] `5042.json` into `apps/web/lib/deployments/` and registered in `lib/chain.ts`
-- [ ] Flip the existing Vercel project and Railway service to mainnet — `NEXT_PUBLIC_ARC_CHAIN_ID`,
-      `ARC_CHAIN_ID`, `ARC_RPC_URL`, and a third `DATABASE_URL`. Only after the testnet walkthrough
-      is done, because the hosted testnet goes away with it
+- [x] **Funded six fresh mainnet role keys — done 2026-10-02.** Not four, and not the testnet ones:
+      every key in `.env.testnet` shared a file with the wallet that turned out to carry an EIP-7702
+      delegation to a sweeper, so all of them are treated as compromised. 14 USDC across ADMIN (5),
+      EVALUATOR (3), AWARDER (2), VERIFIER (2), ARBITER (1) and ATTESTOR (1); each checked for a
+      `0xef0100…` code prefix before being funded
+- [x] **Deployed to mainnet — done 2026-10-02.** 7 txs, 9,771,869 gas, **0.1954 USDC** — a third of
+      the 0.63 estimate. Start block **23850939**. All five addresses taken from the broadcast
+      receipts and confirmed to hold code per §6d:
+
+      | Contract | Address |
+      |---|---|
+      | `RFQRegistry` | `0x0a63a12c852d92A7c187bCa6968f9abF4720420c` |
+      | `SealedRFQAdapter` | `0xA2437fC10632A37cBe5F854C43D553A8e212700d` |
+      | `AgenticCommerce` | `0x03Fd0F608a8e1beE036D1d5A7a9C05349ad52534` |
+      | `ProcurementPolicy` | `0xbd56363310dDC5c7A1716b158982b91aCfd05c43` |
+      | `AttestationLog` | `0x986C49d9701a9d57dbF3786a44C108b1518542b8` |
+
+- [x] **Roles granted and read back from the chain — done 2026-10-02.** Not taken from the script's
+      exit code: AWARDER on the registry, VERIFIER and ARBITER on the adapter, EVALUATOR, VERIFIER
+      and ATTESTOR on the attestation log. The registry reads `false` for EVALUATOR because it never
+      grants one — worth writing down, because that false looks like a missing grant. Policy live at
+      `maxSupplierShareBps 6000`, `concentrationFloor $250k`, `agentAwardCap $100`, `minRevealedBids
+      2`; a $100k first award simulated against it and passed. Fee 0 BP, treasury = ADMIN
+- [x] `5042.json` into `apps/web/lib/deployments/` and registered in `lib/chain.ts` — done
+      2026-10-02, `f14386d`. The build throws on an unregistered chain, so this is what makes
+      mainnet reachable rather than a lookup returning undefined at the first contract read.
+      Verified with `NEXT_PUBLIC_ARC_CHAIN_ID=5042 pnpm build`
+- [ ] **Flip the existing Vercel project and Railway service to mainnet.** Only after the testnet
+      walkthrough is done, because the hosted testnet goes away with it. The variables, derived from
+      what the code actually reads rather than from memory:
+
+      **Railway** (agent)
+
+      | Variable | Value | Why it matters |
+      |---|---|---|
+      | `ARC_CHAIN_ID` | `5042` | Picks `contracts/deployments/5042.json`. Disagreeing with `ARC_RPC_URL` is the wrong-deployment failure the health check now catches |
+      | `ARC_RPC_URL` | `https://rpc.mainnet.arc.io` | |
+      | `DATABASE_URL` | `file:./data/sealedrfq-mainnet.db` | **A fresh file.** `rfqs.id` has no chain discriminator, so a testnet RFQ 1 occupies the row mainnet RFQ 1 needs and `onConflictDoNothing` drops it in silence |
+      | `INDEXER_ENABLED` | remove it, or `true` | `false` is how testnet sat at block 0 with six tenders on-chain |
+      | `ADMIN_PK` … `ATTESTOR_PK` | the six fresh keys | `0x`-prefixed. `forge` rejects a bare hex string where `cast` tolerates it — that cost one failed deploy attempt |
+      | `CORS_ORIGIN` | `https://www.sealedrfq.com` | The apex 308s to www, so the browser's Origin is always the www host |
+      | `X402_PAY_TO` | an address that is not a role key | Where evaluation fees land |
+      | `X402_ENABLED` | `true` to charge | Chain 5042 resolves to `https://gateway-api.circle.com` — the production Circle gateway, not the testnet one |
+
+      Leave `LLM_PROVIDER` unset or `deterministic`; anything else throws rather than let the
+      attestation name a model that did not run. No `ANTHROPIC_API_KEY` is needed.
+
+      **Vercel** (web)
+
+      | Variable | Value |
+      |---|---|
+      | `NEXT_PUBLIC_ARC_CHAIN_ID` | `5042` |
+      | `NEXT_PUBLIC_ARC_RPC_URL` | `https://rpc.mainnet.arc.io` |
+      | `NEXT_PUBLIC_SITE_URL` | `https://www.sealedrfq.com` |
+      | `NEXT_PUBLIC_AGENT_URL` | the Railway URL — **blank turns every agent call into a same-origin 404** |
+
+      First check after the flip is `$AGENT/health`: it now returns 503 and names the mismatch
+      rather than `{ ok: true, indexedBlock: 0 }`.
 - [ ] Contracts verified on mainnet, addresses in the README
 - [ ] **One real tender end to end on mainnet.** "Deployed and working" is the bar, and a deployment
       nobody has transacted against is not evidence of either
