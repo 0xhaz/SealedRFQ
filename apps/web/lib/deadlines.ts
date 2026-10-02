@@ -52,7 +52,7 @@ export function checkDeadlines(d: Deadlines, chainNow: number): string | null {
   return null;
 }
 
-/** Presets. The realistic ones are the point; the short one keeps a testnet run to one sitting. */
+/** Presets. The realistic ones are the point; the short one keeps a trial run to one sitting. */
 /**
  * Each preset also carries the delivery and acceptance windows that belong with it.
  *
@@ -87,7 +87,9 @@ export const PRESETS: {
   },
   {
     label: "Demo",
-    hint: "minutes, for a testnet run",
+    // Not "for a testnet run": this preset is offered on mainnet too, where the windows are the
+    // same minutes but the USDC is real. What makes it a demo is the timescale, not the chain.
+    hint: "minutes end to end — for trying the flow, not for a real purchase",
     offsets: [12, 22, 80],
     windows: { delivery: ["15", "minutes"], accept: ["3", "minutes"] },
   },
