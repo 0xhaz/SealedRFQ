@@ -2222,9 +2222,23 @@ add a second service before the post-grant bundle, not now.
       2026-10-02, `f14386d`. The build throws on an unregistered chain, so this is what makes
       mainnet reachable rather than a lookup returning undefined at the first contract read.
       Verified with `NEXT_PUBLIC_ARC_CHAIN_ID=5042 pnpm build`
-- [ ] **Flip the existing Vercel project and Railway service to mainnet.** Only after the testnet
-      walkthrough is done, because the hosted testnet goes away with it. The variables, derived from
-      what the code actually reads rather than from memory:
+- [x] **Flipped the existing Vercel project and Railway service to mainnet — done 2026-10-02.**
+      Verified from outside rather than from the dashboards: `$AGENT/health` reports `enabled: true`,
+      `lag: 0`, caught up at 23892294 from start block 23850939; `$AGENT/meta` reports chain 5042,
+      all five mainnet addresses, `llmProvider: deterministic-rubric-v1` and x402 on
+      `eip155:5042` against Circle's production gateway. `https://www.sealedrfq.com` serves 200 with
+      the mainnet registry in its payload and **no `5042002` or old-registry string anywhere in it**
+      — the stale-build failure of 2026-09-26 presented exactly as a page that looked fine.
+
+      One thing worth keeping: the health payload itself proved the Railway build was current,
+      because `enabled`/`caughtUp`/`reason` only exist in `83baa8d`. A deployment that reports
+      fields a stale build could not have is a cheaper staleness check than comparing addresses.
+
+      `AGENT_API_TOKEN` was byte-identical in `.env.testnet` and `.env.mainnet` — rotated 2026-10-02.
+      It gates `/reindex` and the award endpoints, and every other credential in that testnet file
+      is compromised. The six role keys were confirmed to share no address with testnet.
+
+      The variables, derived from what the code actually reads rather than from memory:
 
       **Railway** (agent)
 
