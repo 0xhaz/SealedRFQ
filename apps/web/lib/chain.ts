@@ -1,5 +1,6 @@
 import { arcMainnet, arcTest } from "@sealedrfq/shared";
 import { defineChain } from "viem";
+import mainnetDeployment from "./deployments/5042.json";
 import testnetDeployment from "./deployments/5042002.json";
 import localDeployment from "./deployments/local.json";
 
@@ -45,6 +46,7 @@ type Deployment = {
 const byChain: Record<number, Deployment> = {
   [arcLocal.id]: localDeployment as Deployment,
   [arcTest.id]: testnetDeployment as Deployment,
+  [arcMainnet.id]: mainnetDeployment as Deployment,
 };
 
 export const contracts: Deployment = (() => {
