@@ -34,10 +34,13 @@ describe("a bid can express any window a buyer can set", () => {
     }
   });
 
-  it("keeps the Demo preset fast enough to walk in one sitting", () => {
-    const demo = PRESETS.find((p) => p.label === "Demo");
-    expect(toSeconds(demo!.windows.delivery[0], demo!.windows.delivery[1])).toBeLessThan(3600);
-    expect(toSeconds(demo!.windows.accept[0], demo!.windows.accept[1])).toBeLessThan(3600);
+  it("offers no preset short enough to post a tender nobody can answer", () => {
+    // The Demo preset closed bidding twelve minutes after posting. That was fine on testnet and is
+    // not on mainnet, where a supplier who misses the window has still paid a real deposit. An
+    // hour is the floor for something offered as one click; shorter is still possible by hand.
+    for (const p of PRESETS) {
+      expect(p.offsets[0] * 60, `${p.label} bidding window`).toBeGreaterThanOrEqual(3600);
+    }
   });
 });
 
@@ -54,15 +57,13 @@ describe("the reveal window in open mode", () => {
     expect(FIVE_MINUTES).toBeGreaterThan(0);
   });
 
-  it("is worth shortening on a real timetable and not on a demo one", () => {
-    // The offer is gated at fifteen minutes. Every preset a buyer would actually use has a reveal
-    // window far above that — hours or a day of nothing — while Demo's ten minutes is beneath
-    // mentioning. If a real preset ever dropped below the threshold the offer would silently stop
-    // appearing, which is the failure this guards.
+  it("is worth shortening on every timetable now offered", () => {
+    // The offer is gated at fifteen minutes. Every preset has a reveal window far above that —
+    // hours or a day of nothing. If one ever dropped below the threshold the offer would silently
+    // stop appearing, which is the failure this guards.
     const gap = (p: (typeof PRESETS)[number]) => (p.offsets[1] - p.offsets[0]) * 60;
-    for (const p of PRESETS.filter((x) => x.label !== "Demo")) {
+    for (const p of PRESETS) {
       expect(gap(p), `${p.label} reveal window`).toBeGreaterThan(15 * 60);
     }
-    expect(gap(PRESETS.find((p) => p.label === "Demo")!)).toBeLessThanOrEqual(15 * 60);
   });
 });

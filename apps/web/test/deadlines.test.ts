@@ -61,10 +61,14 @@ describe("presets", () => {
     }
   });
 
-  it("offers a realistic default as well as a short one for demos", () => {
+  it("spans a planned timetable and an urgent one, and nothing shorter", () => {
     const longest = Math.max(...PRESETS.map((p) => p.offsets[0]));
     const shortest = Math.min(...PRESETS.map((p) => p.offsets[0]));
-    expect(longest).toBeGreaterThanOrEqual(7 * 1440); // a week or more
-    expect(shortest).toBeLessThanOrEqual(60); // minutes, for a testnet run
+    expect(longest).toBeGreaterThanOrEqual(7 * 1440); // a week or more, for a planned purchase
+    expect(shortest).toBeLessThanOrEqual(2 * 1440); // two days or less, for an urgent one
+    // The floor. A "Demo" preset used to close bidding twelve minutes after posting, which was
+    // fine on testnet and is not on a form that spends real USDC: a supplier who cannot see the
+    // tender in time has still paid a real deposit to find that out.
+    expect(shortest).toBeGreaterThanOrEqual(60);
   });
 });

@@ -4,17 +4,24 @@ import { LineItemsEditor } from "@/components/LineItemsEditor";
 import { WalletChip } from "@/components/WalletChip";
 import { agent, uploadDocument } from "@/lib/agent";
 import { chain, contracts, explorerTx } from "@/lib/chain";
-import { type Deadlines, PRESETS, applyPreset, checkDeadlines, toUnix, toLocalInput} from "@/lib/deadlines";
+import {
+  type Deadlines,
+  PRESETS,
+  applyPreset,
+  checkDeadlines,
+  toLocalInput,
+  toUnix,
+} from "@/lib/deadlines";
 import { hashFile } from "@/lib/docHash";
-import { checkMilestones, milestoneLedger } from "@/lib/milestones";
 import { DURATION_UNITS, type DurationUnit, MIN_DELIVERY_SECONDS, toSeconds } from "@/lib/duration";
 import { MAX_INVITEES, parseInvitees } from "@/lib/invitees";
 import { type LineItemRow, emptyRow, toLineItems } from "@/lib/lineItems";
+import { checkMilestones, milestoneLedger } from "@/lib/milestones";
 import { signUsdcPermit } from "@/lib/permit";
 import { CATEGORIES, REGIONS, labelFor } from "@/lib/taxonomy";
-import { INCOTERMS, describeWindow, incotermNote, riskPassesAt } from "@sealedrfq/shared";
 import { generateTerms } from "@/lib/terms";
 import { describeTxError } from "@/lib/txError";
+import { INCOTERMS, describeWindow, incotermNote, riskPassesAt } from "@sealedrfq/shared";
 import {
   AgenticCommerceAbi,
   RFQRegistryAbi,
@@ -55,8 +62,8 @@ export function NewRfqForm() {
    * the dates offered and validated here are measured from the chain rather than from the browser.
    */
   const [skew, setSkew] = useState<number | null>(null);
-  // Windows are durations, not minutes. Defaults are what a real tender would use; the Demo
-  // preset shortens them to something that can be walked end to end in one sitting.
+  // Windows are durations, not minutes. Defaults are what a real tender would use, and each
+  // preset replaces them with the pair that belongs to its timetable.
   const [deliveryAmount, setDeliveryAmount] = useState("14");
   const [deliveryUnit, setDeliveryUnit] = useState<DurationUnit>("days");
   const [acceptAmount, setAcceptAmount] = useState("3");
@@ -803,11 +810,7 @@ export function NewRfqForm() {
           */}
           <div className="field">
             <label htmlFor="incoterm">Delivery terms (physical goods only)</label>
-            <select
-              id="incoterm"
-              value={incoterm}
-              onChange={(e) => setIncoterm(e.target.value)}
-            >
+            <select id="incoterm" value={incoterm} onChange={(e) => setIncoterm(e.target.value)}>
               <option value="">Not a goods tender — delivered as a file</option>
               {INCOTERMS.map((t) => (
                 <option key={t.value} value={t.value}>
@@ -934,9 +937,9 @@ export function NewRfqForm() {
             {milestones.replace(/\s/g, "") === "30,70" && (
               <div className="note warn" style={{ marginTop: 8 }}>
                 <b>Buying physical goods?</b> A milestone releases money when the supplier submits a
-                <i> hash</i> and you accept it, or when your acceptance window runs out. The contract
-                cannot see a container — it can only check that a document you were sent matches the
-                hash that was sealed. So set the acceptance window to cover{" "}
+                <i> hash</i> and you accept it, or when your acceptance window runs out. The
+                contract cannot see a container — it can only check that a document you were sent
+                matches the hash that was sealed. So set the acceptance window to cover{" "}
                 <b>shipping time plus inspection</b>, not just your own review, and treat the
                 deliverable hash as the bill of lading rather than as proof the goods are good.
               </div>

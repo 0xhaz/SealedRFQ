@@ -52,14 +52,19 @@ export function checkDeadlines(d: Deadlines, chainNow: number): string | null {
   return null;
 }
 
-/** Presets. The realistic ones are the point; the short one keeps a trial run to one sitting. */
 /**
- * Each preset also carries the delivery and acceptance windows that belong with it.
+ * Timetables a buyer would actually use, each carrying the delivery and acceptance windows that
+ * belong with it.
  *
  * Those two are durations rather than dates, so they were previously left untouched by a preset —
- * which meant choosing "Demo" gave a tender whose bidding closed in twelve minutes and whose
- * milestones were due in a fortnight, and choosing "2 weeks" after a demo left fifteen-minute
- * milestones on a real tender. A timetable should set the whole clock, not part of it.
+ * which meant picking a short timetable gave a tender whose bidding closed in minutes and whose
+ * milestones were due in a fortnight. A timetable should set the whole clock, not part of it.
+ *
+ * There was a fourth, "Demo", running the whole lifecycle in minutes. It was written for a testnet
+ * walkthrough and removed when this went to mainnet: offering a twelve-minute bidding window on a
+ * form that spends real USDC invites a tender no supplier can see in time, and the deposits of
+ * anyone who does are real. A short timetable can still be typed in by hand — it just is not
+ * offered as a one-click default.
  */
 export const PRESETS: {
   label: string;
@@ -84,14 +89,6 @@ export const PRESETS: {
     hint: "for an urgent buy",
     offsets: [2880, 3240, 5760],
     windows: { delivery: ["24", "hours"], accept: ["4", "hours"] },
-  },
-  {
-    label: "Demo",
-    // Not "for a testnet run": this preset is offered on mainnet too, where the windows are the
-    // same minutes but the USDC is real. What makes it a demo is the timescale, not the chain.
-    hint: "minutes end to end — for trying the flow, not for a real purchase",
-    offsets: [12, 22, 80],
-    windows: { delivery: ["15", "minutes"], accept: ["3", "minutes"] },
   },
 ];
 
