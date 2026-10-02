@@ -35,11 +35,19 @@ Policy checks live inside `award()`. These are real calls against the **live mai
 | 75% of spend to one supplier, above the $250k floor | `ConcentrationCapExceeded` |
 | the same concentration, below the floor | allowed |
 
-The concentration cap is the one a buyer cannot opt out of: it binds how much of a buyer's
-cumulative spend may go to a single supplier, and it applies to the buyer's own awards, not just
-the agent's. A separate `agentAwardCap` ($100) bounds what the agent may commit unattended — set
-deliberately, because zero would mean a deployment that forgets to configure it gets a human in the
-loop rather than an uncapped robot.
+Two of those caps do quite different jobs, and it is worth separating them.
+
+The **concentration cap** limits how much of a buyer's cumulative spend may go to one supplier —
+60% here — and it applies to the buyer's own awards, not only the agent's. A buyer cannot waive it
+for themselves, which is the point: routing repeat business to a favoured supplier is the ordinary
+shape of procurement abuse, and it is done by the person with the authority to approve it. It binds
+only once that buyer's cumulative spend passes $250,000, so a small buyer with one supplier is
+never blocked from using them.
+
+The **`agentAwardCap`** is a separate limit, and it constrains only the agent: $100 is the most the
+evaluator may award without the buyer pressing the button themselves. A buyer is never capped by
+it. Zero is the fail-safe value — it switches agent awards off entirely — so a deployment that
+forgets to configure this ends up with a human in the loop rather than an unbounded agent.
 
 ## AI recommends; the contract decides
 
