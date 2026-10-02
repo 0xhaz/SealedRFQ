@@ -11,8 +11,17 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 LARGEST=${1:-100000}
-SHARE=${POLICY_MAX_SUPPLIER_SHARE_BPS:-6000}
-FLOOR_UNITS=${POLICY_CONCENTRATION_FLOOR:-250000000000}
+# These defaults MUST match Deploy.s.sol's, not the recommended values — the script has to model
+# what will actually deploy. It briefly used the recommendations instead, so an unset environment
+# reported "ok" while the deploy would have used 4000/100 and bricked every first award.
+SHARE=${POLICY_MAX_SUPPLIER_SHARE_BPS:-4000}
+FLOOR_UNITS=${POLICY_CONCENTRATION_FLOOR:-100000000}
+
+if [ -z "${POLICY_MAX_SUPPLIER_SHARE_BPS:-}" ] || [ -z "${POLICY_CONCENTRATION_FLOOR:-}" ]; then
+  echo "note: policy variables are unset, so Deploy.s.sol would use its own defaults."
+  echo "      Those are the testnet values and they fail the checks below."
+  echo
+fi
 FLOOR=$((FLOOR_UNITS / 1000000))
 
 echo "policy about to be deployed"
