@@ -22,6 +22,12 @@ describe("docs index", () => {
     expect(slugs).not.toContain("architecture");
     expect(slugs).not.toContain("techstack");
     expect(readDoc("architecture")).toBeNull();
+    // The workplan lives in docs/ too and must never be served: it carries deployment notes, a
+    // compromised wallet address and the reasoning behind unreleased policy decisions. The
+    // allowlist already prevents it; this is here so that adding it is a failing test rather than
+    // a quiet publication.
+    expect(slugs).not.toContain("workplan");
+    expect(readDoc("workplan")).toBeNull();
   });
 
   it("gives every page a title and a summary line", () => {

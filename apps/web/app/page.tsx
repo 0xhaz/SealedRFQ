@@ -2,8 +2,8 @@ import { Header } from "@/components/Header";
 import { HeroRFQ } from "@/components/landing/HeroRFQ";
 import { TrustBoundary } from "@/components/landing/TrustBoundary";
 import { WhereThisFits } from "@/components/landing/WhereThisFits";
-import { chain, contracts, explorerAddress, explorerTx, isMainnet } from "@/lib/chain";
-import evidence from "@/lib/deployments/evidence-5042002.json";
+import { chain, contracts, explorerAddress, isMainnet } from "@/lib/chain";
+import { evidence, evidenceChainName, evidenceIsLive, evidenceTx } from "@/lib/evidence";
 import Link from "next/link";
 
 const FIREWALL_TX = evidence.steps.find((s) => s.status === "0x0")?.tx ?? "";
@@ -69,7 +69,10 @@ export default function Home() {
           <div className="hero-metrics">
             <div className="hm-red">
               <b>{evidence.steps.length}</b>
-              <span>real Arc txs in one full lifecycle</span>
+              <span>
+                real Arc txs in one full lifecycle
+                {!evidenceIsLive && <> on {evidenceChainName}</>}
+              </span>
             </div>
             <div>
               <b>Sealed</b>
@@ -136,8 +139,9 @@ export default function Home() {
             </div>
             {FIREWALL_TX && (
               <div className="flow-links">
-                <a href={explorerTx(FIREWALL_TX)} target="_blank" rel="noreferrer">
+                <a href={evidenceTx(FIREWALL_TX)} target="_blank" rel="noreferrer">
                   Open the real reverted transaction ↗
+                  {!evidenceIsLive && <> (on {evidenceChainName})</>}
                 </a>
               </div>
             )}
@@ -251,9 +255,18 @@ export default function Home() {
           <div>
             <h2>Don&apos;t take our word for it. Open every transaction.</h2>
             <p>
-              A complete lifecycle ran on {chain.name}: {evidence.steps.length} transactions from
-              sealed bids to the final milestone, including the policy firewall rejecting an
-              AI-recommended over-budget award. Every contract ended at a zero balance.
+              A complete lifecycle ran on {evidenceIsLive ? chain.name : evidenceChainName}:{" "}
+              {evidence.steps.length} transactions from sealed bids to the final milestone,
+              including the policy firewall rejecting an AI-recommended over-budget award. Every
+              contract ended at a zero balance.
+              {!evidenceIsLive && (
+                <>
+                  {" "}
+                  The contracts below are the same code, deployed to {chain.name}; the run itself is
+                  linked on {evidenceChainName} because that is where those transactions exist and
+                  where their hashes resolve.
+                </>
+              )}
             </p>
           </div>
           <a

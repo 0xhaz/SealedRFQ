@@ -8,7 +8,7 @@ ERC-8183 escrow.
 **Live on Arc mainnet: [www.sealedrfq.com](https://www.sealedrfq.com)** — chain 5042, real USDC.
 Contract addresses [below](#live-on-arc-mainnet-chain-5042).
 
-> Work in progress for the Arc Microgrants program. Plan: [`workplan.md`](workplan.md).
+> Work in progress for the Arc Microgrants program. Plan: [`docs/workplan.md`](docs/workplan.md).
 > Design: [`docs/architecture.md`](docs/architecture.md) · Stack: [`docs/techstack.md`](docs/techstack.md).
 
 ## Layout

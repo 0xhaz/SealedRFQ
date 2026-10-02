@@ -69,5 +69,15 @@ label() {
   echo "}"
 } | jq . > "$OUT"
 
+# The landing page reads its own copy, because a Next.js build cannot reach outside apps/web. That
+# copy drifted silently once already: it kept a superseded registry while this directory had the
+# current one, so the page linked to transactions on a contract that was no longer live. Copying it
+# here means the two can only disagree if someone edits the copy by hand.
+WEB=../apps/web/lib/deployments/evidence-$CHAIN.json
+if [ -d "$(dirname "$WEB")" ]; then
+  cp "$OUT" "$WEB"
+  echo "synced $WEB"
+fi
+
 echo "wrote $OUT ($(jq '.steps | length' "$OUT") steps)"
 jq -r '.steps[] | "  \(if .status == "0x0" then "REVERTED" else "ok      " end) \(.step)"' "$OUT"

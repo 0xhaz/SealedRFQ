@@ -2,7 +2,7 @@
    SEALEDRFQ on ARC — "the ledger" theme
    Warm paper, ink typography, wax-seal red accents, stamped states.
 
-   Ported from an earlier site (see workplan.md §4): the class vocabulary is kept
+   Ported from an earlier site (see docs/workplan.md §4): the class vocabulary is kept
    (.hero, .story-act, .stamp, .panel, .lj-*) so markup and styles stay in step. Chain-specific
    rules were renamed; anything still unused by SealedRFQ is pruned as each section is ported.
    ============================================================ */
