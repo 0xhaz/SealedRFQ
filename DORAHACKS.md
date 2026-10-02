@@ -17,13 +17,15 @@ trail written by the same party that made the decision.
 | **Bid** | Prices are sealed by commit–reveal. The chain records that you bid and takes your deposit; it does not record what you bid |
 | **Reveal** | The contract checks each revealed price against the earlier commitment. Fail to reveal and you forfeit the deposit — which is what makes a sealed bid binding rather than a free option |
 | **Score** | An evaluator scores revealed bids against the published rubric and anchors a signed decision memo |
-| **Award** | `award()` refuses any supplier the current attestation did not name. The buyer can award the recommended bidder, or nobody |
+| **Award** | The contract refuses to award any supplier the published evaluation did not name. The buyer can award the recommended bidder, or nobody — there is no third option |
 | **Deliver** | Payment runs milestone by milestone through ERC-8183 escrow, with retention released at final acceptance |
 | **Silence** | If the buyer goes quiet past the acceptance window, **anyone** can trigger release. A supplier who delivered cannot be held hostage |
 
 ## The part that is enforced, not promised
 
-Policy checks live inside `award()`. These are real calls against the **live mainnet policy**:
+These limits are checked by the contract at the moment of award, not by the application around it.
+Every row below is a real call against the **live mainnet policy contract** — anyone can repeat
+them, and the right-hand column is the refusal the contract gives back:
 
 | Case | Result |
 |---|---|
@@ -51,21 +53,36 @@ forgets to configure this ends up with a human in the loop rather than an unboun
 
 ## AI recommends; the contract decides
 
-The evaluator is deterministic and calls no model. It reports itself as `deterministic-rubric-v1`,
-and the code **refuses to start** if `LLM_PROVIDER` names a provider that is not implemented —
-recording a model name in an attestation for a decision made by arithmetic would be a false claim
-anchored permanently by the one system whose argument is that claims should be checkable.
+The evaluator scores bids by arithmetic against the published rubric. It does not call a language
+model, and the deployment holds no API key to call one with. That is deliberate rather than
+unfinished: a score has to be reproducible by anyone holding the same rubric and the same bids, and
+a model's answer is not.
 
-Ties break on a fixed cascade — cheaper, then quicker, then the lower address — so a losing bidder
-can recompute the outcome rather than take it on trust.
+Every decision is published along with the name of whatever produced it, and that name is hashed
+onto the chain permanently. So the agent **refuses to start** if it is configured to use an AI
+provider it cannot actually call — a deployment that advertised a model it never ran would be
+making exactly the kind of unverifiable claim this project exists to remove. It reports itself as
+`deterministic-rubric-v1`, which is what it is.
+
+When two bids score the same, the tie breaks on a fixed order — cheaper first, then quicker, then
+the lower wallet address. A losing bidder can therefore recompute the result themselves instead of
+taking it on trust.
 
 ## Why Arc
 
-- **USDC is both the gas token and the settlement asset** at `0x3600…0000`, so a tender never
-  touches a second asset and a supplier is never paid in something they must then sell.
-- **One-confirmation finality** — no confirmation counters, and `block.prevrandao` is never used.
-- **Blocklist-aware payouts.** Every payment is pull-only (`withdraw()`), so a blocklisted recipient
-  parks their funds instead of bricking the milestone for everyone else.
+- **USDC is both the gas token and the settlement asset**, at a single system address. A tender
+  never touches a second asset: the deposit, the escrow, each milestone payment and the evaluation
+  fee are all the same USDC the buyer already holds, and a supplier is never paid in something they
+  have to sell before it is money.
+- **One confirmation is final.** There are no reorganisations to wait out, so nothing in the app
+  counts confirmations before treating a tender as live. It also means the chain's own randomness
+  is never used anywhere — on any chain that value is weak enough for a miner or validator to
+  influence, and a sealed bid must not depend on it. The secret that seals a bid is derived from
+  the bidder's own wallet signature instead.
+- **Payments are pull, not push.** Arc enforces a compliance blocklist, so a payment pushed to a
+  blocked address fails — and inside a shared escrow, that failure would stall the counterparty's
+  money too. Here a payment is credited to the recipient and they withdraw it when they choose, so
+  a blocked recipient parks their own funds and nobody else's milestone is held up.
 
 ## Live on mainnet
 
@@ -81,12 +98,15 @@ Deployed 2026-10-02 at block 23850939. The whole deploy cost **0.1954 USDC**.
 
 ## Paying the agent: x402
 
-The optional fast evaluation is metered with **x402 over Circle Gateway** — $0.05, settled in USDC,
-advertised in `/meta` so a buying agent can price the call before making it.
+Scoring a tender early — ahead of the schedule it would otherwise run on — costs **$0.05 in USDC**.
+It is charged with x402, the HTTP payment standard, and settled through Circle Gateway. The agent
+publishes its own price list, so a buying agent can look up what a call costs before committing to
+it rather than discovering the price from a rejected request.
 
-**Reading why you lost is free, permanently.** `GET /rfqs/:id/evaluation` and `GET /audit/:id` are
-never paywalled. A losing bidder re-hashes the published memo and compares it with the chain; a
-rationale written after the fact hashes differently and fails that check.
+**Reading why you lost is free, and always will be.** The endpoints that return the evaluation and
+the full audit trail are never charged for. A losing bidder re-hashes the published decision memo
+and compares it against the hash stored on-chain: a rationale rewritten after the fact produces a
+different hash and fails that check. The payment buys speed, never the explanation.
 
 ## Stack
 
@@ -96,7 +116,9 @@ NestJS indexer + evaluator · Next.js 15 · viem/wagmi · 303 tests.
 ## Honest status
 
 Unaudited — these contracts hold escrow, so treat committed amounts as amounts you could lose. The
-platform fee is **0 BP** and readable on-chain before anyone bids; the supplier pays it, not the
+platform fee is **zero** and readable on-chain before anyone bids; the supplier pays it, not the
 buyer, so a fee introduced later cannot be applied to a tender already priced against a published
-rate. `ADMIN_ROLE` and `DEFAULT_ADMIN_ROLE` are not yet renounced: both are one-way, and freezing
-the policy before its parameters have been exercised would be the wrong order.
+rate. The administrative roles — which can change the policy limits and the fee — have not yet been
+given up. Giving them up is irreversible and freezes those settings for good, which is the
+intention eventually; doing it before the limits have been exercised on a real tender would be the
+wrong order.
