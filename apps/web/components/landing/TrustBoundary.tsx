@@ -8,7 +8,7 @@
 export function TrustBoundary() {
   return (
     <section className="trust">
-      <h2 className="section-title">What this proves — and what it doesn&apos;t</h2>
+      <h2 className="section-title">What this proves, and what it doesn&apos;t</h2>
       <p className="story-lede">
         SealedRFQ settles money against rules and hashes. It cannot see a warehouse. Knowing exactly
         where the guarantees stop is what makes the parts that are guaranteed worth relying on.
@@ -50,7 +50,7 @@ export function TrustBoundary() {
           </ul>
           <p className="trust-note">
             No oracle here inspects physical reality. <b>Accepting a milestone releases money</b>, so
-            inspect before you accept — not after.
+            inspect the work first.
           </p>
         </div>
       </div>
@@ -59,8 +59,8 @@ export function TrustBoundary() {
         The protocol&apos;s job is to give that human check teeth: retention held back until final
         acceptance, a performance stake the supplier forfeits on abandonment, a rejection recorded
         on-chain with its reason, and an arbiter of last resort. Payment auto-releases if a buyer
-        stays silent past the acceptance window, which protects a supplier who delivered — so set a
-        window long enough to actually inspect the work.
+        stays silent past the acceptance window, which protects a supplier who delivered. Set a
+        window long enough to inspect the work properly.
       </div>
     </section>
   );

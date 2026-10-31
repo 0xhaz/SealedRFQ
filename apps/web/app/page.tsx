@@ -92,7 +92,7 @@ export default function Home() {
         <h2 className="section-title">One RFQ. Sealed bids. Two gates. Paid by milestone.</h2>
         <p className="story-lede">
           Northwind needs a vendor. Three suppliers bid without seeing each other&apos;s prices.
-          Before any money moves, the award has to pass two gates — and after that, payment follows
+          Before any money moves, the award has to pass two gates. After that, payment follows
           delivery. Every arrow below runs on <span className="arc-word">Arc</span>.
         </p>
         <div className="flow">
@@ -111,10 +111,11 @@ export default function Home() {
 
           <div className="flow-step">
             <span className="flow-n">STEP 02 · GATE 1 · AI</span>
-            <h3>The model scores against a published rubric</h3>
+            <h3>Bids are scored against a published rubric</h3>
             <p>
               The rubric&apos;s hash is fixed when the RFQ opens, so it cannot be rewritten to fit a
-              favoured bid — and so are the buyer&apos;s terms and requirements. Revealed bids are
+              favoured bid. The buyer&apos;s terms and requirements are fixed the same way, and
+              revealed bids are
               screened against them automatically; a requirement no bid can prove, like a
               certification, is reported as <b>still needing a human</b> rather than quietly passed.
               The memo is anchored whether it recommends or rejects.
@@ -174,8 +175,8 @@ export default function Home() {
             <p>
               Six caps live inside <span className="mono-sm">award()</span>. An AI-recommended bid
               above the published budget is <b>rejected by the contract itself</b>, and the
-              evaluator&apos;s recommendation is bound to one winner — so an awarder key cannot
-              quietly redirect it to someone else.
+              evaluator&apos;s recommendation is bound to one winner, so an awarder key cannot quietly
+              redirect it to someone else.
             </p>
           </div>
           <div className="cap-row">
@@ -224,10 +225,10 @@ export default function Home() {
               <i>🤖</i> The agent sells its work over x402
             </h3>
             <p>
-              Scoring an RFQ costs real inference, so it is sold rather than given away. An unpaid
+              Scoring an RFQ ahead of its own schedule is sold rather than given away. An unpaid
               call returns <span className="mono-sm">HTTP 402</span> with the terms, the caller
-              signs a USDC authorisation, and Circle&apos;s facilitator settles it on Arc — no API
-              key, no account, no invoice. Reading a memo back and checking it against the chain
+              signs a USDC authorisation, and Circle&apos;s facilitator settles it on Arc without an API
+              key, an account or an invoice. Reading a memo back and checking it against the chain
               stays <b>free, permanently</b>: a losing bidder must never have to pay to find out why
               they lost.
             </p>

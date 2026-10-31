@@ -24,7 +24,7 @@ const fraunces = Fraunces({
   display: "swap",
 });
 
-const title = "SealedRFQ — Sealed bids. AI scores. Arc awards.";
+const title = "SealedRFQ: Sealed bids. AI scores. Arc awards.";
 const description =
   "Sealed-bid B2B procurement on Arc. Suppliers commit sealed bids with a USDC deposit, an AI " +
   "evaluator scores them against a rubric published before bidding opened, and an on-chain policy " +

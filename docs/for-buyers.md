@@ -9,21 +9,21 @@ reasoning behind those choices.
 
 ## What you are committing
 
-When you post, the budget and your stake move into escrow. They are not spent — an award draws from
-the budget and the remainder comes back to you — but they are locked, and a tender nobody funded
+When you post, the budget and your stake move into escrow. They are not spent, since an award draws from
+the budget and the remainder comes back to you, but they are locked, and a tender nobody funded
 cannot be posted. That is what lets a supplier take your tender seriously enough to spend a deposit
 bidding on it.
 
 You can cancel while no bid has been committed, and everything returns. Once someone has bid, the
 tender runs its course: they have put money at risk on the strength of it.
 
-Nothing published can be edited either — scope, category, rubric and terms are fixed by a hash when
+Nothing published can be edited either: scope, category, rubric and terms are fixed by a hash when
 the tender opens. That is what makes it worth a supplier's time to quote. A mistake spotted before
 the first bid is a cancel-and-repost; after it, the tender has to finish.
 
 And closing a tender that found no winner is a **transaction**, not a deadline. Past the award
 deadline the tender reads as closed while the budget and your stake are still held by the contract.
-Someone has to close it to release them — anyone may, since the money returns to the buyer
+Someone has to close it to release them, and anyone may, since the money returns to the buyer
 regardless.
 
 ## Sealed or open
@@ -35,13 +35,13 @@ award was fair, or when you simply do not want suppliers pricing off each other.
 
 **Open** publishes every bid as it arrives. Suppliers undercut each other in the open, which is what
 you want when the item is a commodity and price decides. Two things to know: the audit page will
-record that this tender's prices were visible, because it cannot claim otherwise — and suppliers who
+record that this tender's prices were visible, because it cannot claim otherwise, and suppliers who
 can watch each other to cut a price can also watch each other to *hold* one, which a sealed round
 makes impossible.
 
 One practical wrinkle: an open tender still carries a reveal window, and nothing uses it. Scoring
 waits for that deadline whichever mode you chose, so on an open tender the round sits decided and
-unscoreable until it passes. Shorten it when you post — the form offers to.
+unscoreable until it passes. Shorten it when you post, which the form offers to do.
 
 ## The figures
 
@@ -57,7 +57,7 @@ tender credible to a supplier who has been let down before.
 
 **A platform fee, if one is set, comes out of the supplier's side.** It is deducted from each
 milestone as it is accepted, so you pay the price you agreed and the supplier receives less. That
-makes it their cost to price in rather than a surcharge on you — but it is also why the rate is
+makes it their cost to price in rather than a surcharge on you, but it is also why the rate is
 published on the bid page and written into the tender's terms: a supplier who only discovers it
 after winning has been quoted a different deal from the one they bid. It is zero on this
 deployment, and nothing about it appears anywhere while that is true.
@@ -67,11 +67,11 @@ Standard practice, and the reason a supplier finishing the job matters more to t
 a milestone.
 
 **Milestones.** Any split summing to 100. Equal thirds suits services. For bulk goods the trade
-convention is `30, 70` — a deposit against production and the balance against shipping documents.
+convention is `30, 70`: a deposit against production and the balance against shipping documents.
 
 **Delivery per milestone.** How long the supplier has, from the moment each milestone opens. It is a
 *window*, not a date: the clock restarts each milestone. **Set it at least as long as the slowest
-bid you would accept** — the contract now refuses an award to a bid quoting more days than the
+bid you would accept**, because the contract now refuses an award to a bid quoting more days than the
 window allows, so a short window quietly makes your best bids unawardable.
 
 **Acceptance window.** How long you have to inspect after delivery before payment releases
@@ -80,7 +80,7 @@ which is the point: they should not be held hostage by silence.
 
 ## Scoring
 
-You publish the weights — price, delivery, quality — before bidding opens, and they are hashed with
+You publish the weights for price, delivery and quality before bidding opens, and they are hashed with
 the rest of the tender. They cannot be adjusted after the prices arrive, which is the whole reason
 they are published first.
 
@@ -95,7 +95,7 @@ is permitted and is probably wrong; the form will not stop you.
 ### Weights say how much a criterion *can* swing, not how much it will
 
 This surprises people, so it is worth the arithmetic. Every criterion is scored as a ratio against
-the best bid received — the cheapest price scores 100, and a bid at twice that price scores 50.
+the best bid received: the cheapest price scores 100, and a bid at twice that price scores 50.
 The same for delivery.
 
 So the influence a criterion actually has depends on **how far apart the bids are on it**, not on
@@ -110,19 +110,19 @@ B is cheaper and still loses, on a rubric weighted 50 price / 30 delivery. B's p
 5%, worth 2.5 points. A's delivery advantage is 2×, worth 15. Six times the effect, from the
 criterion carrying the *lower* weight.
 
-Nothing is wrong there — halving a lead time is a bigger operational difference than paying 5% more,
+Nothing is wrong there, because halving a lead time is a bigger operational difference than paying 5% more,
 and the rubric said delivery was worth 30. But if that is not the trade you meant, the fix is the
 rubric rather than the result: raise the price weight, or tighten the delivery window so slow bids
 are **excluded** rather than merely marked down. The window is a hard limit; the rubric is a soft
 one.
 
-In practice prices cluster — suppliers converge on the market rate — while delivery can differ by
-multiples. So delivery often decides a tender that price was supposed to.
+In practice prices cluster, because suppliers converge on the market rate, while delivery can
+differ by multiples. So delivery often decides a tender that price was supposed to.
 
 ### What a track record is actually worth
 
-The quality score is not a judgement of anyone. It is arithmetic on one number — engagements this
-supplier has **completed on this deployment** — and it runs `50 + 10 per completed job`, capped at
+The quality score is not a judgement of anyone. It is arithmetic on one number, the engagements this
+supplier has **completed on this deployment**, and it runs `50 + 10 per completed job`, capped at
 100. A supplier nobody has hired here starts at 50; five completed jobs reach the ceiling.
 
 On the default 50 / 30 / 20 rubric that converts into a concrete pricing advantage. Holding
@@ -134,25 +134,25 @@ delivery equal, a supplier with history can bid this much dearer than a newcomer
 | 2 | 70 | about 8% |
 | 5 or more | 100 | about 20% |
 
-Twenty per cent is a firm thumb on the scale, and it is where the ramp stops — the difference
+Twenty per cent is a firm thumb on the scale, and it is where the ramp stops, since the difference
 between five completed jobs and fifty is nothing at all. Whether that is the trade you want is a
 rubric question: lower the quality weight and experience counts for less.
 
 **Two things to know before you rely on it.** It counts only what happened *here*, so a supplier
 with thirty years of trade and no tenders on this deployment scores 50, the same as someone who
-registered this morning — nothing on-chain can see a reputation earned elsewhere. And on a fresh
+registered this morning, because nothing on-chain can see a reputation earned elsewhere. And on a fresh
 deployment every supplier sits at 50, which means quality contributes the same ten points to every
 bid and your rubric is effectively price and delivery until somebody finishes a job.
 
 ### When two bids score exactly the same
 
-It happens — identical price, identical delivery, neither supplier with any history here. The
+It happens: identical price, identical delivery, neither supplier with any history here. The
 evaluator settles it with a cascade that is fixed in advance and readable from the memo: the higher
 score, then the cheaper bid, then the quicker one, then the lower wallet address.
 
 The last step is arbitrary, and deliberately so. Somebody has to win, there is no usable source of
 randomness on-chain, and an arbitrary rule that is *fixed* can be checked by the supplier who lost;
-one decided in the moment cannot. It is not worth gaming either — reaching that step means matching
+one decided in the moment cannot. It is not worth gaming either, since reaching that step means matching
 a rival's price and delivery exactly, which you cannot see in a sealed tender.
 
 ### A high score does not mean awardable
@@ -166,7 +166,7 @@ stop a bad award; the score is not a permission.
 Once the bids are revealed you have **two** choices, not three: award the supplier the evaluator
 named, or award nobody.
 
-Awarding somebody else is not a policy we ask you to respect — the contract refuses it. The
+Awarding somebody else is not a policy we ask you to respect. The contract refuses it. The
 recommendation is anchored against that specific winner, so an award naming anyone else finds no
 recommendation and the transaction reverts. This is the same rule that stops *us* awarding around
 it, and it is why the tender can claim it was decided by criteria fixed before any bid arrived. A
@@ -176,7 +176,7 @@ It is stricter than common practice and closer to procurement law than common pr
 classic tender a panel recommends and a decision-maker may decline, but deviating from the
 published criteria is exactly what gets an award overturned on challenge.
 
-**If you want a different winner, closing without award is the only route — and it is expensive in
+**If you want a different winner, closing without award is the only route, and it is expensive in
 a way that is easy to miss.** Deposits return and nobody is out of pocket, so the cost is not
 financial. The cost is that **every price is now public.** A re-run is no longer a sealed tender:
 each supplier knows precisely what the others bid last time, so the second round is a different
@@ -186,20 +186,21 @@ does not apply to it.
 So the judgement belongs **before** bidding opens, because that is the only moment it is free. If
 the cheapest bid should win, weight price at 100 and delivery at 0 and the arithmetic will do what
 you meant. If lead time genuinely matters less than the rubric says, change the rubric while you
-still can — not the outcome afterwards, which you cannot.
+still can. The outcome afterwards is not something you can change.
 
 ## Requirements
 
-Two kinds, and the difference is deliberate. **Checkable** requirements — a maximum delivery time, a
-minimum number of completed engagements — are screened automatically and appear as red flags.
-**Stated** requirements — a certification, an accreditation — are reported as *needing a person*,
+Two kinds, and the difference is deliberate. **Checkable** requirements, such as a maximum delivery time or a
+minimum number of completed engagements, are screened automatically and appear as red flags.
+**Stated** requirements, such as a certification or an accreditation, are reported as *needing a
+person*,
 never as satisfied, because nothing on-chain can verify them. A screening tool that ticked them off
 because a supplier said so would be worse than one that admits it cannot tell.
 
 ## Buying as a team
 
 Most buying is not one person's job. A requisition comes from one place, approval from another, and
-above some figure a second signature is required — a delegation of authority that already exists in
+above some figure a second signature is required, a delegation of authority that already exists in
 writing at most companies.
 
 By default a tender is posted from one wallet, which means **one private key carries your entire
@@ -209,7 +210,7 @@ holding it can award unilaterally, and if they leave you have a problem with liv
 **Team accounts are coming, and are not usable yet.** The contracts already support them: every
 permission check asks *which address is calling*, never whether that address is a person, so a
 multisig satisfies them exactly as a single wallet does, and Safe is deployed on Arc. What is
-missing is on this end — the app connects browser wallets only, so there is currently no way to sign
+missing is on this end: the app connects browser wallets only, so there is currently no way to sign
 *as* a Safe rather than as one of its owners. Connecting an owner's wallet makes that person the
 buyer, which is the thing a team account exists to avoid.
 
@@ -220,8 +221,8 @@ This section describes where this is going, so you can plan around it. What it w
   ordinary practice and impossible with a single key.
 - **Continuity.** Someone leaves, you rotate the owners, and live tenders are unaffected.
 
-Every buyer action would run through it — awarding, accepting a milestone, confirming receipt,
-extending a delivery window — so an award genuinely requires whoever your threshold says it
+Every buyer action would run through it, from awarding to accepting a milestone, confirming
+receipt and extending a delivery window, so an award genuinely requires whoever your threshold says it
 requires. Tenders posted from a team account are already labelled on the tender page with their
 threshold, because a supplier deciding whether to spend a day preparing a bid should know whether
 the counterparty has internal controls or is one person with a hot key.
@@ -230,7 +231,7 @@ We deliberately will not manage the account here. Adding and removing owners is 
 being wrong locks a company out of its own money, and Safe has spent years getting it right.
 
 **What is verified and what is not.** Safe is deployed on Arc, and nothing in these contracts
-assumes a single-key wallet — both checked. Connecting one is not built, and no tender has ever been
+assumes a single-key wallet, both of which I checked. Connecting one is not built, and no tender has ever been
 run from a team account. Until both are true, post from an ordinary wallet.
 
 There is a second kind of delegation worth knowing about: an address holding the awarder role can
@@ -240,7 +241,7 @@ to act, and it is the same mechanism that would let a junior buyer award below a
 ## How you find out a supplier is waiting
 
 Nothing here emails you, and that is deliberate rather than unfinished. A tender identifies people
-by wallet address, and an address is not a contact method — nothing can send to `0x0C01…`.
+by wallet address, and an address is not a contact method, and nothing can send to `0x0C01…`.
 Collecting email addresses would mean accounts, passwords and a database of who is buying what,
 which is a larger thing to trust than the contracts are.
 
@@ -250,19 +251,19 @@ does, and you cannot answer after that, so the item disappears once acting on it
 possible.
 
 The practical consequence: if you post a tender and never return until the award deadline, you will
-have missed every question asked in between. Look in once a day while bidding is open — the panel
+have missed every question asked in between. Look in once a day while bidding is open. The panel
 is at the top of the board and says nothing at all when there is nothing to do.
 
 ## Money that comes back to you
 
-You will see a balance under **Your payouts**, and it is not the escrowed budget of a live tender —
+You will see a balance under **Your payouts**, and it is not the escrowed budget of a live tender.
 that stays committed until milestones are accepted. A buyer is credited from five places:
 
 - **Unused budget**, the moment you award. Publish 3.00, award 2.80, and 0.20 returns immediately.
 - **Your stake**, when the engagement reaches final acceptance.
 - **Forfeited deposits**, from any bidder who sealed a bid and never revealed.
-- **A cancelled or no-award tender** — the whole escrow, once it is closed.
-- **An abandoned engagement** — what was never earned, plus capped damages.
+- **A cancelled or no-award tender.** The whole escrow, once it is closed.
+- **An abandoned engagement.** What was never earned, plus capped damages.
 
 It is **credited, not sent**. Every settlement path ends by crediting an address and leaving the
 owner to claim it, which is what stops a participant blocking a settlement by refusing to receive.
@@ -270,17 +271,17 @@ One transaction collects it whenever suits you.
 
 Two things that catch people: the figure is your wallet's total **across every tender**, so a
 balance shown on one tender's page may have come from another. And finishing bidding releases
-nothing — the budget leaves escrow milestone by milestone, or in one go if the tender is closed
+nothing: the budget leaves escrow milestone by milestone, or in one go if the tender is closed
 without an award.
 
 ## When something goes wrong
 
 **The supplier is running late.** You can extend the delivery window, but only *before* it closes.
-Afterwards nothing can reopen it — that would be reversing a forfeiture rather than preventing one.
+Afterwards nothing can reopen it, which would be reversing a forfeiture rather than preventing one.
 
 **How far you can push it is set by your acceptance window, not by you.** The milestone's escrow
 job expires at the deadline plus a transit allowance plus two acceptance windows, and an extension
-has to leave a transit and one full inspection inside that — so the most it can ever add is
+has to leave a transit and one full inspection inside that, so the most it can ever add is
 **exactly one acceptance window**. Set acceptance to three days and you can extend by three days;
 set it to five minutes and five minutes is all the room there is. If you expect to need slack, that
 is the figure to raise when you post the tender.
@@ -288,7 +289,7 @@ is the figure to raise when you post the tender.
 ### Nothing was delivered
 
 The window closing does not move any money. Somebody has to **settle** the milestone, which ends the
-engagement and divides the escrow — a transaction either party can send, because the contract
+engagement and divides the escrow. It takes a transaction either party can send, because the contract
 decides the split and neither side can influence it.
 
 **There is a wait first.** The milestone's escrow job outlives the delivery deadline by the transit
@@ -298,13 +299,13 @@ cannot deliver and nobody can settle. The Actions panel says which of the two yo
 
 **What you get back is not everything.** You recover the unpaid price, the retention held from
 milestones already accepted, and this milestone's escrow. From the supplier's stake you recover
-**damages, capped at what re-procuring would actually have cost you** — the next-cheapest revealed
+**damages, capped at what re-procuring would actually have cost you**: the next-cheapest revealed
 bid, less what you awarded. Whatever they staked above that returns to them. A security covers a
 loss; it is not confiscated because one occurred.
 
 **One case takes the whole stake, and it follows from your own award.** The cap only exists because
 there is a runner-up to measure against. If you awarded a bid that was *not* the cheapest revealed,
-there is no such measure — `excessCost` is zero and nothing bounds the damages, so the entire stake
+there is no such measure, so `excessCost` is zero and nothing bounds the damages, so the entire stake
 goes to you. That is worth knowing before you award: choosing a dearer bid buys you a stronger
 remedy if it fails.
 

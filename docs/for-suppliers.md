@@ -5,24 +5,24 @@ if delivery slips. Worth ten minutes before your first bid.
 
 ## Read the tender before you bid
 
-Every tender has a **tender pack** — scope, line items, commercial terms, timetable, requirements
+Every tender has a **tender pack**: scope, line items, commercial terms, timetable, requirements
 and scoring weights, with the hashes that fix them. Open it. Everything in it was published before
 bidding opened and cannot be changed afterwards without the hash failing, so what you read is what
 you will be judged against.
 
 Check the **delivery window** in particular. It is how long you have per milestone, and a bid
-quoting more days than it allows cannot win — the contract refuses that award. You will keep your
+quoting more days than it allows cannot win, because the contract refuses that award. You will keep your
 deposit, but you will have wasted the bid.
 
 If something is unclear, ask in the clarification round. Questions can be asked anonymously, because
-asking one reveals something about your approach. Answers go to every bidder, always — an answer
+asking one reveals something about your approach. Answers go to every bidder, always. An answer
 given to one supplier and withheld from the rest is the favour sealed bidding exists to prevent.
 
 ## Sealed bids
 
 Your price is hashed with a secret derived from your wallet. The chain records that you bid and
-takes your deposit; it does not record what you bid. Nobody can read it — not rival bidders, not the
-buyer, not the people who run this.
+takes your deposit; it does not record what you bid. Nobody can read it: not rival bidders, not the
+buyer, and not the people who run this.
 
 When bidding closes you reveal, and the contract checks your revealed price against the commitment
 you made earlier. This is why nobody can alter a bid after seeing the competition, including you.
@@ -35,7 +35,7 @@ The secret is derived from a wallet signature, so the same wallet can regenerate
 your browser. The reveal file is a backup for the same thing. Keep at least one.
 
 **Unless you bid from a team account, where the file is the only route.** A multisig signs with
-whichever owners are available, and a different set of signers produces different signature bytes —
+whichever owners are available, and a different set of signers produces different signature bytes,
 so a colleague revealing your bid would derive a different secret, which would not match what you
 sealed. The reveal would fail and the deposit would be forfeited. If the address you bid from is a
 contract, the bid page says so and the file stops being a backup: download it and put it somewhere
@@ -53,34 +53,34 @@ competitors did not see your number, do not bid on an open tender.
 
 ## Being chosen
 
-Bids are scored against the weights the buyer published before bidding opened — price, delivery,
-quality. The scoring is arithmetic, and the memo explaining the result is published and anchored on
+Bids are scored against the weights the buyer published before bidding opened: price, delivery
+and quality. The scoring is arithmetic, and the memo explaining the result is published and anchored on
 the chain.
 
 **Read the weights before you price, because undercutting may not win.** Each criterion is scored as
 a ratio against the best bid received, so what counts is how far apart the bids are on it rather
 than the weight alone. Prices cluster; delivery often does not. A bid 5% cheaper but twice as slow
-loses to one that is quicker, even on a rubric that weights price higher — the price gap is worth a
-couple of points and the delivery gap fifteen. If you can move a lead time more easily than a
+loses to one that is quicker, even on a rubric that weights price higher, because the price gap is worth
+a couple of points and the delivery gap fifteen. If you can move a lead time more easily than a
 price, that is usually where the tender is decided.
 
 **Your record here is worth real money, and it is worth knowing how much.** The quality score is
-`50 + 10 for every engagement you have completed on this deployment`, capped at 100 — so five
+`50 + 10 for every engagement you have completed on this deployment`, capped at 100, so five
 completed jobs is the ceiling and a sixth adds nothing. On a typical 50 / 30 / 20 rubric, holding
 delivery equal, that lets you price above a newcomer and still tie: about **4% with one completed
 job, 8% with two, 20% at the cap**.
 
 Which is the argument for taking a first job at a thin margin. It is also the reason the number
-that matters most early on is not price at all — it is finishing, because until you complete one
+that matters most early on is finishing rather than price, because until you complete one
 engagement you score the same 50 as a wallet created this morning, however long you have been
 trading. Nothing on-chain can see a reputation you earned elsewhere.
 
-If two bids score exactly the same, the tie is settled by a fixed cascade — cheaper first, then
-quicker, then the lower wallet address — so the outcome is one you can recompute rather than one
+If two bids score exactly the same, the tie is settled by a fixed cascade: cheaper first, then
+quicker, then the lower wallet address. The outcome is one you can recompute rather than one
 decided on the day. The last step is arbitrary; it only comes up when two bids match exactly, which
 in a sealed tender you could not have arranged.
 
-You cannot set the criteria — no supplier can, here or in any procurement process. What you can do
+You cannot set the criteria, and no supplier can, here or in any procurement process. What you can do
 is **question them while bidding is open**, in the clarification round. Every answer goes to every
 bidder, so asking whether a requirement is realistic costs you nothing and occasionally gets the
 tender reposted. Once bids are in, the terms are fixed for everyone.
@@ -91,7 +91,7 @@ after the fact hashes differently and fails that check. **You never have to pay 
 lost.**
 
 The evaluator recommends; it cannot award. The buyer awards, and only to the supplier the
-recommendation named — the contract refuses an award to anyone else, so a buyer who prefers a
+recommendation named. The contract refuses an award to anyone else, so a buyer who prefers a
 different bid cannot simply take it. Their only alternative is to award nobody, which returns every
 revealed bidder's deposit.
 
@@ -105,13 +105,13 @@ The award opens the first milestone, with its share of the price in escrow less 
 until the end. You deliver, the buyer accepts, and it releases.
 
 **If the buyer goes quiet, you still get paid.** Once the acceptance window passes, anyone can
-trigger the release. You cannot be held hostage by silence — that guarantee is the point of the
+trigger the release. You cannot be held hostage by silence, which is the point of the
 clock.
 
 Money released is *credited*, not transferred. It waits under **Your payouts** until you withdraw
 it, which is one transaction whenever suits you.
 
-Once you have withdrawn, that panel reads **"nothing owed"** again — a claimed balance returns to
+Once you have withdrawn, that panel reads **"nothing owed"** again: a claimed balance returns to
 zero and the money is in your wallet. The engagement will still say the retention was released,
 because it was; the balance is what is left to collect, not a record of what you were paid. The
 chain has the record: your withdrawal is a transaction like any other.
@@ -120,15 +120,15 @@ chain has the record: your withdrawal is a transaction like any other.
 the escrow when that milestone is accepted, so you receive less than you quoted while the buyer
 pays the quoted price in full. It is charged after retention is withheld and never on the retention
 itself, which reaches you whole at final acceptance. The bid page says the rate before you bid and
-the tender's terms state it — **price it in**. It is zero on this deployment, and the bid page says
+the tender's terms state it, so **price it in**. It is zero on this deployment, and the bid page says
 nothing at all when it is.
 
 **Shipping across a border?** The tender page offers a **proforma invoice** once you have been
-awarded — the document customs and import licensing ask for before goods move. It is built from
+awarded, which is the document customs and import licensing ask for before goods move. It is built from
 figures the tender already fixed, so the total and the milestone schedule cannot drift from what
 was agreed; you supply what the tender cannot know: both parties' **legal names and postal addresses**, the
 country of origin and the HS code. Your name is prefilled if you have published a profile, since
-that is signed by your wallet, but it stays editable — the name a business ships under is often not
+that is signed by your wallet, but it stays editable, because the name a business ships under is often not
 the name in a directory. A wallet address identifies neither party to an import authority, so the
 panel says plainly when the document is still missing something customs will want. Print it to PDF from the panel. You probably do not need it: escrow already shows the
 buyer's funds are committed, which is what a proforma is usually asked to assert, and it can be
@@ -136,19 +136,19 @@ checked on-chain rather than taken on trust.
 
 For physical goods there is a transit allowance before that clock starts, so a buyer is not paying
 for a container still at sea. If they confirm receipt, the inspection window runs from arrival
-instead — which is sooner, so it is in their interest as well as yours.
+instead, which is sooner, so it is in their interest as well as yours.
 
 ## If you are going to be late
 
-**Tell the buyer before the window closes.** They can extend it — that is the only thing anywhere
+**Tell the buyer before the window closes.** They can extend it, and that is the only thing anywhere
 that can move a delivery deadline, and it stops working the moment the deadline passes. There is a
 private, encrypted thread with them on the tender page for exactly this.
 
 If the window closes with nothing delivered, either side can **settle** the milestone. That is the
 terminal step: it ends the engagement and divides the escrow, and nothing reverses it. There is a
-gap first — settlement is refused until the milestone's escrow job expires, which is the transit
-allowance plus two acceptance windows after your deadline — so for a while you can neither deliver
-nor be settled against.
+gap first: settlement is refused until the milestone's escrow job expires, which is the transit
+allowance plus two acceptance windows after your deadline. For a while you can neither deliver nor
+be settled against.
 
 The buyer recovers what was never earned, and damages from your stake **capped at what re-procuring
 would actually have cost them**: the next-cheapest revealed bid, less what you were awarded. **The
@@ -170,7 +170,7 @@ it.
 ## Building a record
 
 Everything you do here is counted from the chain and shown on the supplier directory: tenders bid,
-revealed, won, engagements completed, milestones delivered and rejected — and bids sealed but never
+revealed, won, engagements completed, milestones delivered and rejected, and bids sealed but never
 revealed.
 
 That last number is the least flattering one you have and the one buyers will look at hardest. It is

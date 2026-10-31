@@ -1,8 +1,8 @@
 # Verifying a decision
 
 Every claim this project makes is supposed to be checkable by someone who does not trust it. This
-page is how you do the checking — by hand, without our software, using only the chain and a
-hashing tool.
+page is how you do the checking by hand, without our software, using only the chain and a hashing
+tool.
 
 ## What is actually being claimed
 
@@ -12,16 +12,16 @@ Three things, and it is worth separating them because they are proved differentl
    bidding opened.
 2. **The reasoning behind the award was written before the result, not after.** Proved by a second
    hash, anchored when the decision was made.
-3. **Nobody could see a rival's price before the reveal.** Proved by the commit–reveal mechanism —
-   and only for sealed tenders. An open tender makes no such claim, and its audit page says so.
+3. **Nobody could see a rival's price before the reveal.** Proved by the commit and reveal mechanism, and
+   only for sealed tenders. An open tender makes no such claim, and its audit page says so.
 
-Everything else — that a supplier is competent, that goods arrived, that a certificate is genuine —
-is **not** claimed and cannot be. See the limits at the end.
+Everything else is **not** claimed and cannot be: that a supplier is competent, that goods
+arrived, that a certificate is genuine. See the limits at the end.
 
 ## Checking the tender has not changed
 
-The RFQ carries a `metadataHash` on-chain. The document it describes — scope, line items, terms,
-rubric, requirements — is published separately.
+The RFQ carries a `metadataHash` on-chain. The document it describes (scope, line items, terms,
+rubric and requirements) is published separately.
 
 Download the published document from the tender pack, then:
 
@@ -41,7 +41,7 @@ and which supplier was recommended. Its hash is anchored in the `AttestationLog`
 To check it yourself:
 
 1. Fetch the memo (`/audit/{id}` shows it, or the agent's API returns it)
-2. Canonicalise it — [RFC 8785 JCS](https://www.rfc-editor.org/rfc/rfc8785), which orders keys so
+2. Canonicalise it with [RFC 8785 JCS](https://www.rfc-editor.org/rfc/rfc8785), which orders keys so
    that two systems serialising the same object produce identical bytes
 3. Take the SHA-256 of those bytes
 4. Read the attestation from the contract and compare
@@ -64,7 +64,7 @@ not collapsed into "valid / invalid":
 
 ## Checking the award itself
 
-The contract enforces this, so it does not require trust — but it can be confirmed:
+The contract enforces this, so it does not require trust. You can confirm it anyway:
 
 - The winner must have revealed a bid. A supplier who never revealed cannot be awarded.
 - The award must cite an evaluation attested **for that specific winner**. Swapping in a different
@@ -76,8 +76,8 @@ refused. That is the firewall working, and it is on-chain to be looked at.
 
 ## Checking a supplier's record
 
-The supplier directory shows counts — tenders bid, revealed, won, engagements completed, milestones
-delivered and rejected, and bids sealed but never revealed. Every one is derived from events the
+The supplier directory shows counts: tenders bid, revealed and won, engagements completed,
+milestones delivered and rejected, and bids sealed but never revealed. Every one is derived from events the
 chain published, so you can recount them from the chain yourself.
 
 Deliberately not a score. A single number would be the one figure on this site nobody could

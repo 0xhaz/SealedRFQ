@@ -1,0 +1,14 @@
+{
+  "firewallMemo": {
+    "bidder": "0x61424d407Bfd0428a79b73f21dAF499Abd319B00",
+    "kind": "AWARD_RECOMMENDATION",
+    "rationale": "recommend s3 at 3.40",
+    "rfqId": "1",
+    "schema": "sealedrfq.demo-memo.v0"
+  },
+  "firewallMemoHash": "0x15c21dba0a19b62fab82b123553e1ab2a871091487f6c7edd3cb2083fad1a793",
+  "firewallWinner": "0x61424d407Bfd0428a79b73f21dAF499Abd319B00",
+  "rfqId": 1,
+  "rubricHash": "0x20193ace80ea3d57ffad20e0409206952a5f908ea8efc5c1a3f37d7696c9ad2e",
+  "startedAt": 1790953338
+}

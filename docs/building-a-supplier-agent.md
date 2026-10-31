@@ -1,7 +1,7 @@
 # Building a supplier agent
 
 Everything here is a public HTTP endpoint or a public contract call. You do not need our web app to
-bid, and nothing about this integration requires permission from us — that is deliberate. A supplier
+bid, and nothing about this integration requires permission from us. That is deliberate. A supplier
 who wants their own software watching for tenders in their category, pricing them and bidding should
 be able to build it.
 
@@ -13,7 +13,7 @@ be able to build it.
 
 ## Finding tenders
 
-The agent indexes the chain and serves it as JSON. It is a convenience, not an authority — every
+The agent indexes the chain and serves it as JSON. It is a convenience rather than an authority: every
 figure it returns is derived from events you could read yourself, and for anything that matters you
 should.
 
@@ -25,7 +25,7 @@ GET  /rfqs/{id}/clarifications the public question thread
 GET  /stats                    totals for the deployment
 ```
 
-Filter on `category` and `region` — both are `bytes32` labels on-chain from a fixed vocabulary, so
+Filter on `category` and `region`. Both are `bytes32` labels on-chain from a fixed vocabulary, so
 they are searchable rather than free text. `GET /meta` tells you the registry address; watch
 `RFQCreated` on it directly if you would rather not depend on the indexer at all.
 
@@ -40,7 +40,7 @@ Four things will make a bid worthless. All are readable up front.
 - **Invite-only.** `isInvited(rfqId, you)` must be true if `inviteOnly` is set.
 - **Qualification.** If `requiresQualification`, the qualifier must return true for you.
 - **The delivery window.** `deliveryWindow` is seconds per milestone. A bid quoting more days than
-  it allows **cannot be awarded** — the contract refuses it. You keep your deposit, but the bid is
+  it allows **cannot be awarded**, because the contract refuses it. You keep your deposit, but the bid is
   wasted.
 - **Budget.** A price above `budget` cannot be awarded either.
 - **The delivery window is seconds, not days.** `deliveryWindow` and the `deliverySeconds` you bid
@@ -50,7 +50,7 @@ Four things will make a bid worthless. All are readable up front.
 
 Read `platformFeeBP()` from the `AgenticCommerce` contract before you quote. Where it is non-zero,
 that percentage is deducted from **each milestone** when the milestone is accepted, and it is borne
-by you — the buyer pays the price you quoted, you receive less.
+by you: the buyer pays the price you quoted, and you receive less.
 
 The arithmetic, which is not what most fee models do:
 
@@ -62,7 +62,7 @@ retention        = paid in full at final acceptance, never charged a fee
 
 So across an engagement the fee costs you `platformFeeBP × (price − total retention)`. An agent
 that priced off `budget` alone would systematically under-quote by that amount. It is **zero** on
-this deployment, so reading it costs one call and changes nothing today — which is exactly when it
+this deployment, so reading it costs one call and changes nothing today, which is exactly when it
 is cheap to get right.
 
 ## Bidding: sealed
@@ -77,8 +77,8 @@ keccak256(abi.encode(
 ))
 ```
 
-`price` is `uint128` in 6-decimal USDC units. `deliverySeconds` is `uint32` — **seconds**,
-not days, so it can answer a window of any length the buyer set. `proposalHash` is the
+`price` is `uint128` in 6-decimal USDC units. `deliverySeconds` is `uint32`, counted in **seconds**
+rather than days, so it can answer a window of any length the buyer set. `proposalHash` is the
 sha256 of your proposal document, or 32 zero bytes if the tender does not require one.
 
 **The salt is yours to choose.** Random bytes are fine if you will store them. Our web app derives
@@ -99,8 +99,8 @@ bidder: {yourAddress}
 version: sealedrfq.salt.v1
 ```
 
-Most wallets sign deterministically (RFC 6979), so the same message yields the same salt — but that
-is not guaranteed by the specification. If you rely on it, verify by recomputing the commitment and
+Most wallets sign deterministically (RFC 6979), so the same message yields the same salt, but the
+specification does not guarantee it. If you rely on it, verify by recomputing the commitment and
 comparing with what the chain recorded before you need to reveal.
 
 Then:
@@ -122,7 +122,7 @@ revealBid(rfqId, price, deliverySeconds, proposalHash, salt)
 
 ## Bidding: open
 
-No commitment and nothing to reveal — the price is public when placed.
+No commitment and nothing to reveal: the price is public when placed.
 
 ```
 placeOpenBid(rfqId, price, deliverySeconds, proposalHash)
@@ -134,7 +134,7 @@ taken once. There is no reveal step and therefore nothing to forfeit by missing 
 ## After an award
 
 **Know what failing costs before you bid, because it is not one number.** If a milestone's window
-closes undelivered, either party can call `settleExpired(rfqId)` — refused until the escrow job
+closes undelivered, either party can call `settleExpired(rfqId)`, which is refused until the escrow job
 expires, which is `deliveryDeadline + transitWindow + 2 × acceptanceWindow`. The split is:
 
 ```
@@ -154,12 +154,12 @@ AgenticCommerce.submit(jobId, deliverableHash, "")
 ```
 
 `jobId` is `currentJobId` on the engagement. `deliverableHash` is the sha256 of whatever you are
-delivering — the file itself for a digital deliverable, or the shipping document set for goods. Send
+delivering: the file itself for a digital deliverable, or the shipping document set for goods. Send
 the actual file to the buyer however you normally would; only the hash goes on-chain.
 
 Then the clock runs. If the buyer accepts, the milestone releases. If the buyer says nothing, it
-releases anyway once the acceptance window passes — for goods, after a transit allowance, unless
-they confirm receipt sooner. Money released is credited, not transferred: call `withdraw()` on the
+releases anyway once the acceptance window passes. For goods that runs after a transit
+allowance, unless they confirm receipt sooner. Money released is credited, not transferred: call `withdraw()` on the
 adapter when it suits you.
 
 If you are going to be late, ask the buyer to extend the window **before it closes**. Nothing can
@@ -174,8 +174,8 @@ POST /suppliers/{address}/profile
   "ts": 1790000000, "signature": "0x..." }
 ```
 
-Sign this message with the wallet the profile describes, or it is rejected — that is the one attack
-a directory of unverified claims has to stop:
+Sign this message with the wallet the profile describes, or it is rejected. That is the one
+attack a directory of unverified claims has to stop:
 
 ```
 SealedRFQ supplier profile
@@ -191,8 +191,8 @@ ts:{unix seconds}
 ```
 
 The timestamp must be within ten minutes of now. Nothing you publish here is verified by anyone,
-including us, and the directory says so beside it. Your counted record — bids, wins, completions,
-and bids never revealed — comes from the chain and is not editable by anybody.
+including us, and the directory says so beside it. Your counted record comes from the chain and is not editable by anybody: bids, wins,
+completions, and bids never revealed.
 
 ## Rates, costs and etiquette
 

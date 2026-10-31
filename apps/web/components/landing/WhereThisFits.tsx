@@ -39,7 +39,7 @@ export function WhereThisFits() {
       <h2 className="section-title">Where this fits</h2>
       <p className="story-lede">
         Procurement software is mostly orchestration: it moves a decision through an organisation,
-        then hands the payment to an ERP and a bank. SealedRFQ is the layer underneath — the part
+        then hands the payment to an ERP and a bank. SealedRFQ is the layer underneath: the part
         where the money actually moves, and where a losing bidder can check the reasoning instead of
         taking someone&apos;s word for it.
       </p>
@@ -62,8 +62,8 @@ export function WhereThisFits() {
         its AI&apos;s reasoning lives in a database only its operator can read. Here the award cannot
         exceed the published budget because the contract rejects it, the payment is already escrowed,
         and the reasoning is anchored so anyone can re-hash it. That is worth having <i>under</i> an
-        intake tool, not instead of one — an awarded PO and its milestone receipts should still flow
-        back into whatever system your finance team already lives in.
+        intake tool rather than instead of one. An awarded PO and its milestone receipts should
+        still flow back into whatever system your finance team already lives in.
       </div>
     </section>
   );

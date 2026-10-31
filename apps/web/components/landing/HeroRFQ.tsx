@@ -110,14 +110,14 @@ export function HeroRFQ() {
         </div>
         <div className={`doc-status ${blocked ? "bad" : paid || awarded ? "good" : ""}`}>
           <i className="doc-status-dot" />
-          {label === "BLOCKED" ? "BLOCKED — AwardExceedsBudget" : label}
+          {label === "BLOCKED" ? "BLOCKED: AwardExceedsBudget" : label}
         </div>
       </div>
       {sealed && <div className="stamp s1">SEALED</div>}
       {(awarded || paid) && <div className="stamp s2">{paid ? "PAID" : "AWARDED"}</div>}
       {blocked && <div className="stamp s2 blocked">BLOCKED BY CONTRACT</div>}
       <div className="doc-caption">
-        Illustrative loop — both endings ran on Arc, with a transaction for every step.
+        Illustrative loop. Both endings ran on Arc, with a transaction for every step.
       </div>
     </div>
   );

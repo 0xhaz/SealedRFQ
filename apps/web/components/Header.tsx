@@ -4,7 +4,7 @@ import { WalletChip } from "./WalletChip";
 export function Header() {
   return (
     <header className="header">
-      <Link href="/" className="wordmark" title="SealedRFQ — sealed-bid procurement on Arc">
+      <Link href="/" className="wordmark" title="SealedRFQ: sealed-bid procurement on Arc">
         Sealed<em>RFQ</em>
       </Link>
       <span className="tagline">sealed-bid procurement · on arc</span>
