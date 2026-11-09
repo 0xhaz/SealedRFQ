@@ -94,7 +94,8 @@ Starts before Phase 1 ends. The contracts are the long pole and do not depend on
 - [ ] `QualifiedRFQRegistryV2` with a qualification gate on `commitBid` and at award
 - [ ] Concordium light client: finalization committee, epoch transitions, aggregate verification
       over `BLS.sol`. This replaces the signed permit as the source of eligibility
-- [ ] Measure bulletproof verification gas before committing to on-chain proof checking
+- [x] Bulletproof verification gas measured: about a cent for a 32-member set membership proof,
+      so on-chain proof checking is affordable and the design is not cost-constrained
 - [ ] Keep the qualification check behind an interface, so a signed attestor remains a drop-in
       fallback if the light client slips
 - [ ] Invitation gate enforced on-chain, separately from qualification. ADR-006 is explicit that a
@@ -231,9 +232,24 @@ Three things, none of them the pairing arithmetic that worried me:
 1. **ed25519.** Web3 ID presentations are signed with an ed25519 holder key and there is no
    precompile for it. Either implement a verifier in Solidity, or bind wallet possession through an
    Arc signature instead, which the RFC already recommends doing independently of the proof.
-2. **Bulletproof gas.** Range proofs are log-sized multi-scalar multiplications. `G1MSM` makes them
-   far cheaper than a loop, but the number is unmeasured. It needs its own spike before anything
-   depends on it.
+2. **Bulletproof gas: measured, 2026-11-10, and affordable.** Concordium offers four statement
+   types, and the RFC's suggested MVP predicate is jurisdiction membership, so `AttributeInSet` is
+   the one that matters. Its verification reduces to one multi-exponentiation of about
+   `2n + 2*log2(n)` G1 points, which `G1MSM` performs in a single call. Measured against forked
+   Arc mainnet:
+
+   | Set size | Points | Gas | USDC | Share of a 30M block |
+   |---|---|---|---|---|
+   | 32 members | 74 | 502,538 | $0.010 | 1.7% |
+   | 64 members | 140 | 873,589 | $0.018 | 2.9% |
+   | 256 members | 528 | 3,293,262 | $0.066 | 11.0% |
+
+   The multi-exponentiation dominates; scalar arithmetic and the Fiat-Shamir transcript add
+   perhaps a fifth again, since scalar work is native `mulmod` rather than precompile calls.
+
+   So a jurisdiction predicate over a realistic country set costs about a cent to verify on-chain.
+   `RevealAttribute` is cheaper still, needing only a commitment opening. Verification cost does
+   not constrain the design, which is the answer this spike existed to get.
 3. **Committee tracking.** Verifying a signature is settled; knowing *whose* signature to expect
    across epochs and stake changes is the actual light-client work, and it is ongoing rather than
    one-off.
