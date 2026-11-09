@@ -198,8 +198,14 @@ checkably the same entity instead of two unrelated registrations that merely sha
 - [x] `verify-agent.mjs`: checks the badge the way a stranger would, from an agent id alone. Run
       against the registry authors' own reference agent it reports the two gaps that really exist
       there — no anchored card hash, no key binding
-- [ ] Run the registration. Needs a funded testnet account, which is the one step that cannot be
-      done from here
+- [x] A dedicated evaluator key, `CCD_EVALUATOR_PK` in `.env.testnet`, address
+      `0x82d0ab44cbdd811e6836c7f88ff6ecb094d26774`. Not a reused role key: a CIS-8 binding can be
+      taken over by whoever holds the private key, because the specification lets one account
+      replace another as the active owner, and the only refusal is `AlreadyRegistered` for the
+      same caller. Binding a key from the compromised testnet set would let a stranger claim the
+      agent's key whenever they chose
+- [ ] Run the registration. Needs a funded Concordium testnet account, which is the one step that
+      cannot be done from here
 - [ ] One supported identity or Web3 ID presentation with a fresh challenge and replay protection
 - [ ] Qualification Agent: verifies the proof off-chain, then signs the Arc permit
 - [ ] Capture CCDExplorer links for every registration as they happen, not at the end
@@ -213,7 +219,10 @@ blunt about this in four separate places.
 
 ## Phase 4: vertical slice (Nov 30 to Dec 5)
 
-- [ ] Deploy V2 contracts to Arc testnet
+- [ ] Deploy V2 contracts to Arc testnet, granting `EVALUATOR_ROLE` to
+      `0x82d0ab44cbdd811e6836c7f88ff6ecb094d26774`, the key bound in CIS-8. Until that holds, the
+      badge demonstrates the binding mechanism while attesting to nothing: the claim it makes is
+      that the agent controls the key Arc accepts recommendations from
 - [ ] Wire the application to V2 and to the Qualification Agent
 - [ ] Deterministic evaluator with cited observations and a reproducible score calculation
 - [ ] Human approval that the model cannot bypass, plus one deliberately rejected unauthorized

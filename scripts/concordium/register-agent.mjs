@@ -20,14 +20,23 @@
  * Every update is dry-run first and the script stops on a rejection rather than spending the fee
  * to discover the same thing on chain.
  *
- * Usage:
- *   CCD_WALLET=/path/to/wallet-export.json \
- *   ARC_EVALUATOR_PRIVATE_KEY=0x... \
- *   SITE_ORIGIN=https://www.sealedrfq.com \
- *   node scripts/concordium/register-agent.mjs [--network testnet] [--dry-run]
+ * Usage, with the key read straight out of the env file rather than pasted:
  *
- * The Arc key is read from the environment and never logged. Pass `--dry-run` to do everything
- * except send, which is worth doing once before spending anything.
+ *   set -a; . ./.env.testnet; set +a
+ *   CCD_WALLET=/path/to/wallet-export.json SITE_ORIGIN=https://www.sealedrfq.com \
+ *     node scripts/concordium/register-agent.mjs --dry-run
+ *
+ * `CCD_EVALUATOR_PK` is a key of its own, not a reused role key. A CIS-8 binding can be taken
+ * over by whoever holds the private key — the specification lets one account replace another as
+ * the active owner — so binding a key that has leaked would let a stranger claim the agent's key
+ * at any moment. For the badge to attest to anything, that same key has to hold EVALUATOR_ROLE on
+ * the Arc deployment this registration claims to speak for.
+ *
+ * The key is read from the environment, never logged, and never signed with except against the
+ * Concordium account in CCD_WALLET. A proof naming some other account is precisely what someone
+ * would need to bind our key to theirs, so it is not produced even in a dry run.
+ *
+ * Pass `--dry-run` to do everything except send, which is worth doing once before spending.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -91,13 +100,13 @@ const walletPath = need("CCD_WALLET");
 // Read the Arc key, derive what we need from it, and keep it out of every log line and every
 // object that might be printed.
 const evaluatorPublicKey = (() => {
-  const raw = need("ARC_EVALUATOR_PRIVATE_KEY").replace(/^0x/, "");
-  if (!/^[0-9a-fA-F]{64}$/.test(raw)) die("ARC_EVALUATOR_PRIVATE_KEY must be 32 bytes of hex");
+  const raw = need("CCD_EVALUATOR_PK").replace(/^0x/, "");
+  if (!/^[0-9a-fA-F]{64}$/.test(raw)) die("CCD_EVALUATOR_PK must be 32 bytes of hex");
   return secp256k1.getPublicKey(Buffer.from(raw, "hex"), true);
 })();
 
 function signWithEvaluatorKey(digest) {
-  const raw = process.env.ARC_EVALUATOR_PRIVATE_KEY.replace(/^0x/, "");
+  const raw = process.env.CCD_EVALUATOR_PK.replace(/^0x/, "");
   const sig = secp256k1.sign(digest, Buffer.from(raw, "hex"), { prehash: false });
   return Buffer.concat([Buffer.from(sig.toBytes("compact")), Buffer.from([sig.recovery])]);
 }
