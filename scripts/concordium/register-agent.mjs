@@ -152,10 +152,21 @@ function reject(result) {
     : JSON.stringify(result.reason);
 }
 
-/** Dry-run, stop on a rejection, then send and wait. Returns the finalised summary. */
-async function submit(label, { contract, method, parameter, energy }) {
+/**
+ * Dry-run, stop on a rejection, then send and wait. Returns the finalised summary.
+ *
+ * `expectedDryRunFailure` names the one rejection that is not a problem: during `--dry-run` the
+ * key binding has not been sent, so CIS-8004 cannot yet see the CIS-8 entry and `register` must
+ * fail. Dying there would report an inherent consequence of not sending anything as a fault.
+ */
+async function submit(label, { contract, method, parameter, energy, expectedDryRunFailure }) {
   const dry = await client.invokeContract({ invoker: sender, contract, method, parameter });
   const refusal = reject(dry);
+  if (refusal && dryRun && expectedDryRunFailure && refusal.startsWith(expectedDryRunFailure)) {
+    console.log(`\n${label}`);
+    console.log(`  ${refusal}, as expected: the key binding above was not sent`);
+    return null;
+  }
   if (refusal) die(`${label} would be rejected: ${refusal}`);
   const used = dry.usedEnergy.value;
   // Headroom over the dry run, because the real call runs against a later block.
@@ -182,7 +193,7 @@ async function submit(label, { contract, method, parameter, energy }) {
   console.log(
     `  finalised: ${EXPLORER[network]}/${network}/transaction/${SDK.TransactionHash.toHexString(hash)}`,
   );
-  return { hash: SDK.TransactionHash.toHexString(hash), summary };
+  return { hash: SDK.TransactionHash.toHexString(hash), summary, dryReturnValue };
 }
 
 // ---- 1. Bind the Arc evaluator key in CIS-8 -------------------------------------------------
@@ -240,6 +251,21 @@ if (alreadyBound?.status === "Active") {
 // ---- 2. Register the agent ------------------------------------------------------------------
 
 const cardUrl = `${origin}/.well-known/agent-card.json`;
+const registerMetadata = [
+  { key: "role", value: Buffer.from("evaluator", "utf8") },
+  { key: "settlementChain", value: Buffer.from("arc", "utf8") },
+];
+
+if (dryRun) {
+  // The external reference cannot validate until the binding is on chain, so check everything
+  // else about the parameter now: the URI, the metadata entries and the energy cost.
+  await submit("CIS-8004 register, without the external reference", {
+    contract: REGISTRY,
+    method: receiveName("register"),
+    parameter: registerParameter({ agentUri: cardUrl, initialMetadata: registerMetadata }),
+  });
+}
+
 const registered = await submit("CIS-8004 register", {
   contract: REGISTRY,
   method: receiveName("register"),
@@ -248,29 +274,54 @@ const registered = await submit("CIS-8004 register", {
     // Deliberately absent: the card names the agent id, and the id does not exist until this
     // transaction lands. Anchored in step 3 rather than left as None forever.
     externalReference: { keyRegistry: KEY_REGISTRY[network], ...externalKey },
-    initialMetadata: [
-      { key: "role", value: Buffer.from("evaluator", "utf8") },
-      { key: "settlementChain", value: Buffer.from("arc", "utf8") },
-    ],
+    initialMetadata: registerMetadata,
   }),
+  expectedDryRunFailure: "InvalidExternalReference",
 });
 
 if (dryRun) {
-  console.log("\n  --dry-run complete. Both transactions would be accepted.\n");
+  console.log(
+    "\n  --dry-run complete. The key binding and the register parameter are both accepted;" +
+      "\n  the external reference can only be checked once the binding is on chain.\n",
+  );
   process.exit(0);
 }
 
-const agentId = (() => {
-  const events = registered.summary.summary?.contractUpdateLogs ?? [];
-  // The return value is the authority; the event is a cross-check that the id we read is the one
-  // the contract logged.
-  const ret = registered.summary.summary?.returnValue;
-  if (!ret) die("register returned no value, so the agent id is unknown");
-  const id = agentIdFromTokenId(
-    SDK.ReturnValue.parseWithSchemaTypeBase64(SDK.ReturnValue.fromHexString(ret), "HQA="),
+/**
+ * Which agent id we got.
+ *
+ * Not read from the transaction summary: an update summary carries trace events, not a return
+ * value, so the id is not there. The dry run that preceded the send does return it, and `agentOf`
+ * then confirms the registration actually landed as ours. If someone else registered in the same
+ * window the id shifts, so a short forward scan covers that rather than trusting the prediction.
+ */
+const agentId = await (async () => {
+  const predicted = registered.dryReturnValue
+    ? agentIdFromTokenId(
+        SDK.ReturnValue.parseWithSchemaTypeBase64(registered.dryReturnValue, "HQA="),
+      )
+    : 0n;
+  const mine = SDK.AccountAddress.toBase58(sender);
+  for (let id = predicted; id < predicted + 16n; id++) {
+    const result = await client.invokeContract({
+      contract: REGISTRY,
+      method: receiveName("agentOf"),
+      parameter: agentOfParameter(id),
+    });
+    if (result.tag !== "success" || !result.returnValue) continue;
+    const agent = parseAgentOf(result.returnValue);
+    if (agent?.owner === mine && agent.agentUri === cardUrl) {
+      console.log(
+        id === predicted
+          ? `  agent id ${id}`
+          : `  agent id ${id} (the dry run predicted ${predicted})`,
+      );
+      return id;
+    }
+  }
+  return die(
+    `register finalised in ${registered.hash} but no agent near id ${predicted} is owned by\n  ${mine} with the card URL. Find the id on the explorer and anchor the hash by hand with\n  setAgentURI; the registration itself is fine.`,
   );
-  console.log(`  agent id: ${id}${events.length ? "" : " (no events logged)"}`);
-  return id;
 })();
 
 // ---- 3. Anchor the card hash ----------------------------------------------------------------
