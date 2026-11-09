@@ -39,12 +39,15 @@ contract ConcordiumEpochRegistryTest is Test {
 
         bytes memory negG2 = vm.parseJsonBytes(vm.readFile("test/fixtures/bls-concordium.json"), ".negG2Generator");
 
-        reg = new ConcordiumEpochRegistry(era, eraMs, EPOCH_MS, REWARD_PERIOD_EPOCHS, negG2, 1, address(this));
+        reg = new ConcordiumEpochRegistry(era, eraMs, EPOCH_MS, REWARD_PERIOD_EPOCHS, 2, negG2, 1, address(this));
 
         period = epoch / REWARD_PERIOD_EPOCHS;
-        // Put this chain's clock inside the reward period the certificate belongs to, which is
-        // where it would be when the certificate is fresh.
-        vm.warp((uint256(eraMs) + uint256(period) * REWARD_PERIOD_EPOCHS * EPOCH_MS) / 1000 + 60);
+        // The certificate's own epoch, not the start of its period.
+        //
+        // Warping to the period start put the clock nine epochs behind the certificate, which read
+        // as a certificate from the future once certificate age started being checked. It was
+        // wrong before too; nothing was looking.
+        vm.warp((uint256(eraMs) + uint256(epoch) * EPOCH_MS) / 1000 + 60);
     }
 
     function _register() internal {
@@ -155,7 +158,7 @@ contract ConcordiumEpochRegistryQuorumTest is Test {
 
     function setUp() public {
         reg = new ConcordiumEpochRegistry(
-            bytes32(uint256(1)), 1_000_000, 3_600_000, 24, new bytes(256), 2, address(this)
+            bytes32(uint256(1)), 1_000_000, 3_600_000, 24, 2, new bytes(256), 2, address(this)
         );
         reg.grantRole(reg.UPDATER_ROLE(), ALICE);
         reg.grantRole(reg.UPDATER_ROLE(), BOB);

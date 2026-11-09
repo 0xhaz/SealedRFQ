@@ -45,6 +45,15 @@ contract ConcordiumEpochRegistry is AccessControl {
     uint32 public immutable epochDurationMs;
     uint32 public immutable rewardPeriodEpochs;
 
+    /// How many epochs old a certificate may be and still answer a question about now.
+    ///
+    /// A fresh *registry* is not a fresh *certificate*. Without this, a genuine certificate from
+    /// months ago verifies perfectly well against a committee that is still registered, and a
+    /// caller asking whether a supplier is qualified today is answered with ancient evidence. That
+    /// is the precise failure the fail-closed policy exists to prevent, and the first version of
+    /// this contract had it.
+    uint32 public immutable maxCertificateAgeEpochs;
+
     /// Negated G2 generator, so a verification is one pairing product rather than two pairings.
     bytes public negG2Generator;
 
@@ -62,6 +71,8 @@ contract ConcordiumEpochRegistry is AccessControl {
     event CommitteeRegistered(uint64 indexed period, bytes32 membersHash, uint128 totalStake);
 
     error StaleRegistry(uint64 expectedPeriod, uint64 latestRegistered);
+    error CertificateTooOld(uint64 certificateEpoch, uint64 currentEpoch);
+    error CertificateFromTheFuture(uint64 certificateEpoch, uint64 currentEpoch);
     error CommitteeMismatch();
     error BelowQuorum(uint256 signedStake, uint256 totalStake);
     error InvalidCertificate();
@@ -75,6 +86,7 @@ contract ConcordiumEpochRegistry is AccessControl {
         uint64 eraGenesisMs_,
         uint32 epochDurationMs_,
         uint32 rewardPeriodEpochs_,
+        uint32 maxCertificateAgeEpochs_,
         bytes memory negG2Generator_,
         uint8 confirmationsRequired_,
         address admin
@@ -86,6 +98,7 @@ contract ConcordiumEpochRegistry is AccessControl {
         eraGenesisMs = eraGenesisMs_;
         epochDurationMs = epochDurationMs_;
         rewardPeriodEpochs = rewardPeriodEpochs_;
+        maxCertificateAgeEpochs = maxCertificateAgeEpochs_;
         negG2Generator = negG2Generator_;
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _grantRole(UPDATER_ROLE, admin);
@@ -96,11 +109,14 @@ contract ConcordiumEpochRegistry is AccessControl {
     ///      assumes Concordium keeps to its schedule; if Concordium stalls, this runs ahead and the
     ///      registry reads stale, which under a fail-closed rule is the correct direction to be
     ///      wrong in.
-    function currentPeriod() public view returns (uint64) {
+    function currentEpoch() public view returns (uint64) {
         uint256 nowMs = block.timestamp * 1000;
         if (nowMs <= eraGenesisMs) return 0;
-        uint256 epoch = (nowMs - eraGenesisMs) / epochDurationMs;
-        return uint64(epoch / rewardPeriodEpochs);
+        return uint64((nowMs - eraGenesisMs) / epochDurationMs);
+    }
+
+    function currentPeriod() public view returns (uint64) {
+        return currentEpoch() / rewardPeriodEpochs;
     }
 
     /// @notice How many periods behind the registry is. Zero means current.
@@ -198,6 +214,7 @@ contract ConcordiumEpochRegistry is AccessControl {
         bytes calldata signature
     ) external view returns (bool) {
         requireFresh();
+        _requireRecent(epoch);
         uint64 period = epoch / rewardPeriodEpochs;
         Committee memory c = committees[period];
         if (!c.present) revert StaleRegistry(currentPeriod(), latestPeriod);
@@ -220,6 +237,17 @@ contract ConcordiumEpochRegistry is AccessControl {
             revert InvalidCertificate();
         }
         return true;
+    }
+
+    /// @dev A certificate must describe roughly now, not merely a period someone once registered.
+    ///
+    /// Both directions are bounded. Too old, and the answer predates any revocation since. From the
+    /// future, and a caller could pre-build a certificate against a clock that has not arrived;
+    /// one epoch of tolerance absorbs ordinary skew between the two chains without opening that.
+    function _requireRecent(uint64 epoch) private view {
+        uint64 nowEpoch = currentEpoch();
+        if (epoch + maxCertificateAgeEpochs < nowEpoch) revert CertificateTooOld(epoch, nowEpoch);
+        if (epoch > nowEpoch + 1) revert CertificateFromTheFuture(epoch, nowEpoch);
     }
 
     /// @dev Aggregating BLS public keys is addition in G2, so this adds the signers rather than

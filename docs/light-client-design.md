@@ -219,6 +219,24 @@ the committee out of its own storage. 20,736 bytes is 648 words and a cold word 
 registry never pays that, the test did, and a figure like that is exactly the kind that gets quoted
 later as though it meant something.
 
+## A bug this design had, found by testing what I had asserted
+
+`requireFresh()` checks the registry is current. It said nothing about the certificate, so a
+genuine certificate from ten reward periods ago verified while the registry reported fresh. A
+caller asking "is this supplier qualified now" was answered with ten-day-old evidence.
+
+That is exactly the failure the fail-closed policy was chosen to prevent, built into the contract
+that implements it. **A fresh registry is not a fresh answer**, and the two had been conflated
+because they are both called freshness.
+
+`maxCertificateAgeEpochs` now bounds the certificate in both directions. Too old and the answer
+predates any revocation since; too far ahead and a caller could pre-build against a clock that has
+not arrived. One epoch of tolerance absorbs ordinary skew between two chains without opening that.
+
+Two other assertions were checked at the same time and held: an empty signer set is refused rather
+than aggregating to the identity and pairing to one, and a point outside the prime-order subgroup
+is rejected by the precompile without the contract checking.
+
 ## The fallback, kept deliberately
 
 The qualification check stays behind an interface. If the light client is not ready, a signed
