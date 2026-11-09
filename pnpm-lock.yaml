@@ -81,6 +81,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@sealedrfq/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@sealedrfq/shared':
         specifier: workspace:^
         version: link:../../packages/shared

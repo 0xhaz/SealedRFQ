@@ -3,15 +3,31 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./auth": {
+      "types": "./dist/auth.d.ts",
+      "import": "./dist/auth.js"
+    },
+    "./requests": {
+      "types": "./dist/requests.d.ts",
+      "import": "./dist/requests.js"
+    },
+    "./documents": {
+      "types": "./dist/documents.d.ts",
+      "import": "./dist/documents.js"
+    }
   },
   "scripts": {
     "db:up": "docker compose -f ../../compose.yaml up -d",
     "db:migrate": "./scripts/migrate.sh",
     "db:reset": "./scripts/migrate.sh --reset",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
     "pg": "^8.13.1",
@@ -20,5 +36,6 @@
   "devDependencies": {
     "@types/pg": "^8.11.10",
     "vitest": "^2.1.9"
-  }
+  },
+  "types": "./dist/index.d.ts"
 }
