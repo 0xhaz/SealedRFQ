@@ -19,6 +19,26 @@ metadata, such as expiry." A proof that verifies says nothing about whether the 
 it has since been revoked. So the light client is not an optimisation of proof verification, it is
 the thing that makes a proof mean anything at award.
 
+## Proven end to end, 2026-11-10
+
+A real mainnet quorum certificate verifies on Arc. Round 10506057, 72-member committee, 51
+signatories carrying 68.2% of effective stake, pulled from
+`grpc.mainnet.concordium.software` along with the committee for the same block, and checked
+against forked Arc mainnet state in **250,508 gas**, about half a cent.
+
+Two details were settled by testing rather than assumption, and both would have been easy to get
+wrong:
+
+**The message is signed against the current era's genesis, not the original.** From
+`quorumSignatureMessageBytes` in the node's `KonsensusV1/Types.hs`, a finalizer signs
+`"QUORUM." || genesisHash || blockHash || round(u64 BE) || epoch(u64 BE)`. Each protocol update
+starts a new era with its own genesis, and mainnet is on protocol 10. The fixture generator tries
+both and records which verifies; the original genesis fails.
+
+**Quorum is two thirds of stake, not of signatures.** In this certificate 51 of 72 is 70.8% by
+headcount but 68.2% by stake. A verifier that counted signatures would accept certificates a
+stake-weighted rule rejects, so the contract sums stake.
+
 ## What Concordium gives us
 
 Since Protocol 6, ConcordiumBFT produces a `QuorumCertificate` per round:
