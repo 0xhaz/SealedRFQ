@@ -1,0 +1,24 @@
+# Local dependencies for V2. Postgres only for now; the chain still comes from arc-anvil, which
+# tools/local.sh starts separately because it is not a container.
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: sealedrfq-pg
+    environment:
+      POSTGRES_USER: sealedrfq
+      POSTGRES_PASSWORD: localdev
+      POSTGRES_DB: sealedrfq
+    ports:
+      # 5433, not 5432: a developer with Postgres already running locally should not have to stop it
+      # to work on this, and a silent connection to the wrong database is a bad afternoon.
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sealedrfq -d sealedrfq"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  pgdata:
