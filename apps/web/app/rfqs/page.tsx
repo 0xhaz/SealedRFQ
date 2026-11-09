@@ -6,6 +6,7 @@ import { YourWork } from "@/components/YourWork";
 import { applyBoardQuery, facetsOf, parseBoardQuery } from "@/lib/boardFilter";
 import { chain } from "@/lib/chain";
 import { countdown, listRfqs } from "@/lib/rfq";
+import { isPaused } from "@/lib/siteStatus";
 import { CATEGORIES, labelFor } from "@/lib/taxonomy";
 import { formatUsdc } from "@sealedrfq/shared";
 import Link from "next/link";
@@ -78,10 +79,15 @@ export default async function RfqBoard({
         <div className="head">
           RFQs
           <span className="hint">
-            {all.length} total ·{" "}
-            <Link className="linklike" href="/rfqs/new">
-              post one →
-            </Link>
+            {all.length} total
+            {!isPaused && (
+              <>
+                {" · "}
+                <Link className="linklike" href="/rfqs/new">
+                  post one →
+                </Link>
+              </>
+            )}
           </span>
         </div>
         {all.length > 0 && (
@@ -97,7 +103,13 @@ export default async function RfqBoard({
           <div className="empty">
             {all.length === 0 ? (
               <>
-                No RFQs yet. <Link href="/rfqs/new">Post the first one →</Link>
+                {isPaused ? (
+                  "No RFQs here. This deployment is not accepting new tenders while the next version is built."
+                ) : (
+                  <>
+                    No RFQs yet. <Link href="/rfqs/new">Post the first one →</Link>
+                  </>
+                )}
               </>
             ) : (
               <>
@@ -147,9 +159,15 @@ export default async function RfqBoard({
                         </span>
                       )}
                     </td>
-                    <td data-label="Category">{r.category ? labelFor(CATEGORIES, r.category) : "—"}</td>
-                    <td className="num" data-label="Budget">{formatUsdc(r.budget)}</td>
-                    <td className="num" data-label="Deposit">{formatUsdc(r.depositAmount)}</td>
+                    <td data-label="Category">
+                      {r.category ? labelFor(CATEGORIES, r.category) : "—"}
+                    </td>
+                    <td className="num" data-label="Budget">
+                      {formatUsdc(r.budget)}
+                    </td>
+                    <td className="num" data-label="Deposit">
+                      {formatUsdc(r.depositAmount)}
+                    </td>
                     <td className="num" data-label="Bids">
                       {r.phase === "Bidding" ? (
                         <span className="mono" title="sealed until the reveal window">

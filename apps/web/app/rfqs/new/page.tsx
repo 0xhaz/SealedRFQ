@@ -1,6 +1,8 @@
 import { FormNav } from "@/components/FormNav";
 import { Header } from "@/components/Header";
+import { PausedNotice } from "@/components/PausedNotice";
 import { chain } from "@/lib/chain";
+import { isPaused } from "@/lib/siteStatus";
 import Link from "next/link";
 import { NewRfqForm } from "./NewRfqForm";
 
@@ -17,7 +19,7 @@ export default function NewRfq() {
       </section>
 
       <div className="grid">
-        <NewRfqForm />
+        {isPaused ? <PausedNotice action="Posting a tender" /> : <NewRfqForm />}
         <div className="right has-nav">
           <FormNav
             sections={[

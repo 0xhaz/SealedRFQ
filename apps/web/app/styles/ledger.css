@@ -6598,3 +6598,18 @@ button.field-wallet {
   font-size: 0.9em;
   color: var(--muted);
 }
+
+/* ---- Paused deployment ------------------------------------------------
+   Amber rather than red: nothing is broken and nothing is lost, the site
+   is simply not taking new commitments while the next version is built. */
+.desk-status.paused {
+  border-left-color: var(--amber);
+  background: rgba(201, 138, 27, 0.08);
+}
+.ds-pill.paused {
+  background: var(--amber);
+  color: var(--paper);
+}
+.ds-pill.paused i {
+  background: var(--paper);
+}

@@ -1,11 +1,13 @@
 import { Clarifications } from "@/components/Clarifications";
 import { Header } from "@/components/Header";
 import { LineItems } from "@/components/LineItems";
+import { PausedNotice } from "@/components/PausedNotice";
 import { PhaseBadge } from "@/components/PhaseBadge";
 import { RequirementsPanel } from "@/components/RequirementsPanel";
 import { TermsPanel } from "@/components/TermsPanel";
 import { agent } from "@/lib/agent";
-import { countdown, getRfq, getRfqCount, getPlatformFeeBps} from "@/lib/rfq";
+import { countdown, getPlatformFeeBps, getRfq, getRfqCount } from "@/lib/rfq";
+import { isPaused } from "@/lib/siteStatus";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BidForm } from "./BidForm";
@@ -57,15 +59,19 @@ export default async function BidPage({ params }: { params: Promise<{ id: string
             metadataHash={rfq.metadataHash}
           />
           <Clarifications rfqId={id} buyer={rfq.buyer} biddingOpen={rfq.phase === "Bidding"} />
-          <BidForm
-            rfqId={id}
-            phase={rfq.phase}
-            deposit={rfq.depositAmount.toString()}
-            budget={rfq.budget.toString()}
-            deliveryWindow={rfq.deliveryWindow}
-            bidMode={rfq.bidMode}
-            requiresProposal={rfq.requiresProposal}
-          />
+          {isPaused ? (
+            <PausedNotice action="Bidding" />
+          ) : (
+            <BidForm
+              rfqId={id}
+              phase={rfq.phase}
+              deposit={rfq.depositAmount.toString()}
+              budget={rfq.budget.toString()}
+              deliveryWindow={rfq.deliveryWindow}
+              bidMode={rfq.bidMode}
+              requiresProposal={rfq.requiresProposal}
+            />
+          )}
         </div>
         <div className="right">
           <div className="panel">
@@ -98,8 +104,10 @@ export default async function BidPage({ params }: { params: Promise<{ id: string
             */}
             {platformFeeBps > 0 && (
               <div className="note warn">
-                <b>Price this in: {(platformFeeBps / 100).toFixed(2)}% is deducted from each
-                milestone.</b>{" "}
+                <b>
+                  Price this in: {(platformFeeBps / 100).toFixed(2)}% is deducted from each
+                  milestone.
+                </b>{" "}
                 The fee comes out of the escrowed amount when a milestone is accepted, so you
                 receive that much less than you quote. It is charged after retention is held back
                 and never on the retention itself, which reaches you in full at final acceptance.

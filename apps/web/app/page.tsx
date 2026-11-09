@@ -4,6 +4,7 @@ import { TrustBoundary } from "@/components/landing/TrustBoundary";
 import { WhereThisFits } from "@/components/landing/WhereThisFits";
 import { chain, contracts, explorerAddress, isMainnet } from "@/lib/chain";
 import { evidence, evidenceChainName, evidenceIsLive, evidenceTx } from "@/lib/evidence";
+import { PAUSE_REASON, isPaused } from "@/lib/siteStatus";
 import Link from "next/link";
 
 const FIREWALL_TX = evidence.steps.find((s) => s.status === "0x0")?.tx ?? "";
@@ -13,13 +14,17 @@ export default function Home() {
     <div className="shell">
       <Header />
 
-      <div className="desk-status live">
+      <div className={`desk-status ${isPaused ? "paused" : "live"}`}>
         <div className="desk-status-main">
-          <span className="ds-pill live">
-            <i /> LIVE · {chain.name.toUpperCase()}
+          <span className={`ds-pill ${isPaused ? "paused" : "live"}`}>
+            <i /> {isPaused ? "PAUSED" : "LIVE"} · {chain.name.toUpperCase()}
           </span>
           <span className="ds-text">
-            {isMainnet ? (
+            {isPaused ? (
+              <>
+                <b>{PAUSE_REASON.headline}.</b> {PAUSE_REASON.body}
+              </>
+            ) : isMainnet ? (
               <>
                 Every RFQ, sealed bid and payout here spends <b>real USDC</b> on Arc mainnet.
                 Settlement is forward-only: there is no undo and no chargeback.
@@ -57,9 +62,11 @@ export default function Home() {
             <Link className="btn-primary" href="/rfqs">
               ▶ Browse open RFQs
             </Link>
-            <Link className="btn-outline" href="/rfqs/new">
-              Post an RFQ
-            </Link>
+            {!isPaused && (
+              <Link className="btn-outline" href="/rfqs/new">
+                Post an RFQ
+              </Link>
+            )}
           </div>
           <p className="hero-links">
             <a href={explorerAddress(contracts.RFQRegistry)} target="_blank" rel="noreferrer">
@@ -115,10 +122,9 @@ export default function Home() {
             <p>
               The rubric&apos;s hash is fixed when the RFQ opens, so it cannot be rewritten to fit a
               favoured bid. The buyer&apos;s terms and requirements are fixed the same way, and
-              revealed bids are
-              screened against them automatically; a requirement no bid can prove, like a
-              certification, is reported as <b>still needing a human</b> rather than quietly passed.
-              The memo is anchored whether it recommends or rejects.
+              revealed bids are screened against them automatically; a requirement no bid can prove,
+              like a certification, is reported as <b>still needing a human</b> rather than quietly
+              passed. The memo is anchored whether it recommends or rejects.
             </p>
             <div className="gate-verdicts">
               <span className="gv no">REJECT ✕</span>
@@ -175,8 +181,8 @@ export default function Home() {
             <p>
               Six caps live inside <span className="mono-sm">award()</span>. An AI-recommended bid
               above the published budget is <b>rejected by the contract itself</b>, and the
-              evaluator&apos;s recommendation is bound to one winner, so an awarder key cannot quietly
-              redirect it to someone else.
+              evaluator&apos;s recommendation is bound to one winner, so an awarder key cannot
+              quietly redirect it to someone else.
             </p>
           </div>
           <div className="cap-row">
@@ -227,10 +233,10 @@ export default function Home() {
             <p>
               Scoring an RFQ ahead of its own schedule is sold rather than given away. An unpaid
               call returns <span className="mono-sm">HTTP 402</span> with the terms, the caller
-              signs a USDC authorisation, and Circle&apos;s facilitator settles it on Arc without an API
-              key, an account or an invoice. Reading a memo back and checking it against the chain
-              stays <b>free, permanently</b>: a losing bidder must never have to pay to find out why
-              they lost.
+              signs a USDC authorisation, and Circle&apos;s facilitator settles it on Arc without an
+              API key, an account or an invoice. Reading a memo back and checking it against the
+              chain stays <b>free, permanently</b>: a losing bidder must never have to pay to find
+              out why they lost.
             </p>
           </div>
           <div className="cap-row">
