@@ -45,8 +45,7 @@ export function parseRubric(value: unknown): Rubric {
   const total = rubric.criteria.reduce((n, c) => n + c.weightBps, 0);
   if (total !== 10_000) {
     throw new RubricError(
-      `rubric weights total ${total} basis points, not 10000. ` +
-        "A rubric that does not add up scores every bid against a different denominator.",
+      `rubric weights total ${total} basis points, not 10000. A rubric that does not add up scores every bid against a different denominator.`,
     );
   }
   const ids = rubric.criteria.map((c) => c.id);
