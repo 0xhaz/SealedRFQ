@@ -66,6 +66,28 @@ Legal moves live in one table in `requests.ts` instead of scattered `if` stateme
 move is refused in one place and the shape of the lifecycle is readable. `converted` and
 `cancelled` are terminal.
 
+## Private documents
+
+Encrypted at rest with AES-256-GCM, and reachable only through a membership check.
+
+Two things differ from the legacy public store. It is **not content-addressed**: V1 serves a
+document at its sha256, which is right for a tender pack everyone should read and wrong for a
+confidential one, because anyone holding a copy can compute the hash and fetch it. Possession of
+the content becomes permission to read it. Here the storage key is random, and knowing it is still
+not authorisation, since the row is behind row-level security either way.
+
+And the bytes are encrypted, so a database dump, a stray backup or a misconfigured bucket yields
+ciphertext. GCM's tag means an altered file is refused rather than returned changed. The sha256 is
+still recorded, so a reader can verify they got the bytes that were stored; it is just not the
+address.
+
+`DOCUMENT_ENCRYPTION_KEY` is 32 bytes of hex and is required. A short key is refused rather than
+padded, because padding one is a silent downgrade.
+
+```bash
+openssl rand -hex 32
+```
+
 ## Checking the tests are real
 
 They pass with the policies switched off unless they are written to fail. Confirm by breaking it:
