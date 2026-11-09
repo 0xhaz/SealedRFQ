@@ -106,9 +106,9 @@ withDb("what a challenge refuses", () => {
   });
 
   it("will not accept a nonce it never issued", async () => {
-    await expect(
-      verifyChallenge(crypto.randomUUID(), "0xdead" as `0x${string}`),
-    ).rejects.toThrow(/unknown, used or expired/);
+    await expect(verifyChallenge(crypto.randomUUID(), "0xdead" as `0x${string}`)).rejects.toThrow(
+      /unknown, used or expired/,
+    );
   });
 
   it("only one of two racing requests can claim a nonce", async () => {
@@ -126,10 +126,12 @@ withDb("the challenge table itself", () => {
   it("cannot be read or written by the application role at all", async () => {
     // Sign-in goes through app.issue_challenge and app.consume_challenge. Direct access is revoked,
     // so a nonce cannot be listed, forged or un-consumed by anything holding an app connection.
-    await expect(pool.query("SELECT * FROM wallet_challenges")).rejects.toThrow(/permission denied/);
-    await expect(
-      pool.query("UPDATE wallet_challenges SET consumed_at = NULL"),
-    ).rejects.toThrow(/permission denied/);
+    await expect(pool.query("SELECT * FROM wallet_challenges")).rejects.toThrow(
+      /permission denied/,
+    );
+    await expect(pool.query("UPDATE wallet_challenges SET consumed_at = NULL")).rejects.toThrow(
+      /permission denied/,
+    );
   });
 });
 

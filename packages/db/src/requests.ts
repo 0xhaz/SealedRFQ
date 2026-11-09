@@ -96,7 +96,8 @@ export async function respond(
     const seen = await q.query("SELECT status FROM requests WHERE id = $1", [input.requestId]);
     const row = seen.rows[0] as { status: RequestStatus } | undefined;
     if (!row) throw new WorkflowError("no such request, or you were not invited to it");
-    if (row.status !== "open") throw new WorkflowError(`a ${row.status} request takes no responses`);
+    if (row.status !== "open")
+      throw new WorkflowError(`a ${row.status} request takes no responses`);
     const { rows } = await q.query<{ id: string }>(
       "INSERT INTO request_responses (request_id, org_id, body) VALUES ($1, $2, $3) RETURNING id",
       [input.requestId, input.orgId, input.body],

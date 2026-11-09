@@ -69,8 +69,7 @@ export async function assertNotPrivileged(): Promise<void> {
   if (!me) throw new Error("assertNotPrivileged: could not read the current role");
   if (me.superuser || me.bypassrls) {
     throw new Error(
-      `the application is connected as "${me.usename}", which bypasses row-level security ` +
-        "(superuser or BYPASSRLS). Every tenant policy would be inert. Connect as sealedrfq_app.",
+      `the application is connected as "${me.usename}", which bypasses row-level security (superuser or BYPASSRLS). Every tenant policy would be inert. Connect as sealedrfq_app.`,
     );
   }
   const owns = await pool.query(
@@ -78,8 +77,7 @@ export async function assertNotPrivileged(): Promise<void> {
   );
   if (owns.rowCount) {
     throw new Error(
-      `the application is connected as "${me.usename}", which owns tables in public and therefore ` +
-        "bypasses their policies. Connect as a role that owns nothing.",
+      `the application is connected as "${me.usename}", which owns tables in public and therefore bypasses their policies. Connect as a role that owns nothing.`,
     );
   }
 }

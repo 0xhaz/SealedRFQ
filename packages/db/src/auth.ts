@@ -69,10 +69,9 @@ export async function verifyChallenge(nonce: string, signature: Hex): Promise<st
   }
   if (signer !== claimed.wallet) throw new AuthError("that signature is from a different wallet");
 
-  const { rows } = await pool.query<{ upsert_user: string }>(
-    "SELECT app.upsert_user($1)",
-    [signer],
-  );
+  const { rows } = await pool.query<{ upsert_user: string }>("SELECT app.upsert_user($1)", [
+    signer,
+  ]);
   const user = rows[0];
   if (!user) throw new AuthError("could not establish the user record");
   return user.upsert_user;

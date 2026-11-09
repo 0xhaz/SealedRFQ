@@ -104,8 +104,10 @@ withDb("a supplier invited to a request", () => {
   it("cannot reach a rival's document by knowing its id", async () => {
     // The attack this models is URL guessing, which is why it asks for the row by primary key
     // rather than listing.
-    const rows = await withTenant(SUP_A, async (q) =>
-      (await q.query("SELECT filename FROM documents WHERE org_id = $1", [ORG_B])).rows,
+    const rows = await withTenant(
+      SUP_A,
+      async (q) =>
+        (await q.query("SELECT filename FROM documents WHERE org_id = $1", [ORG_B])).rows,
     );
     expect(rows).toEqual([]);
   });
@@ -129,11 +131,15 @@ withDb("the buyer who owns the request", () => {
   });
 
   it("sees its own unsent draft, which no supplier can", async () => {
-    const mine = await withTenant(BUYER, async (q) =>
-      (await q.query("SELECT id FROM requests WHERE id = $1", [PRIVATE_DRAFT])).rowCount,
+    const mine = await withTenant(
+      BUYER,
+      async (q) =>
+        (await q.query("SELECT id FROM requests WHERE id = $1", [PRIVATE_DRAFT])).rowCount,
     );
-    const theirs = await withTenant(SUP_A, async (q) =>
-      (await q.query("SELECT id FROM requests WHERE id = $1", [PRIVATE_DRAFT])).rowCount,
+    const theirs = await withTenant(
+      SUP_A,
+      async (q) =>
+        (await q.query("SELECT id FROM requests WHERE id = $1", [PRIVATE_DRAFT])).rowCount,
     );
     expect(mine).toBe(1);
     expect(theirs).toBe(0);
@@ -143,8 +149,9 @@ withDb("the buyer who owns the request", () => {
 withDb("an unauthenticated caller", () => {
   it("fails closed rather than open", async () => {
     expect(await bodies(null)).toEqual([]);
-    const requests = await withTenant(null, async (q) =>
-      (await q.query("SELECT id FROM requests")).rowCount,
+    const requests = await withTenant(
+      null,
+      async (q) => (await q.query("SELECT id FROM requests")).rowCount,
     );
     expect(requests).toBe(0);
   });

@@ -58,8 +58,9 @@ withDb("an RFI", () => {
   it("starts as a draft only its own organization can see", async () => {
     const rfi = await createRequest(BUYER, { orgId: ORG_BUYER, type: "RFI", title: "Draft" });
     expect(rfi.status).toBe("draft");
-    const supplierSees = await withTenant(SUP_A, async (q) =>
-      (await q.query("SELECT id FROM requests WHERE id = $1", [rfi.id])).rowCount,
+    const supplierSees = await withTenant(
+      SUP_A,
+      async (q) => (await q.query("SELECT id FROM requests WHERE id = $1", [rfi.id])).rowCount,
     );
     expect(supplierSees).toBe(0);
   });
@@ -72,9 +73,9 @@ withDb("an RFI", () => {
     ).resolves.toBeTruthy();
 
     await setStatus(BUYER, rfi.id, "closed");
-    await expect(
-      respond(SUP_A, { requestId: rfi.id, orgId: ORG_A, body: "late" }),
-    ).rejects.toThrow(/closed request takes no responses/);
+    await expect(respond(SUP_A, { requestId: rfi.id, orgId: ORG_A, body: "late" })).rejects.toThrow(
+      /closed request takes no responses/,
+    );
   });
 
   it("cannot be answered by a supplier who was not invited", async () => {
@@ -112,8 +113,11 @@ withDb("converting an RFI into a tender", () => {
     expect(after.type).toBe("RFI");
 
     // The RFI keeps its own answers.
-    const responses = await withTenant(BUYER, async (q) =>
-      (await q.query("SELECT id FROM request_responses WHERE request_id = $1", [rfi.id])).rowCount,
+    const responses = await withTenant(
+      BUYER,
+      async (q) =>
+        (await q.query("SELECT id FROM request_responses WHERE request_id = $1", [rfi.id]))
+          .rowCount,
     );
     expect(responses).toBe(1);
   });
