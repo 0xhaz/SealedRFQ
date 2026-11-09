@@ -229,9 +229,27 @@ finalization committee of any size verifies in one pairing check plus a G2 addit
 
 Three things, none of them the pairing arithmetic that worried me:
 
-1. **ed25519.** Web3 ID presentations are signed with an ed25519 holder key and there is no
-   precompile for it. Either implement a verifier in Solidity, or bind wallet possession through an
-   Arc signature instead, which the RFC already recommends doing independently of the proof.
+1. **ed25519: avoidable, by choosing the credential type.** Concordium's `CredentialProof` has two
+   variants and only one of them involves ed25519 at all.
+
+   `Web3Id` carries a `holder: CredentialHolderId`, which is an ed25519 verifying key, and the
+   presentation's `linking_proof` signs with it. `Account` carries only `cred_id` and `issuer`:
+   no holder key, no signature, with the commitments living in the account's on-chain credential.
+   The field comment in concordium-base is explicit that the linking proof holds "signatures from
+   keys of Web3 credentials (not from ID credentials)".
+
+   The RFC's suggested MVP predicate is an account-attribute one, so the MVP never touches
+   ed25519. The light client has to read Concordium account state anyway, for the revocation
+   freshness that motivated option C, so it is already fetching what an `Account` proof verifies
+   against. Issuer-signed business credentials are `Web3Id` and would need a Solidity ed25519
+   verifier, which is a known quantity and a post-MVP problem.
+
+   **Still to confirm before relying on it:** that `presentation_context` enters the Fiat-Shamir
+   transcript. If it does, a proof is bound to its challenge and therefore non-transferable, and
+   binding the challenge to the Arc bidder address makes a proof unusable by anyone else. If it
+   does not, that binding needs another mechanism. The verify path is not in `web3id/mod.rs` where
+   its own doc comment points, so this needs reading the real entry point rather than inferring
+   from the data structures.
 2. **Bulletproof gas: measured, 2026-11-10, and affordable.** Concordium offers four statement
    types, and the RFC's suggested MVP predicate is jurisdiction membership, so `AttributeInSet` is
    the one that matters. Its verification reduces to one multi-exponentiation of about
