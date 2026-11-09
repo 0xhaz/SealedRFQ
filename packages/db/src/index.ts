@@ -81,3 +81,4 @@ export async function assertNotPrivileged(): Promise<void> {
     );
   }
 }
+export * from "./workspace.js";
