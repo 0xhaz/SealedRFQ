@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { assertNotPrivileged, pool, withTenant } from "../src/index.js";
 
 /**
@@ -36,7 +36,9 @@ const ORG_B = "aaaaaaaa-0000-0000-0000-000000000003";
 const OPEN_RFI = "bbbbbbbb-0000-0000-0000-000000000001";
 const PRIVATE_DRAFT = "bbbbbbbb-0000-0000-0000-000000000002";
 
-beforeAll(async () => {
+// Per test, not once: a sibling suite resetting the same database must not be able to
+// strand these fixtures halfway through the file.
+beforeEach(async () => {
   if (!reachable) return;
   // Seeded through a privileged connection on purpose: setting up two tenants is exactly the thing
   // the application role is not allowed to do.

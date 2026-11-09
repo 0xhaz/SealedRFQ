@@ -51,6 +51,21 @@ A nonce is single-use and short-lived, and both rules live in one `UPDATE ... WH
 window between checking and claiming. Two requests racing the same nonce cannot both win, which is
 tested. A wrong signature still burns the nonce, so a stolen one cannot be ground against.
 
+## The request lifecycle
+
+RFI, RFQ and RFP share one model with different powers. An RFI gathers information: it takes no
+deposit, starts no escrow, awards nothing and binds no supplier to a price.
+
+Converting one produces a **new** request rather than editing the RFI into a tender. Suppliers
+answered the RFI knowing it bound them to nothing, and rewriting it in place would retroactively
+change what they agreed to. The new request carries `parent_rfi_id` so the lineage is recoverable,
+the RFI moves to `converted` and stops taking answers, and the tender arrives as a `draft`, because
+a converted tender is a proposal to open one rather than an open one.
+
+Legal moves live in one table in `requests.ts` instead of scattered `if` statements, so an illegal
+move is refused in one place and the shape of the lifecycle is readable. `converted` and
+`cancelled` are terminal.
+
 ## Checking the tests are real
 
 They pass with the policies switched off unless they are written to fail. Confirm by breaking it:
@@ -65,3 +80,7 @@ docker exec sealedrfq-pg psql -U sealedrfq -d sealedrfq \
 
 Without a database the suite skips rather than fails, so that "Docker is not running" and "isolation
 is broken" do not look the same.
+
+Test files run one at a time (`fileParallelism: false`). They share a single Postgres and each
+resets the tables it uses, so in parallel one suite's reset wipes another's fixtures mid-run and the
+failure surfaces in whichever file lost the race rather than the one that caused it.
