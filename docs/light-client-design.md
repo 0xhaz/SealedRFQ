@@ -237,6 +237,34 @@ Two other assertions were checked at the same time and held: an empty signer set
 than aggregating to the identity and pairing to one, and a point outside the prime-order subgroup
 is rejected by the precompile without the contract checking.
 
+## Turning finality into eligibility
+
+`ConcordiumQualifier` records that a bidder was checked, and binds that record to a block this
+contract confirmed was finalized. The split is worth stating plainly, because the two halves are
+easy to conflate:
+
+**Verified by the contract.** That the block a qualification names was genuinely finalized by the
+committee, and that it is recent. Nobody can invent a block, reuse an expired one, or claim quorum
+they did not have.
+
+**Asserted by the qualifier.** That the credential check against that block's state was done
+honestly. The contract cannot repeat it, because repeating it means proving a commitment sits in
+that block's state and Concordium serves no state proofs.
+
+So this does not remove the trusted check. It removes the trusted **clock**. A qualifier cannot
+backdate a qualification, cannot replay one against state that has since changed, and cannot point
+at a block that never reached finality. Those are the lies a bare signed attestation makes easy,
+and they are precisely the ones that matter for revocation.
+
+A qualification also carries a **nullifier**: the verified principal, scoped to a single tender. Two
+wallets belonging to one entity produce the same nullifier for that tender, so the second is
+refused. That is what makes a minimum-bidder rule mean independent bidders rather than independent
+addresses, which is the flaw ADR-007B describes in counting wallets. Across tenders the nullifier
+links nothing, by construction.
+
+Qualifications expire rather than standing until revoked, because this contract cannot see a
+revocation. Time is the only honest bound available to it.
+
 ## The fallback, kept deliberately
 
 The qualification check stays behind an interface. If the light client is not ready, a signed
