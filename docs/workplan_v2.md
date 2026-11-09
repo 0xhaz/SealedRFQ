@@ -92,8 +92,11 @@ document URL, and an RFI converts to a draft RFQ a human must approve.
 Starts before Phase 1 ends. The contracts are the long pole and do not depend on the wizard.
 
 - [ ] `QualifiedRFQRegistryV2` with a qualification gate on `commitBid` and at award
-- [ ] EIP-712 `QualificationPermit`: domain-separated, bound to bidder, RFQ id, signer, issuer,
-      policy and expiry
+- [ ] Concordium light client: finalization committee, epoch transitions, aggregate verification
+      over `BLS.sol`. This replaces the signed permit as the source of eligibility
+- [ ] Measure bulletproof verification gas before committing to on-chain proof checking
+- [ ] Keep the qualification check behind an interface, so a signed attestor remains a drop-in
+      fallback if the light client slips
 - [ ] Invitation gate enforced on-chain, separately from qualification. ADR-006 is explicit that a
       UI invite list is not enforcement
 - [ ] Unique-principal checks replacing wallet counting for minimum bidders and concentration
@@ -185,18 +188,68 @@ backed by PostgreSQL; the Arc Gateway x402 rail becomes the Concordium rail.
 **Preserved untouched:** the mainnet deployment, as a reference. New addresses, new names, no
 upgrade path, and the README keeps the V1 addresses labelled as legacy rather than deleting them.
 
+## ADR-007 decided, 2026-11-10: verify the proof on Arc
+
+**Option C.** Arc verifies Concordium's signatures itself. No trusted attestor, no signer to steal
+a key from, and no "Arc trusts the signer" caveat in the submission.
+
+This was taken against my recommendation, and the measurement that followed says the decision was
+right and my advice was wrong. I had argued C meant building cross-chain verification
+infrastructure before building any product. That was reasoning from the RFC's statement that Arc
+"cannot natively verify Concordium's proof format", which was written without checking what Arc
+actually supports.
+
+### What the spike measured
+
+Arc runs Prague, so EIP-2537 supplies BLS12-381 operations as precompiles. Probed on mainnet
+rather than assumed: present, computing, and validating. The identity pairing returns 1 and
+malformed points revert with `PrecompileError` instead of being waved through.
+
+Concordium's cryptography lines up with exactly those precompiles. From concordium-base:
+`pub type ArCurve = ArkGroup<G1Projective>`, so the identity layer's commitments and sigma
+protocols are on BLS12-381 G1; and `aggregate_sig` implements IRTF draft-irtf-cfrg-bls-signature-04
+with signatures in G1 and public keys in G2, verified by the pairing identity
+`e(sig, g2) == e(H(m), pk)`. That is the precise operation `BLS12_PAIRING_CHECK` exists to perform.
+
+`contracts/src/concordium/BLS.sol` implements it, and the test runs against forked Arc mainnet
+state rather than a local EVM alone:
+
+| | |
+|---|---|
+| One signature verified | **246,324 gas**, about **$0.005** at Arc's measured price |
+| Of which hash-to-curve | 78,882 gas |
+| Hash-to-curve output | byte-identical to concordium-base under Concordium's own DST |
+| Wrong message, wrong DST, tampered signature | all refused |
+
+Aggregation is what makes this comfortable rather than merely affordable: BLS aggregates, so a
+finalization committee of any size verifies in one pairing check plus a G2 addition per key.
+
+### What is still genuinely hard
+
+Three things, none of them the pairing arithmetic that worried me:
+
+1. **ed25519.** Web3 ID presentations are signed with an ed25519 holder key and there is no
+   precompile for it. Either implement a verifier in Solidity, or bind wallet possession through an
+   Arc signature instead, which the RFC already recommends doing independently of the proof.
+2. **Bulletproof gas.** Range proofs are log-sized multi-scalar multiplications. `G1MSM` makes them
+   far cheaper than a loop, but the number is unmeasured. It needs its own spike before anything
+   depends on it.
+3. **Committee tracking.** Verifying a signature is settled; knowing *whose* signature to expect
+   across epochs and stake changes is the actual light-client work, and it is ongoing rather than
+   one-off.
+
+A fallback that keeps the decision safe: the qualification check sits behind an interface, so if
+the light client slips, a signed attestor can be dropped in without touching the registry. That is
+option A as a contingency rather than as the plan.
+
 ## Decisions still needed
 
 These are open in the RFC and block specific tasks rather than the whole plan.
-
-1. **ADR-007:** verifier-signed entitlement, Merkle membership or a proven cross-chain oracle.
-   Blocks the Phase 2 permit design. The RFC leans to a signed attestor and is honest that Arc then
-   trusts the signer
-2. **ADR-004:** one evaluator badge for the MVP, or a badge per operational role. The RFC recommends
+1. **ADR-004:** one evaluator badge for the MVP, or a badge per operational role. The RFC recommends
    one. Blocks Phase 3 registration
-3. **ADR-005:** whether any low-value award may complete without a human. Blocks the approval
+2. **ADR-005:** whether any low-value award may complete without a human. Blocks the approval
    threshold in Phase 4
-4. **ADR-009 and ADR-010** are open but do not block the hackathon
+3. **ADR-009 and ADR-010** are open but do not block the hackathon
 
 ## Honest risk
 

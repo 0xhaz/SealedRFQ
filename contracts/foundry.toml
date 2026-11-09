@@ -8,7 +8,11 @@ optimizer = true
 optimizer_runs = 200
 # via_ir: required by the RFQ/engagement structs (stack too deep otherwise)
 via_ir = true
-fs_permissions = [{ access = "read-write", path = "./deployments" }]
+fs_permissions = [
+  { access = "read-write", path = "./deployments" },
+  # Read-only, and only the fixtures directory: test vectors are inputs, not somewhere tests write.
+  { access = "read", path = "./test/fixtures" },
+]
 
 [profile.default.fuzz]
 runs = 1000
@@ -31,7 +35,11 @@ evm_version = "prague"
 optimizer = true
 optimizer_runs = 200
 via_ir = true
-fs_permissions = [{ access = "read-write", path = "./deployments" }]
+fs_permissions = [
+  { access = "read-write", path = "./deployments" },
+  # Read-only, and only the fixtures directory: test vectors are inputs, not somewhere tests write.
+  { access = "read", path = "./test/fixtures" },
+]
 
 [profile.arc.fuzz]
 runs = 1000
