@@ -1,7 +1,14 @@
 # Workplan V2: SealedRFQ × Concordium
 
-Execution plan for [`architecture_sealedRFQ_V2.md`](architecture_sealedRFQ_V2.md) v0.5.0.
+Execution plan for the V2 architecture RFC, v0.5.0.
 Target: Concordium Trusted Agents Hackathon, **2026-12-09 23:59 UTC**.
+
+The RFC itself is deliberately not in this repository. It carries commercialisation and
+go-to-market thinking that does not need to be in git history, so it is gitignored at
+`docs/architecture_sealedRFQ_V2.md` and lives alongside the checkout rather than inside it. A
+trimmed architecture document gets published at submission, which is what the hackathon checklist
+asks for. Anything from the RFC that this plan depends on is restated here rather than linked, so
+this file stands on its own for anyone who does not have it.
 
 Written 2026-11-10. The architecture RFC decides *what*; this decides *in what order*, and records
 what was checked rather than assumed.

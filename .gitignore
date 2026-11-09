@@ -39,3 +39,9 @@ apps/web/next-env.d.ts
 # Internal testnet walkthrough. Names the demo personas and is a working document,
 # not part of what the repository publishes.
 demo-script.md
+
+# The V2 architecture RFC is kept out of git on purpose: it carries commercialisation and
+# go-to-market thinking that does not need to be in history. It has never been committed, so this
+# only has to stop it being added by accident. A trimmed architecture document is published at
+# submission instead; the RFC itself lives beside the repo, not in it.
+docs/architecture_sealedRFQ_V2.md
