@@ -91,7 +91,10 @@ document URL, and an RFI converts to a draft RFQ a human must approve.
 
 Starts before Phase 1 ends. The contracts are the long pole and do not depend on the wizard.
 
-- [ ] `QualifiedRFQRegistryV2` with a qualification gate on `commitBid` and at award
+- [x] `QualifiedRFQRegistryV2` with a qualification gate on `commitBid`. **G3 met for commit**: a
+      tender that demands a Concordium check refuses an unqualified bidder calling the contract
+      directly, with no front end in the path. The gate sits in `_screenBidder`, which both commit
+      entry points reach, so there is no second way in. Still to do: the same check at award
 - [ ] Concordium light client: finalization committee, epoch transitions, aggregate verification
       over `BLS.sol`. This replaces the signed permit as the source of eligibility.
       Design sketched in [`light-client-design.md`](light-client-design.md) with the costs

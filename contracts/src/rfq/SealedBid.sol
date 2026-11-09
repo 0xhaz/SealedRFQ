@@ -119,7 +119,10 @@ abstract contract SealedBid is BidDeposit {
     }
 
     /// @dev Who may bid at all: not the buyer, invited if invite-only, qualified if required.
-    function _screenBidder(RFQ storage r, uint256 rfqId) internal view {
+    /// @dev `virtual` so a V2 registry can tighten it. The deployed V1 contracts are immutable and
+    ///      unaffected: this only changes what a future deployment can inherit. The checks here are
+    ///      the floor, and an override is expected to add to them rather than replace them.
+    function _screenBidder(RFQ storage r, uint256 rfqId) internal view virtual {
         if (msg.sender == r.buyer) revert BuyerCannotBid();
         if (r.inviteOnly && !_invited[rfqId][msg.sender]) revert NotInvited(msg.sender);
         if (
