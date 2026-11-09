@@ -104,6 +104,10 @@ contract RFQRegistry is SealedBid {
         if (r.deliveryWindow > 0 && b.deliverySeconds > r.deliveryWindow) {
             revert DeliveryExceedsWindow(b.deliverySeconds, r.deliveryWindow);
         }
+        // Checked again here, not only at commit. Time passes between a bid and an award, and a
+        // supplier eligible when they bid may not be when the money moves. Empty by default, so a
+        // deployment with no eligibility rules is unchanged.
+        _screenWinner(r, rfqId, winner);
         if (!attestationLog.isAttested(
                 awardSubject(rfqId, winner), evaluationHash, AttestationKinds.AWARD_RECOMMENDATION
             )) {
@@ -212,6 +216,15 @@ contract RFQRegistry is SealedBid {
     }
 
     // ─────────────────────────── internal ───────────────────────────
+
+    /// @dev A last look at the winner before the award binds, for a subclass that has eligibility
+    ///      rules. Empty here: V1 has nothing to say at this point, and a hook that did something
+    ///      by default would change the behaviour of every deployment that inherits it.
+    ///
+    ///      Separate from `_screenBidder` because the questions differ. That one asks whether this
+    ///      caller may place a bid; this asks whether this winner may still be paid, about someone
+    ///      who is not the caller and whose circumstances have had days to change.
+    function _screenWinner(RFQ storage r, uint256 rfqId, address winner) internal view virtual {}
 
     function _create(RFQParams calldata p) internal returns (uint256 rfqId) {
         _validate(p);

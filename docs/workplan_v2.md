@@ -94,7 +94,14 @@ Starts before Phase 1 ends. The contracts are the long pole and do not depend on
 - [x] `QualifiedRFQRegistryV2` with a qualification gate on `commitBid`. **G3 met for commit**: a
       tender that demands a Concordium check refuses an unqualified bidder calling the contract
       directly, with no front end in the path. The gate sits in `_screenBidder`, which both commit
-      entry points reach, so there is no second way in. Still to do: the same check at award
+      entry points reach, so there is no second way in.
+
+      **And at award.** A qualification is time-bounded because the contract cannot see a
+      revocation, so checking only at commit would let a supplier revoked the day after bidding
+      still be paid. `_screenWinner` asks again when the money moves, and a winner whose
+      qualification was withdrawn or has lapsed is refused. The tender survives: another qualified
+      bidder can still win, which is tested, because a revocation should remove one bidder rather
+      than the whole process
 - [ ] Concordium light client: finalization committee, epoch transitions, aggregate verification
       over `BLS.sol`. This replaces the signed permit as the source of eligibility.
       Design sketched in [`light-client-design.md`](light-client-design.md) with the costs

@@ -56,6 +56,23 @@ contract QualifiedRFQRegistryV2 is RFQRegistry {
         emit ConcordiumRequired(rfqId);
     }
 
+    /// @dev The same question asked again when the money moves.
+    ///
+    /// A qualification is time-bounded precisely because this contract cannot see a revocation, so
+    /// checking only at commit would mean a supplier revoked the day after bidding still gets paid.
+    /// Re-checking here forces the qualifier to have refreshed the record against a recent
+    /// finalized block, which is the closest thing to a revocation check that is available.
+    ///
+    /// It refuses the award rather than the reveal, following the same reasoning as the delivery
+    /// window above it: a supplier whose eligibility lapsed should lose the tender, not the deposit
+    /// they posted when they were eligible.
+    function _screenWinner(RFQ storage r, uint256 rfqId, address winner) internal view override {
+        super._screenWinner(r, rfqId, winner);
+        if (!requiresConcordium[rfqId]) return;
+        if (address(qualifierV2) == address(0)) revert ConcordiumQualifierNotSet();
+        qualifierV2.requireQualified(winner, rfqId);
+    }
+
     /// @dev Runs V1's screening first and adds to it. Replacing it would silently drop the
     ///      buyer-cannot-bid and invite-only rules, which is the kind of regression an override
     ///      makes easy and a reviewer would not see.
