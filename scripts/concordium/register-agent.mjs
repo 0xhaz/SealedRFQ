@@ -25,10 +25,9 @@
  *   set -a; . ./.env.testnet; set +a
  *   SITE_ORIGIN=https://www.sealedrfq.com node scripts/concordium/register-agent.mjs --dry-run
  *
- * The sending account comes either from `CCD_WALLET`, a wallet key export, or from `CCD_ACCOUNT`
- * and `CCD_ACCOUNT_SIGN_KEY` — an address and the account private key the wallet copies to the
- * clipboard. Not every wallet writes a key file, so the second path exists rather than depending
- * on a menu that may not be there.
+ * The sending account comes either from `CCD_WALLET`, the `<address>.export` file the browser
+ * extension writes, or from `CCD_ACCOUNT` and `CCD_ACCOUNT_SIGN_KEY`, the address and the private
+ * key shown on that same screen.
  *
  * `CCD_EVALUATOR_PK` is a key of its own, not a reused role key. A CIS-8 binding can be taken
  * over by whoever holds the private key — the specification lets one account replace another as
@@ -117,10 +116,10 @@ function signWithEvaluatorKey(digest) {
 /**
  * Two ways in, because which one is available depends on the wallet.
  *
- * A key file export is cleanest, but not every Concordium wallet offers one — the mobile wallet
- * exports an account private key, the browser extension's menu may not, and the web wallet
- * documents that it cannot write a backup file at all. So an address and a signing key work just
- * as well, which is what "copy private key" gives you alongside the address on screen.
+ * The browser extension writes a `<address>.export` key file, which is the `CCD_WALLET` path and
+ * the one to prefer. The same screen also shows the raw private key, and the mobile wallet only
+ * offers that, so an address plus the signing key works too — and it is the way through if the
+ * export file turns out to be passphrase-wrapped.
  *
  * The single-key path assumes one credential with one keypair and a threshold of one, which is
  * what a wallet-created account is. An account with a higher threshold needs the key file.
