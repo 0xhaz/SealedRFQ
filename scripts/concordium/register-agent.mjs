@@ -23,8 +23,12 @@
  * Usage, with the key read straight out of the env file rather than pasted:
  *
  *   set -a; . ./.env.testnet; set +a
- *   CCD_WALLET=/path/to/wallet-export.json SITE_ORIGIN=https://www.sealedrfq.com \
- *     node scripts/concordium/register-agent.mjs --dry-run
+ *   SITE_ORIGIN=https://www.sealedrfq.com node scripts/concordium/register-agent.mjs --dry-run
+ *
+ * The sending account comes either from `CCD_WALLET`, a wallet key export, or from `CCD_ACCOUNT`
+ * and `CCD_ACCOUNT_SIGN_KEY` — an address and the account private key the wallet copies to the
+ * clipboard. Not every wallet writes a key file, so the second path exists rather than depending
+ * on a menu that may not be there.
  *
  * `CCD_EVALUATOR_PK` is a key of its own, not a reused role key. A CIS-8 binding can be taken
  * over by whoever holds the private key — the specification lets one account replace another as
@@ -96,7 +100,6 @@ function need(name) {
 }
 
 const origin = need("SITE_ORIGIN").replace(/\/+$/, "");
-const walletPath = need("CCD_WALLET");
 // Read the Arc key, derive what we need from it, and keep it out of every log line and every
 // object that might be printed.
 const evaluatorPublicKey = (() => {
@@ -111,25 +114,65 @@ function signWithEvaluatorKey(digest) {
   return Buffer.concat([Buffer.from(sig.toBytes("compact")), Buffer.from([sig.recovery])]);
 }
 
-const wallet = (() => {
-  let text;
-  try {
-    text = readFileSync(walletPath, "utf8");
-  } catch (e) {
+/**
+ * Two ways in, because which one is available depends on the wallet.
+ *
+ * A key file export is cleanest, but not every Concordium wallet offers one — the mobile wallet
+ * exports an account private key, the browser extension's menu may not, and the web wallet
+ * documents that it cannot write a backup file at all. So an address and a signing key work just
+ * as well, which is what "copy private key" gives you alongside the address on screen.
+ *
+ * The single-key path assumes one credential with one keypair and a threshold of one, which is
+ * what a wallet-created account is. An account with a higher threshold needs the key file.
+ */
+const { sender, signer } = (() => {
+  const walletPath = process.env.CCD_WALLET;
+  const address = process.env.CCD_ACCOUNT;
+  const signKey = process.env.CCD_ACCOUNT_SIGN_KEY?.replace(/^0x/, "");
+
+  if (walletPath) {
+    let text;
+    try {
+      text = readFileSync(walletPath, "utf8");
+    } catch (e) {
+      die(
+        `cannot read CCD_WALLET at ${walletPath}: ${e.code === "ENOENT" ? "no such file" : e.message}`,
+      );
+    }
+    let wallet;
+    try {
+      wallet = SDK.parseWallet(text);
+    } catch (e) {
+      die(
+        `${walletPath} is not a Concordium wallet key export: ${e.message}\n  If your wallet cannot write one, set CCD_ACCOUNT and CCD_ACCOUNT_SIGN_KEY instead.`,
+      );
+    }
+    return {
+      sender: SDK.AccountAddress.fromBase58(wallet.value.address),
+      signer: SDK.buildAccountSigner(wallet),
+    };
+  }
+
+  if (!address || !signKey) {
     die(
-      `cannot read CCD_WALLET at ${walletPath}: ${e.code === "ENOENT" ? "no such file" : e.message}`,
+      "Set CCD_WALLET to a wallet key export, or set both CCD_ACCOUNT (the base58 address) and\n" +
+        "  CCD_ACCOUNT_SIGN_KEY (the account private key, 32 bytes of hex).",
     );
   }
-  try {
-    return SDK.parseWallet(text);
-  } catch (e) {
+  if (!/^[0-9a-fA-F]{64}$/.test(signKey)) {
     die(
-      `${walletPath} is not a Concordium wallet export: ${e.message}\n  Export it from the Concordium wallet as a key file, not as a seed phrase.`,
+      "CCD_ACCOUNT_SIGN_KEY must be 32 bytes of hex: the account private key, not a seed phrase.",
     );
   }
+  let parsed;
+  try {
+    parsed = SDK.AccountAddress.fromBase58(address);
+  } catch {
+    return die(`CCD_ACCOUNT is not a Concordium address: ${address}`);
+  }
+  return { sender: parsed, signer: SDK.buildAccountSigner(signKey) };
 })();
-const sender = SDK.AccountAddress.fromBase58(wallet.value.address);
-const signer = SDK.buildAccountSigner(wallet);
+
 const client = new ConcordiumGRPCNodeClient(NODES[network], 20000, credentials.createSsl());
 const REGISTRY = registryAddress(network);
 const KEYS = keyRegistryAddress(network);

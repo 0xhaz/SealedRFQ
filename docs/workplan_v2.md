@@ -205,7 +205,11 @@ checkably the same entity instead of two unrelated registrations that merely sha
       same caller. Binding a key from the compromised testnet set would let a stranger claim the
       agent's key whenever they chose
 - [ ] Run the registration. Needs a funded Concordium testnet account, which is the one step that
-      cannot be done from here
+      cannot be done from here. Test CCD comes from the wallet itself — Accounts, the account's
+      Activity page, *Request CCD*, 20,000 CCD — and only once per account, only while the account
+      has no incoming transactions. A testnet identity needs no real ID; pick the Concordium
+      testnet identity provider. The script takes either a wallet key export or an address plus
+      the account private key, because not every wallet writes a key file
 - [ ] One supported identity or Web3 ID presentation with a fresh challenge and replay protection
 - [ ] Qualification Agent: verifies the proof off-chain, then signs the Arc permit
 - [ ] Capture CCDExplorer links for every registration as they happen, not at the end
