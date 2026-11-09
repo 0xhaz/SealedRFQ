@@ -35,6 +35,22 @@ Policies never read another protected table directly. The first version had `req
 with `infinite recursion detected in policy`. Cross-table questions go through `SECURITY DEFINER`
 functions in the `app` schema, which run as the owner and so do not re-enter the calling policy.
 
+## Signing in
+
+Authentication is the one operation that cannot be tenant-scoped: the row being created *is* the
+identity, so it cannot satisfy a policy keyed on the current user. The first attempt failed exactly
+that way, with `new row violates row-level security policy for table "users"`.
+
+The fix is not a permissive INSERT policy, which would let any session mint accounts. Sign-in goes
+through three `SECURITY DEFINER` functions in the `app` schema that do the pre-auth work and nothing
+else, so the privilege escalation is named and greppable rather than hidden in a policy that is
+broader than it looks. `wallet_challenges` is revoked from the application role entirely; those
+functions are the only way in.
+
+A nonce is single-use and short-lived, and both rules live in one `UPDATE ... WHERE` so there is no
+window between checking and claiming. Two requests racing the same nonce cannot both win, which is
+tested. A wrong signature still burns the nonce, so a stolen one cannot be ground against.
+
 ## Checking the tests are real
 
 They pass with the policies switched off unless they are written to fail. Confirm by breaking it:
