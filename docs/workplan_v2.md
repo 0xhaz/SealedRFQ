@@ -93,7 +93,10 @@ Starts before Phase 1 ends. The contracts are the long pole and do not depend on
 
 - [ ] `QualifiedRFQRegistryV2` with a qualification gate on `commitBid` and at award
 - [ ] Concordium light client: finalization committee, epoch transitions, aggregate verification
-      over `BLS.sol`. This replaces the signed permit as the source of eligibility
+      over `BLS.sol`. This replaces the signed permit as the source of eligibility.
+      Design sketched in [`light-client-design.md`](light-client-design.md) with the costs
+      measured; four questions there need answering before implementation, the first being the live
+      committee size
 - [x] Bulletproof verification gas measured: about a cent for a 32-member set membership proof,
       so on-chain proof checking is affordable and the design is not cost-constrained
 - [ ] Keep the qualification check behind an interface, so a signed attestor remains a drop-in
