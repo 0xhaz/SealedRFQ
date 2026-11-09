@@ -1,0 +1,9 @@
+{
+  "name": "@sealedrfq/scripts-concordium",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@concordium/web-sdk": "^8.1.1",
+    "@sealedrfq/concordium": "workspace:*"
+  }
+}

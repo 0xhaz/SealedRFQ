@@ -27,7 +27,7 @@ function membersFromFixture() {
     out.push({
       bakerId: i,
       publicKey: recompress(bytes.subarray(off, off + 256)),
-      stake: BigInt("0x" + bytes.subarray(off + 256, off + 288).toString("hex")),
+      stake: BigInt(`0x${bytes.subarray(off + 256, off + 288).toString("hex")}`),
     });
     void x;
   }
@@ -37,7 +37,7 @@ function membersFromFixture() {
 function recompress(uncompressed: Buffer): Uint8Array {
   // Lazily: go back through noble rather than implementing compression by hand.
   const { bls12_381 } = require("@noble/curves/bls12-381.js");
-  const fp = (b: Buffer) => BigInt("0x" + b.subarray(16).toString("hex"));
+  const fp = (b: Buffer) => BigInt(`0x${b.subarray(16).toString("hex")}`);
   const p = bls12_381.G2.ProjectivePoint.fromAffine({
     x: { c0: fp(uncompressed.subarray(0, 64)), c1: fp(uncompressed.subarray(64, 128)) },
     y: { c0: fp(uncompressed.subarray(128, 192)), c1: fp(uncompressed.subarray(192, 256)) },

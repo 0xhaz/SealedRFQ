@@ -19,7 +19,8 @@
     "react-dom": "19.2.8",
     "viem": "^2",
     "wagmi": "^2",
-    "@sealedrfq/db": "workspace:*"
+    "@sealedrfq/db": "workspace:*",
+    "@sealedrfq/concordium": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20",

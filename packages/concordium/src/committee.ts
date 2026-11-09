@@ -83,7 +83,9 @@ export function signerBitmap(order: number[], signatories: Iterable<number>): Ui
   const signed = new Set(signatories);
   const bits = new Uint8Array(Math.ceil(order.length / 8));
   order.forEach((id, i) => {
-    if (signed.has(id)) bits[i >> 3] |= 1 << (i % 8);
+    if (!signed.has(id)) return;
+    const byte = i >> 3;
+    bits[byte] = (bits[byte] ?? 0) | (1 << (i % 8));
   });
   return bits;
 }

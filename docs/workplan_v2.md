@@ -144,9 +144,62 @@ highest, on the reasoning that a standard drafted in May 2026 would be deployed 
 Testnet carries two CIS-8 instances, 12939 and 12940. 12940 is the later one and additionally
 exposes `migrate`, so it is the one to use; 12939 looks like its predecessor.
 
-- [ ] SDK smoke test and a throwaway transaction, to find the integration surprises early
-- [ ] Register the evaluator agent: real Agent Card, active CIS-8004 badge, committed card hash
-- [ ] CIS-8 external key binding where the SDK supports it
+### What the contracts turned out to require
+
+Everything below was established by dry-running the deployed contracts, not by reading the
+documentation, and three of the four findings contradict the obvious reading.
+
+**Registration is permissionless.** A dry run of `register` from an arbitrary account succeeds, for
+1,353 energy. There is an admin, but it is not a gatekeeper on registration. `registerExternalKey`
+is likewise open.
+
+**The key binding has to come first.** CIS-8004 refuses an `external_reference` whose key is not
+already an active CIS-8 entry owned by the sender, with `InvalidExternalReference` (-7206). So the
+order is: bind the key in CIS-8, then register the agent, and the contract enforces it rather than
+merely recommending it.
+
+**The card hash needs a second transaction.** The card names the agent id, and the id does not
+exist until `register` lands. Leaving `metadata_hash` as `None` — which is what the registry's own
+reference agent does — means the card can be edited afterwards and the registration attests to
+nothing but a URL. So: `register`, read the id, write the card, then anchor its hash with
+`setAgentURI`.
+
+**The namespace is serialised twice in the CIS-8 canonical message.** Once standalone as
+`external_namespace`, then again as the first field of `external_key`. The specification's prose
+says so and the contract confirms it: the single-namespace variant is rejected as `InvalidProof`,
+an error that names no field. A test pins both halves of that, because the failure is otherwise
+near-impossible to localise.
+
+Two smaller ones. Reject reasons arrive as numeric codes with an empty return value, not as a
+decodable error enum, and the codes have gaps (-7203, -7205, -7207, -7209, -7210 are unassigned),
+so deriving a name from a variant's position in the enum silently mislabels everything after the
+first gap. And CIS-8 checks that a public key is a real curve point, not merely the right length.
+
+The CIS-8 instance verifies proofs against the **original** genesis hash, which is not the
+current-era genesis the quorum certificate work signs against; both networks are on protocol 10, so
+the two differ. The code reads it from the contract rather than assuming either.
+
+### Binding the badge to the Arc key
+
+The proof scheme is `ethereum-personal-sign`, so the key proved to CIS-8 is the same secp256k1 key
+Arc grants `EVALUATOR_ROLE` to. That makes the Concordium badge and the Arc signing identity
+checkably the same entity instead of two unrelated registrations that merely share a project name.
+
+- [x] SDK smoke test: schemas lifted from the deployed module's own `concordium-schema` section,
+      then checked by dry-running every entrypoint we send. `CCD_LIVE=1` runs those eleven tests
+      against testnet; they distinguish a refusal on the merits from `ParseParams`, so a module
+      upgrade that changes a parameter stops the suite instead of producing a transaction the
+      contract rejects
+- [x] Agent Card built by one pure function, so the bytes served at
+      `/.well-known/agent-card.json` and the bytes hashed by the registration script cannot drift.
+      Canonical JSON, served verbatim rather than re-serialised by the framework
+- [x] `register-agent.mjs`: all three transactions, each dry-run before it is sent, stopping on a
+      rejection rather than paying to discover the same thing on chain
+- [x] `verify-agent.mjs`: checks the badge the way a stranger would, from an agent id alone. Run
+      against the registry authors' own reference agent it reports the two gaps that really exist
+      there — no anchored card hash, no key binding
+- [ ] Run the registration. Needs a funded testnet account, which is the one step that cannot be
+      done from here
 - [ ] One supported identity or Web3 ID presentation with a fresh challenge and replay protection
 - [ ] Qualification Agent: verifies the proof off-chain, then signs the Arc permit
 - [ ] Capture CCDExplorer links for every registration as they happen, not at the end
