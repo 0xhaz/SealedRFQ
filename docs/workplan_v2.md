@@ -244,12 +244,26 @@ Three things, none of them the pairing arithmetic that worried me:
    against. Issuer-signed business credentials are `Web3Id` and would need a Solidity ed25519
    verifier, which is a known quantity and a post-MVP problem.
 
-   **Still to confirm before relying on it:** that `presentation_context` enters the Fiat-Shamir
-   transcript. If it does, a proof is bound to its challenge and therefore non-transferable, and
-   binding the challenge to the Arc bidder address makes a proof unusable by anyone else. If it
-   does not, that binding needs another mechanism. The verify path is not in `web3id/mod.rs` where
-   its own doc comment points, so this needs reading the real entry point rather than inferring
-   from the data structures.
+   **Confirmed 2026-11-10** in `web3id/proofs.rs`, which is where `Presentation::verify` actually
+   lives rather than `mod.rs` where its doc comment points. The verifier opens with:
+
+   ```rust
+   let mut transcript = RandomOracle::domain("ConcordiumWeb3ID");
+   transcript.add_bytes(self.presentation_context);
+   transcript.append_message(b"ctx", &params);
+   ```
+
+   The challenge seeds the transcript before any proof is checked, so every Fiat-Shamir challenge
+   derives from it and a proof is cryptographically bound to the context it was made for. Binding
+   that context to the Arc bidder address therefore makes a proof unusable by anyone else, which
+   is the non-transferability the whole eligibility gate rests on.
+
+   The same function confirms the credential split from the code rather than the data structures:
+   the ed25519 check is inside `if let CredentialProof::Web3Id { holder, .. }`, so `Account` proofs
+   skip it entirely.
+
+   It also binds `params`, the `GlobalContext`, into the transcript. The on-chain verifier needs
+   the same cryptographic parameters Concordium used, which it reads through the light client.
 2. **Bulletproof gas: measured, 2026-11-10, and affordable.** Concordium offers four statement
    types, and the RFC's suggested MVP predicate is jurisdiction membership, so `AttributeInSet` is
    the one that matters. Its verification reduces to one multi-exponentiation of about
@@ -270,7 +284,16 @@ Three things, none of them the pairing arithmetic that worried me:
    not constrain the design, which is the answer this spike existed to get.
 3. **Committee tracking.** Verifying a signature is settled; knowing *whose* signature to expect
    across epochs and stake changes is the actual light-client work, and it is ongoing rather than
-   one-off.
+   one-off. This is now the only unresolved risk in option C.
+
+   Its scope grew slightly on inspection, in a way that is useful to know early.
+   `Presentation::verify` carries an explicit warning: *"This only verifies the cryptographic
+   consistency of the data. It does not check metadata, such as expiry. This should be checked
+   separately by the verifier."* A valid proof therefore says nothing about whether the credential
+   behind it is still valid. That is precisely the gap the RFC's revocation-freshness requirement
+   names, and the light client is what closes it: the same component that reads account credential
+   commitments also reads their current status. Proof verification and revocation checking are one
+   piece of work, not two.
 
 A fallback that keeps the decision safe: the qualification check sits behind an interface, so if
 the light client slips, a signed attestor can be dropped in without touching the registry. That is
