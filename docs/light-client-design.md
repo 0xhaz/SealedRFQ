@@ -130,10 +130,29 @@ than one per round.
    node exposes reflection for health only and CCDScan's documented GraphQL hosts return 404. The
    numbers are in the table above. Worth rechecking before launch, because they are governance
    parameters and can be voted up.
-2. **Epoch transitions.** A new committee has to be introduced by something the contract already
-   trusts, which means the previous committee signing the next one, through `EpochFinalizationEntry`.
-   The bootstrap case, the very first committee, is a trusted write and should be stated as such
-   rather than dressed up.
+2. **Epoch transitions: trustless is not available, and this is the correction that matters.**
+
+   The plan was for each committee to be introduced by something the contract already trusts. On
+   inspection there is nothing for that to be. Verifying a committee would mean proving it sits in
+   a finalized block's state, and Concordium's node API exposes **no state proofs of any kind**:
+   not a Merkle proof, not an inclusion proof, nothing across its entire gRPC surface. Blocks
+   commit to a `state_hash`, and no interface will produce a path to a value beneath it.
+
+   So be exact about what option C achieves. Arc verifies Concordium's **finality**
+   cryptographically: given the right committee, a certificate cannot be forged, and that is
+   measured and working. Arc cannot derive the **committee**. That is asserted.
+
+   It is still a much smaller thing to trust than option A, and the difference is in what kind of
+   claim is being made. A signed attestor says "this bidder holds credential X": privately, per
+   bid, about data nobody else can see, and unfalsifiable by anyone but the attestor. The registrar
+   says "Concordium's committee today hashes to H": once a day, about public chain data, where
+   anyone with a node can recompute H and see within seconds that it is wrong. An unverifiable
+   private assertion against a publicly falsifiable one.
+
+   `proposeCommittee` therefore requires several updaters to agree on the same hash and stake
+   before it takes effect, so one compromised key cannot make the claim by itself.
+
+   The bootstrap, the first committee, is a plain trusted write and is named as one.
 3. ~~How far behind Arc may be.~~ **Decided 2026-11-10: fail closed, everywhere.** If the current
    reward period's committee is not registered, every check reverts. No grace period, and no
    softer rule at bid than at award.

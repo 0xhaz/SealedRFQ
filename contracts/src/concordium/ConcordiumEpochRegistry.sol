@@ -76,8 +76,12 @@ contract ConcordiumEpochRegistry is AccessControl {
         uint32 epochDurationMs_,
         uint32 rewardPeriodEpochs_,
         bytes memory negG2Generator_,
+        uint8 confirmationsRequired_,
         address admin
     ) {
+        // Zero would register a committee before anyone had agreed to it.
+        require(confirmationsRequired_ > 0, "confirmations must be at least one");
+        confirmationsRequired = confirmationsRequired_;
         eraGenesis = eraGenesis_;
         eraGenesisMs = eraGenesisMs_;
         epochDurationMs = epochDurationMs_;
@@ -117,17 +121,52 @@ contract ConcordiumEpochRegistry is AccessControl {
         if (!committees[expected].present) revert StaleRegistry(expected, latestPeriod);
     }
 
-    /// @notice Record the committee for a reward period.
-    /// @dev Held by a role for now, which is a trusted write and is named as one. The committee a
-    ///      contract starts from has to come from somewhere, and dressing the bootstrap up as
-    ///      trustless would be worse than stating it. Replacing this with the previous committee
-    ///      signing the next is tracked in the design notes.
-    function registerCommittee(uint64 period, bytes32 membersHash, uint128 totalStake)
+    /// Distinct updaters that must agree before a committee takes effect.
+    uint8 public confirmationsRequired;
+
+    mapping(uint64 period => mapping(bytes32 proposal => uint8)) public confirmations;
+    mapping(uint64 period => mapping(bytes32 proposal => mapping(address => bool))) public confirmed;
+
+    event CommitteeProposed(uint64 indexed period, bytes32 proposal, address updater, uint8 count);
+
+    error AlreadyConfirmed();
+
+    /// @notice Propose the committee for a reward period; it takes effect on the Nth agreement.
+    ///
+    /// @dev **This is the trusted part of the design, and it is the only one.**
+    ///
+    /// Arc can verify Concordium's finality cryptographically: given the right committee, nobody
+    /// can forge a certificate. What Arc cannot do is work out the committee for itself. That would
+    /// need a proof that the committee is in a finalized block's state, and Concordium's node API
+    /// exposes no state proofs at all: no Merkle proof, no inclusion proof, nothing in the gRPC
+    /// surface. Blocks commit to a `state_hash`, but no interface will produce a path to a value
+    /// underneath it.
+    ///
+    /// So a committee is asserted here rather than proven. That is a smaller thing to trust than
+    /// the alternative, and the difference is worth being precise about. A signed-attestor design
+    /// asserts "this bidder holds credential X", privately, per bid, and nobody else can check it.
+    /// This asserts "Concordium's committee today hashes to H", once a day, about public chain
+    /// data, and anyone with a node can recompute H and see immediately that it is wrong. One is an
+    /// unverifiable private claim, the other a publicly falsifiable one.
+    ///
+    /// Requiring several updaters to agree means one compromised key cannot make the claim alone.
+    function proposeCommittee(uint64 period, bytes32 membersHash, uint128 totalStake)
         external
         onlyRole(UPDATER_ROLE)
     {
-        committees[period] =
-            Committee({membersHash: membersHash, totalStake: totalStake, registeredAt: uint64(block.timestamp), present: true});
+        bytes32 proposal = keccak256(abi.encode(period, membersHash, totalStake));
+        if (confirmed[period][proposal][msg.sender]) revert AlreadyConfirmed();
+        confirmed[period][proposal][msg.sender] = true;
+        uint8 count = ++confirmations[period][proposal];
+        emit CommitteeProposed(period, proposal, msg.sender, count);
+
+        if (count < confirmationsRequired) return;
+        committees[period] = Committee({
+            membersHash: membersHash,
+            totalStake: totalStake,
+            registeredAt: uint64(block.timestamp),
+            present: true
+        });
         if (period > latestPeriod) latestPeriod = period;
         emit CommitteeRegistered(period, membersHash, totalStake);
     }

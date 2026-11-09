@@ -61,6 +61,26 @@ describe("presets", () => {
     }
   });
 
+  /**
+   * The gap between bidding closing and the award deadline, in reward periods.
+   *
+   * Concordium's finalization committee is fixed for a 24-hour reward period, and the qualification
+   * registry holds one committee per period. Under the fail-closed rule this gap is only hygiene:
+   * nothing stale is ever accepted, so a short gap costs nothing.
+   *
+   * It stops being hygiene the moment anyone reintroduces a grace period at bid. The safety of that
+   * design comes entirely from the award re-check happening at least one reward period later, so a
+   * timetable with a shorter gap would silently remove the guarantee without anything failing. The
+   * removed Demo preset closed bidding twelve minutes after posting, which is how close that is.
+   */
+  it("leaves at least a reward period between bidding closing and the award deadline", () => {
+    const REWARD_PERIOD_MINUTES = 24 * 60;
+    for (const p of PRESETS) {
+      const gap = p.offsets[2] - p.offsets[0];
+      expect(gap, `${p.label}: bid to award`).toBeGreaterThanOrEqual(REWARD_PERIOD_MINUTES);
+    }
+  });
+
   it("spans a planned timetable and an urgent one, and nothing shorter", () => {
     const longest = Math.max(...PRESETS.map((p) => p.offsets[0]));
     const shortest = Math.min(...PRESETS.map((p) => p.offsets[0]));

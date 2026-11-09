@@ -39,7 +39,7 @@ contract ConcordiumEpochRegistryTest is Test {
 
         bytes memory negG2 = vm.parseJsonBytes(vm.readFile("test/fixtures/bls-concordium.json"), ".negG2Generator");
 
-        reg = new ConcordiumEpochRegistry(era, eraMs, EPOCH_MS, REWARD_PERIOD_EPOCHS, negG2, address(this));
+        reg = new ConcordiumEpochRegistry(era, eraMs, EPOCH_MS, REWARD_PERIOD_EPOCHS, negG2, 1, address(this));
 
         period = epoch / REWARD_PERIOD_EPOCHS;
         // Put this chain's clock inside the reward period the certificate belongs to, which is
@@ -48,7 +48,7 @@ contract ConcordiumEpochRegistryTest is Test {
     }
 
     function _register() internal {
-        reg.registerCommittee(period, membersHash, totalStake);
+        reg.proposeCommittee(period, membersHash, totalStake);
     }
 
     function test_derivesTheCurrentPeriodFromItsOwnClock() public view {
@@ -140,5 +140,70 @@ contract ConcordiumEpochRegistryTest is Test {
         bytes calldata s
     ) external view returns (bool) {
         return reg.verifyCertificate(bh, r, e, m, b, s);
+    }
+}
+
+/// @notice Committee registration under multiple updaters.
+///
+/// This is the only trusted step in the design, so it is the one worth making hard to subvert with
+/// a single key.
+contract ConcordiumEpochRegistryQuorumTest is Test {
+    ConcordiumEpochRegistry reg;
+    address constant ALICE = address(0xA11CE);
+    address constant BOB = address(0xB0B);
+    address constant MALLORY = address(0xBAD);
+
+    function setUp() public {
+        reg = new ConcordiumEpochRegistry(
+            bytes32(uint256(1)), 1_000_000, 3_600_000, 24, new bytes(256), 2, address(this)
+        );
+        reg.grantRole(reg.UPDATER_ROLE(), ALICE);
+        reg.grantRole(reg.UPDATER_ROLE(), BOB);
+        reg.grantRole(reg.UPDATER_ROLE(), MALLORY);
+    }
+
+    function test_oneUpdaterCannotRegisterAlone() public {
+        vm.prank(ALICE);
+        reg.proposeCommittee(5, bytes32(uint256(0xC0FFEE)), 100);
+        (,,, bool present) = reg.committees(5);
+        assertFalse(present, "a single updater registered a committee");
+    }
+
+    function test_twoAgreeingUpdatersRegisterIt() public {
+        vm.prank(ALICE);
+        reg.proposeCommittee(5, bytes32(uint256(0xC0FFEE)), 100);
+        vm.prank(BOB);
+        reg.proposeCommittee(5, bytes32(uint256(0xC0FFEE)), 100);
+        (bytes32 h,,, bool present) = reg.committees(5);
+        assertTrue(present);
+        assertEq(h, bytes32(uint256(0xC0FFEE)));
+    }
+
+    function test_disagreementRegistersNothing() public {
+        // Mallory proposes a committee of her own choosing. Honest updaters propose the real one.
+        vm.prank(MALLORY);
+        reg.proposeCommittee(5, bytes32(uint256(0xBAD)), 100);
+        vm.prank(ALICE);
+        reg.proposeCommittee(5, bytes32(uint256(0xC0FFEE)), 100);
+        (,,, bool present) = reg.committees(5);
+        assertFalse(present, "disagreeing proposals registered a committee");
+    }
+
+    function test_oneUpdaterCannotConfirmTwice() public {
+        vm.prank(ALICE);
+        reg.proposeCommittee(5, bytes32(uint256(0xC0FFEE)), 100);
+        vm.prank(ALICE);
+        vm.expectRevert(ConcordiumEpochRegistry.AlreadyConfirmed.selector);
+        reg.proposeCommittee(5, bytes32(uint256(0xC0FFEE)), 100);
+    }
+
+    function test_aDifferentStakeIsADifferentProposal() public {
+        // The stake is part of the quorum arithmetic, so agreeing on members alone is not agreement.
+        vm.prank(ALICE);
+        reg.proposeCommittee(5, bytes32(uint256(0xC0FFEE)), 100);
+        vm.prank(BOB);
+        reg.proposeCommittee(5, bytes32(uint256(0xC0FFEE)), 999);
+        (,,, bool present) = reg.committees(5);
+        assertFalse(present);
     }
 }
