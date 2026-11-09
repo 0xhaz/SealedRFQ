@@ -88,6 +88,20 @@ padded, because padding one is a silent downgrade.
 openssl rand -hex 32
 ```
 
+## Discovery, the one hole in the boundary
+
+A buyer cannot invite a supplier it cannot name, so discovery has to open something. What it opens
+is one row, by that organization's own choice.
+
+`organizations.discoverable` defaults to false, so being listed is opted into rather than imposed,
+and the policy grants `SELECT` on the organization row and nothing else. Requests, responses,
+documents and memberships keep the policies they already had. A listed supplier is **contactable,
+not readable**, and a test asserts that a stranger browsing the directory still sees none of that
+supplier's responses, documents or members.
+
+Permissive policies are OR'd in Postgres, so this adds to the membership rule rather than replacing
+it: a member still sees their own organization whether or not it is listed.
+
 ## Checking the tests are real
 
 They pass with the policies switched off unless they are written to fail. Confirm by breaking it:

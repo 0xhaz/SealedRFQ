@@ -1,3 +1,4 @@
+import pg from "pg";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { assertNotPrivileged, pool, withTenant } from "../src/index.js";
 
@@ -158,5 +159,55 @@ withDb("an unauthenticated caller", () => {
 
   it("is refused a user id that is not a uuid", async () => {
     await expect(withTenant("'; SET ROLE sealedrfq; --", async () => 1)).rejects.toThrow(/uuid/);
+  });
+});
+
+withDb("discoverability", () => {
+  const admin = new pg.Pool({
+    connectionString:
+      process.env.ADMIN_DATABASE_URL ?? "postgres://sealedrfq:localdev@localhost:5433/sealedrfq",
+  });
+
+  const list = async (as: string | null) =>
+    (await (await import("../src/workspace.js")).directory(as)).map((o) => o.name);
+
+  it("hides an organization that has not opted in", async () => {
+    // The default. Nobody is listed by being created.
+    expect(await list(BUYER)).toEqual([]);
+  });
+
+  it("lists one that has, to a stranger", async () => {
+    await admin.query("UPDATE organizations SET discoverable = true WHERE id = $1", [ORG_A]);
+    expect(await list(BUYER)).toEqual(["Supplier A"]);
+    // And to someone with no session at all, since a directory is a public thing.
+    expect(await list(null)).toEqual(["Supplier A"]);
+  });
+
+  /**
+   * The property the whole feature turns on. Being findable must not make anything else readable.
+   */
+  it("does not make the listed organization's business visible", async () => {
+    await admin.query("UPDATE organizations SET discoverable = true WHERE id = $1", [ORG_A]);
+    const { withTenant } = await import("../src/index.js");
+
+    // Supplier A is listed. Supplier B, a stranger to it, still sees none of its work.
+    const seen = await withTenant(SUP_B, async (q) => ({
+      responses: (await q.query("SELECT id FROM request_responses WHERE org_id = $1", [ORG_A]))
+        .rowCount,
+      documents: (await q.query("SELECT id FROM documents WHERE org_id = $1", [ORG_A])).rowCount,
+      members: (await q.query("SELECT user_id FROM memberships WHERE org_id = $1", [ORG_A]))
+        .rowCount,
+    }));
+    expect(seen).toEqual({ responses: 0, documents: 0, members: 0 });
+  });
+
+  it("filters to suppliers when asked, so a buyer directory is not a list of buyers", async () => {
+    // The fixture's organizations all supply by default, so there would be nothing to filter.
+    await admin.query("UPDATE organizations SET discoverable = true");
+    await admin.query("UPDATE organizations SET can_supply = false WHERE id = $1", [ORG_BUYER]);
+    const { directory } = await import("../src/workspace.js");
+    const supplying = await directory(BUYER, { supplying: true });
+    expect(supplying.every((o) => o.can_supply)).toBe(true);
+    expect(supplying.length).toBeLessThan((await directory(BUYER)).length);
   });
 });

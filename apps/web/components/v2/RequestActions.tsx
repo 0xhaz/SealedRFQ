@@ -25,6 +25,7 @@ export function RequestActions(props: {
   isOwner: boolean;
   invitedCount: number;
   supplierOrgs: { id: string; name: string }[];
+  directory: { id: string; name: string; country: string }[];
   hasResponded: boolean;
 }) {
   const router = useRouter();
@@ -71,13 +72,42 @@ export function RequestActions(props: {
           {props.status === "open" && (
             <>
               <div className="field full" style={{ marginBottom: 12 }}>
-                <label htmlFor="inviteOrg">Invite an organisation</label>
-                <input id="inviteOrg" value={inviteId} placeholder="organisation id"
-                  onChange={(e) => setInviteId(e.target.value)} />
-                <span className="field-hint">
-                  By id for now. A supplier directory is not built, so there is nothing to search
-                  yet, and pretending otherwise would be worse than saying so.
-                </span>
+                <label htmlFor="inviteOrg">Invite a supplier</label>
+                {props.directory.length === 0 ? (
+                  <>
+                    <input
+                      id="inviteOrg"
+                      value={inviteId}
+                      placeholder="organisation id"
+                      onChange={(e) => setInviteId(e.target.value)}
+                    />
+                    <span className="field-hint">
+                      No supplier has listed itself yet, so there is nothing to choose from. An
+                      organisation appears here only after opting in, which is why an empty list is
+                      the expected state early on rather than a fault.
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <select
+                      id="inviteOrg"
+                      value={inviteId}
+                      onChange={(e) => setInviteId(e.target.value)}
+                    >
+                      <option value="">Choose a supplier…</option>
+                      {props.directory.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.name}
+                          {d.country ? ` · ${d.country}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="field-hint">
+                      Suppliers that chose to be listed. Listing makes an organisation contactable,
+                      not readable: nothing of its work becomes visible by appearing here.
+                    </span>
+                  </>
+                )}
               </div>
               <div className="button-row">
                 <button type="button" className="btn-outline" disabled={busy || !inviteId}

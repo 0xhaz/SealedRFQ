@@ -88,3 +88,36 @@ export async function responsesFor(userId: string, requestId: string): Promise<R
     return rows;
   });
 }
+
+export type DirectoryEntry = {
+  id: string;
+  name: string;
+  country: string;
+  can_supply: boolean;
+};
+
+/**
+ * Organizations that have chosen to be findable.
+ *
+ * This is the one query that deliberately reaches outside the caller's own organizations, so it is
+ * worth being exact about how far. The policy behind it grants a row in `organizations` and nothing
+ * else: a supplier listed here is findable, and its requests, responses, documents and membership
+ * remain as invisible as before. Being discoverable is a decision to be contactable, not a decision
+ * to be read.
+ */
+export async function directory(
+  userId: string | null,
+  opts: { supplying?: boolean } = {},
+): Promise<DirectoryEntry[]> {
+  return withTenant(userId, async (q) => {
+    const { rows } = await q.query<DirectoryEntry>(
+      `SELECT id, name, country, can_supply
+         FROM organizations
+        WHERE discoverable
+          AND ($1::boolean IS NOT TRUE OR can_supply)
+        ORDER BY name`,
+      [opts.supplying ?? false],
+    );
+    return rows;
+  });
+}

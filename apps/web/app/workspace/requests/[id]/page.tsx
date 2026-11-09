@@ -1,7 +1,7 @@
 import { Header } from "@/components/Header";
 import { RequestActions } from "@/components/v2/RequestActions";
 import { currentUserId } from "@/lib/v2/session";
-import { getRequest, myOrganizations, responsesFor } from "@sealedrfq/db/workspace";
+import { directory, getRequest, myOrganizations, responsesFor } from "@sealedrfq/db/workspace";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
@@ -17,7 +17,12 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
   const request = await getRequest(userId, id);
   if (!request) notFound();
 
-  const [orgs, responses] = await Promise.all([myOrganizations(userId), responsesFor(userId, id)]);
+  const [orgs, responses, suppliers] = await Promise.all([
+    myOrganizations(userId),
+    responsesFor(userId, id),
+    // Organisations that chose to be listed. Not every organisation: being findable is opt-in.
+    directory(userId, { supplying: true }),
+  ]);
   const isOwner = orgs.some((o) => o.id === request.org_id);
   const mySupplierOrgs = orgs.filter((o) => o.can_supply && o.id !== request.org_id);
 
@@ -92,6 +97,9 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
             isOwner={isOwner}
             invitedCount={request.invited_count}
             supplierOrgs={mySupplierOrgs.map((o) => ({ id: o.id, name: o.name }))}
+            directory={suppliers
+              .filter((s) => s.id !== request.org_id)
+              .map((s) => ({ id: s.id, name: s.name, country: s.country }))}
             hasResponded={responses.some((r) => mySupplierOrgs.some((o) => o.id === r.org_id))}
           />
         </div>
