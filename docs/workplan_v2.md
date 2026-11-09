@@ -126,6 +126,24 @@ test, against a local chain.
 
 Testnet from day one, because there is no local option.
 
+### Contract addresses, found by scanning rather than by reading
+
+The documentation gives mainnet addresses only, and its testnet pages 404. Following it would have
+led to the conclusion that the registries are mainnet-only, because the documented indexes hold
+unrelated contracts on testnet. They are deployed; the addresses are simply not published.
+
+| Contract | Mainnet | Testnet |
+|---|---|---|
+| CIS-8004 Agent Registry | index **10082**, subindex 0 | index **13042**, subindex 0 |
+| CIS-8 External Key Registry | index **10081**, subindex 0 | index **12940**, subindex 0 |
+
+Verified by querying both networks: the testnet instance reports `init_CIS-8004` with the same 21
+entrypoints as mainnet, `register` among them. Found by walking testnet indexes down from the
+highest, on the reasoning that a standard drafted in May 2026 would be deployed recently.
+
+Testnet carries two CIS-8 instances, 12939 and 12940. 12940 is the later one and additionally
+exposes `migrate`, so it is the one to use; 12939 looks like its predecessor.
+
 - [ ] SDK smoke test and a throwaway transaction, to find the integration surprises early
 - [ ] Register the evaluator agent: real Agent Card, active CIS-8004 badge, committed card hash
 - [ ] CIS-8 external key binding where the SDK supports it
