@@ -134,9 +134,28 @@ than one per round.
    trusts, which means the previous committee signing the next one, through `EpochFinalizationEntry`.
    The bootstrap case, the very first committee, is a trusted write and should be stated as such
    rather than dressed up.
-3. **How far behind Arc may be.** A light client that must be told about every epoch is a liveness
-   dependency: if nobody submits the update, bidding stops. Worth deciding whether a stale epoch
-   fails closed, which is safe and brittle, or allows a bounded grace period, which is the reverse.
+3. ~~How far behind Arc may be.~~ **Decided 2026-11-10: fail closed, everywhere.** If the current
+   reward period's committee is not registered, every check reverts. No grace period, and no
+   softer rule at bid than at award.
+
+   The alternative considered was a bounded grace at bid with strict checking at award, on the
+   grounds that a wrong "yes" at bid is caught by the award re-check while a wrong "no" can cost a
+   supplier a tender they cannot get back. The consequence analysis holds, but the implementation
+   does not: two rules mean two chances to apply the wrong one, the whole argument rests on an
+   award re-check being unskippable along every path, and a stale registry under grace produces no
+   visible symptom until award. This project has already been bitten by a component reporting
+   healthy while doing nothing.
+
+   Fail closed is one invariant, states in a line, and fails loudly.
+
+   **The cost it leaves, and where that belongs.** A supplier can lose a bidding window because the
+   updater was down, through no fault of their own. That is real, and the answer is the tender
+   timetable rather than the verification rule: a buyer can extend a bidding window that closed
+   while the registry was stale, which turns an unrecoverable loss into an administrative one.
+   `periodsBehind()` is public so the condition is visible rather than inferred. Not yet
+   implemented; tracked here so the mitigation is not forgotten along with the reason for it.
+
+   With 24-hour reward periods there is a full day of slack before anything fails.
 4. **`GlobalContext`.** The proof transcript binds Concordium's cryptographic parameters, so the
    verifier needs the same ones. They change rarely, so they can be stored once and updated by the
    same mechanism as the committee.
@@ -155,6 +174,31 @@ precompile rather than trusted. Compression is a wire format, and converting it 
 job.
 
 Committee keys are stored uncompressed in the epoch Merkle tree for the same reason.
+
+## Built, 2026-11-10
+
+`ConcordiumEpochRegistry` holds one committee per reward period and verifies certificates against
+it, fail closed. Measured against the real mainnet fixture, 72 members and 51 signers:
+
+| | Gas |
+|---|---|
+| Execution | 354,778 |
+| Calldata, if sent by an account | ~331,776 |
+| **Total** | **~686,000**, about $0.014 |
+
+**The committee is a hash, not a Merkle tree.** The sketch above had callers prove each signer with
+a Merkle path. Supplying the whole committee and a bitmap of who signed turned out cheaper, 685k
+against 810k, because Merkle paths cost more calldata than the twenty-one absent members they save.
+It also removes a tree to build, store and get wrong.
+
+**Signers are added rather than absentees subtracted.** Subtraction is fewer G2 additions, since
+quorum guarantees more signers than absentees, but it needs every key negated and a caller-supplied
+negation has to be checked. The saving is under a cent and the extra path is not worth it.
+
+A note on measuring: the first number this produced was 1.78M, and most of it was the test reading
+the committee out of its own storage. 20,736 bytes is 648 words and a cold word is 2,100 gas. The
+registry never pays that, the test did, and a figure like that is exactly the kind that gets quoted
+later as though it meant something.
 
 ## The fallback, kept deliberately
 

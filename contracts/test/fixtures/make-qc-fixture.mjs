@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { bls12_381 as bls } from "@noble/curves/bls12-381.js";
+import { keccak_256 } from "@noble/hashes/sha3.js";
 
 const b64 = (s) => Buffer.from(s, "base64");
 const fp = (x) => x.toString(16).padStart(96, "0").padStart(128, "0");
@@ -71,7 +72,24 @@ console.log("// verifies against original genesis   :", useOrig);
 if (!useEra && !useOrig) { console.log("// NEITHER verified"); }
 
 const chosen = useEra ? eraGenesis : genesis;
+// The committee as the contract takes it: every member in ascending baker id, 256 bytes of
+// uncompressed G2 key then a 32-byte stake, with a bitmap saying who signed. Supplying the whole
+// committee costs less calldata than Merkle paths for the signers alone, and leaves no tree to
+// build or get wrong.
+const u256 = (v) => v.toString(16).padStart(64, "0");
+let membersHex = "";
+for (const c of committee) {
+  membersHex += g2enc(bls.G2.ProjectivePoint.fromHex(c.key).toAffine()) + u256(c.stake);
+}
+const bits = new Uint8Array(Math.ceil(committee.length / 8));
+committee.forEach((c, i) => { if (signerIds.has(c.id)) bits[i >> 3] |= 1 << (i % 8); });
+const membersHash = Buffer.from(keccak_256(Buffer.from(membersHex, "hex"))).toString("hex");
+
 writeFileSync("/tmp/qc-fixture.json", JSON.stringify({
+  members: "0x" + membersHex,
+  signerBits: "0x" + Buffer.from(bits).toString("hex"),
+  membersHash: "0x" + membersHash,
+  eraGenesisMs: String(JSON.parse(readFileSync("/tmp/consensus.json","utf8")).currentEraGenesisTime.value),
   note: "Real Concordium mainnet quorum certificate",
   genesis: "0x" + chosen,
   blockHash: "0x" + b64(qc.blockHash.value).toString("hex"),
