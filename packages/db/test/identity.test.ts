@@ -508,6 +508,58 @@ withDb("wallet links", () => {
     ).rejects.toThrow(/row-level security/);
   });
 
+  it("records an EOA link by default and a contract link when told", async () => {
+    const eoa = await link({ address: ADDR });
+    const safe = await link({
+      address: "0x0000000000000000000000000000000000005afe",
+      accountType: "contract",
+    });
+    const { rows } = await withUser(USER, (q) =>
+      q.query("SELECT id, account_type FROM wallet_links"),
+    );
+    const byId = Object.fromEntries(rows.map((r) => [r.id, r.account_type]));
+    expect(byId[eoa]).toBe("eoa");
+    expect(byId[safe]).toBe("contract");
+  });
+
+  it("refuses an account type outside the two known", async () => {
+    await expect(
+      admin.query(
+        `INSERT INTO wallet_links (user_id, chain_namespace, chain_id, address, verified_at, account_type)
+         VALUES ($1,'eip155',1,'0xbeef',now(),'multisig')`,
+        [USER],
+      ),
+    ).rejects.toThrow(/account_type|check/i);
+  });
+
+  it("does not let the application role rewrite the account type", async () => {
+    const id = await link({ address: ADDR });
+    await expect(
+      withUser(USER, (q) =>
+        q.query("UPDATE wallet_links SET account_type='contract' WHERE id=$1", [id]),
+      ),
+    ).rejects.toThrow(/permission denied/);
+  });
+
+  it("lets a contract-account link be an organization signer without further schema", async () => {
+    const id = await link({
+      address: "0x0000000000000000000000000000000000005afe",
+      accountType: "contract",
+    });
+    await admin.query(
+      `INSERT INTO organizations (id, name, clerk_org_id) VALUES ($1,'Org','org_signer')
+       ON CONFLICT DO NOTHING`,
+      [ORG],
+    );
+    await expect(
+      admin.query(
+        `INSERT INTO organization_signers (organization_id, wallet_link_id, approval_scope)
+         VALUES ($1,$2,'payments')`,
+        [ORG, id],
+      ),
+    ).resolves.toBeTruthy();
+  });
+
   it("gives the application role no access to organization_signers", async () => {
     await expect(
       withUser(USER, (q) => q.query("SELECT 1 FROM organization_signers")),

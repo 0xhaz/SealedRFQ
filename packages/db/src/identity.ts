@@ -120,7 +120,10 @@ export async function applyClerkEvent(
  * so a replayed nonce links nothing; and it must have been issued for this address, or a nonce
  * obtained for a wallet you control could be spent to claim one you do not. The mismatch throws
  * after the spend, which rolls the spend back with everything else, so an honest retry is not
- * punished for a caller's bug. Verifying the signature itself is the caller's job.
+ * punished for a caller's bug. Verifying the signature itself is the caller's job, and
+ * `verifyWalletSignature` in @sealedrfq/shared is the one to use: it handles contract accounts
+ * (a Safe) that ECDSA recovery alone would reject. Pass the `accountType` it returned, so the link
+ * records what was verified.
  *
  * Runs as the user, not an organization: a wallet belongs to a person.
  */
@@ -130,6 +133,7 @@ export async function linkWallet(input: {
   chainId: number;
   address: string;
   challengeId: string;
+  accountType?: "eoa" | "contract";
 }): Promise<string> {
   // Only EVM addresses are case-insensitive; a base58 address lowercased is a different address.
   const address = input.chainNamespace === "eip155" ? input.address.toLowerCase() : input.address;
@@ -143,9 +147,16 @@ export async function linkWallet(input: {
     }
     const { rows } = await q.query(
       `INSERT INTO wallet_links
-         (user_id, chain_namespace, chain_id, address, challenge_id, verified_at)
-       VALUES ($1, $2, $3, $4, $5, now()) RETURNING id`,
-      [input.userId, input.chainNamespace, input.chainId, address, input.challengeId],
+         (user_id, chain_namespace, chain_id, address, challenge_id, verified_at, account_type)
+       VALUES ($1, $2, $3, $4, $5, now(), $6) RETURNING id`,
+      [
+        input.userId,
+        input.chainNamespace,
+        input.chainId,
+        address,
+        input.challengeId,
+        input.accountType ?? "eoa",
+      ],
     );
     return rows[0].id;
   });
