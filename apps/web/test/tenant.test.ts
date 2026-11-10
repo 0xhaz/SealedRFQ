@@ -5,6 +5,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const authMock = vi.hoisted(() => vi.fn());
+const signIn = vi.hoisted(() => vi.fn());
 const upsertUser = vi.hoisted(() => vi.fn());
 const upsertOrganization = vi.hoisted(() => vi.fn());
 const myOrganizations = vi.hoisted(() => vi.fn());
@@ -37,6 +38,9 @@ async function capture(fn: () => Promise<unknown>): Promise<string> {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  signIn.mockImplementation(() => {
+    throw new Error("REDIRECT:/clerk-sign-in");
+  });
   upsertUser.mockResolvedValue(USER);
   upsertOrganization.mockResolvedValue(ORG);
 });
@@ -60,8 +64,15 @@ describe("requireOrg", () => {
   });
 
   it("redirects a signed-out visitor to sign-in", async () => {
-    authMock.mockResolvedValue({ userId: null, orgId: null, orgSlug: null });
-    await expect(capture(() => requireOrg("acme"))).resolves.toBe("/sign-in");
+    // Via Clerk's own helper, so the target follows the instance's configured sign-in URL.
+    authMock.mockResolvedValue({
+      userId: null,
+      orgId: null,
+      orgSlug: null,
+      redirectToSignIn: signIn,
+    });
+    await expect(capture(() => requireOrg("acme"))).resolves.toBe("/clerk-sign-in");
+    expect(signIn).toHaveBeenCalled();
   });
 
   it("redirects when the url slug and the session slug disagree", async () => {
@@ -94,7 +105,31 @@ describe("requireOrg", () => {
   });
 });
 
+describe("an organization without a slug", () => {
+  it("is addressed by its id rather than dead-ending", async () => {
+    authMock.mockResolvedValue({ userId: "user_1", orgId: "org_1", orgSlug: null });
+    await expect(capture(() => requireOrg("anything"))).resolves.toBe("/app/org_1/inbox");
+    await expect(requireOrg("org_1")).resolves.toMatchObject({ orgId: ORG, orgSlug: "org_1" });
+  });
+});
+
 describe("sessionTenant", () => {
+  it("resolves uuids from the session without consulting the projection", async () => {
+    authMock.mockResolvedValue({
+      userId: "user_1",
+      orgId: "org_1",
+      orgSlug: "acme",
+      orgRole: "org:member",
+    });
+    await expect(sessionTenant()).resolves.toEqual({
+      userId: USER,
+      orgId: ORG,
+      orgSlug: "acme",
+      role: "member",
+    });
+    expect(myOrganizations).not.toHaveBeenCalled();
+  });
+
   it("is null without an organization, so an action can refuse in its own way", async () => {
     authMock.mockResolvedValue({ userId: "user_1", orgId: null, orgSlug: null });
     await expect(sessionTenant()).resolves.toBeNull();

@@ -42,13 +42,15 @@ export default async function Inbox({ params }: { params: Promise<{ org: string 
             {active ? (
               <table className="ledger">
                 <tbody>
-                  <tr>
-                    <td>
+                  <tr className="row">
+                    <td data-label="Organisation">
                       <b>{active.name}</b>
                       {active.country && <span className="hint"> {active.country}</span>}
                     </td>
-                    <td className="mono-sm">{role}</td>
-                    <td className="hint">
+                    <td className="mono-sm" data-label="Role">
+                      {role}
+                    </td>
+                    <td className="hint" data-label="Can">
                       {[active.can_buy && "buy", active.can_supply && "supply"]
                         .filter(Boolean)
                         .join(" and ")}
@@ -90,16 +92,20 @@ export default async function Inbox({ params }: { params: Promise<{ org: string 
                 </thead>
                 <tbody>
                   {requests.map((r) => (
-                    <tr key={r.id}>
-                      <td>
+                    <tr className="row" key={r.id}>
+                      <td data-label="Title">
                         <Link className="linklike" href={`/app/${orgSlug}/requests/${r.id}`}>
                           {r.title}
                         </Link>
                         <span className="hint"> {r.org_name}</span>
                       </td>
-                      <td className="mono-sm">{r.type}</td>
-                      <td className="hint">{PHASE[r.status] ?? r.status}</td>
-                      <td>{r.response_count}</td>
+                      <td className="mono-sm" data-label="Type">
+                        {r.type}
+                      </td>
+                      <td className="hint" data-label="Status">
+                        {PHASE[r.status] ?? r.status}
+                      </td>
+                      <td data-label="Responses">{r.response_count}</td>
                     </tr>
                   ))}
                 </tbody>
