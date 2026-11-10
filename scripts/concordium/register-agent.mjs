@@ -569,11 +569,26 @@ const record = {
 const hash = cardHash(record);
 console.log(`\ncard            ${cardBytes(record).length} bytes, sha256 ${cardHashHex(record)}`);
 
-const anchored = await submit("CIS-8004 setAgentURI", {
-  contract: REGISTRY,
-  method: receiveName("setAgentURI"),
-  parameter: setAgentUriParameter({ agentId, agentUri: cardUrl, metadataHash: hash }),
-});
+/**
+ * Anchor the hash, unless it is already the hash on chain.
+ *
+ * Re-anchoring the same value costs a fee to change nothing, and it replaces the transaction in
+ * the record with a later one that is less informative than the original. The first run found the
+ * agent already registered, said its hash was already anchored, and anchored it again regardless;
+ * noticing the agent was not enough, the value had to be compared.
+ */
+const anchored = await (async () => {
+  if (existing?.metadataHash === cardHashHex(record) && existing.agentUri === cardUrl) {
+    console.log("\nCIS-8004 setAgentURI");
+    console.log("  the card hash on chain already matches; nothing to anchor");
+    return { hash: previous.transactions?.anchorHash };
+  }
+  return submit("CIS-8004 setAgentURI", {
+    contract: REGISTRY,
+    method: receiveName("setAgentURI"),
+    parameter: setAgentUriParameter({ agentId, agentUri: cardUrl, metadataHash: hash }),
+  });
+})();
 
 if (dryRun) {
   console.log(
@@ -609,7 +624,7 @@ writeFileSync(
         ...previous.transactions,
         ...(keyBindingTx ? { keyBinding: keyBindingTx } : {}),
         ...(registerTx ? { register: registerTx } : {}),
-        anchorHash: anchored.hash,
+        ...(anchored?.hash ? { anchorHash: anchored.hash } : {}),
       },
       registeredAt: new Date().toISOString(),
     },

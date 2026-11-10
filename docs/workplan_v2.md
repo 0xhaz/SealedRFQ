@@ -217,18 +217,41 @@ checkably the same entity instead of two unrelated registrations that merely sha
       replace another as the active owner, and the only refusal is `AlreadyRegistered` for the
       same caller. Binding a key from the compromised testnet set would let a stranger claim the
       agent's key whenever they chose
-- [ ] Run the registration. Needs a funded Concordium testnet account, which is the one step that
-      cannot be done from here. Test CCD comes from the wallet itself — Accounts, the account's
-      Activity page, *Request CCD*, 20,000 CCD — and only once per account, only while the account
-      has no incoming transactions. A testnet identity needs no real ID; pick the Concordium
-      testnet identity provider. The script takes either a wallet key export or an address plus
-      the account private key, because not every wallet writes a key file
+- [x] **Registered. G1 met.** SealedRFQ is agent **1** in CIS-8004 on Concordium testnet, Active,
+      owned by `4DBCxp3GVDmTwtB1Z718ojSCEy1eBp6oJ7RrNTJk8BUsJn7FGb`, with the SHA-256 of its agent
+      card anchored on chain and matching the bytes the site serves. `verify-agent.mjs 1` passes
+      all ten checks from an agent id alone, trusting neither our record nor the card's claims
+      about itself.
+
+      Test CCD comes from the wallet — Accounts, the account's Activity page, *Request CCD* —
+      once per account and only while it has no incoming transactions. A testnet identity needs no
+      real ID; pick the Concordium testnet identity provider.
+- [x] Capture the CCDExplorer links as they happen
 - [ ] One supported identity or Web3 ID presentation with a fresh challenge and replay protection
 - [ ] Qualification Agent: verifies the proof off-chain, then signs the Arc permit
 - [ ] Capture CCDExplorer links for every registration as they happen, not at the end
 
+### Evidence
+
+| What | Transaction |
+|---|---|
+| CIS-8 `registerExternalKey` — binds the evaluator key | [`2223b6f8…9148b`](https://testnet.ccdexplorer.io/testnet/transaction/2223b6f821569e613fed7950ddf5633d95ce4712b9413eb3bea23a01cbe9148b) |
+| CIS-8004 `register` — mints agent 1 | [`eb5305bf…85d37`](https://testnet.ccdexplorer.io/testnet/transaction/eb5305bf7d6aceda1285ecc7a9f2ba447da7749013298bb27b64cac0baf85d37) |
+| CIS-8004 `setAgentURI` — anchors the card hash | [`a872ab1c…821a1`](https://testnet.ccdexplorer.io/testnet/transaction/a872ab1c6a792362f153807ef0e1eb031b017aa753e1aa98de7b50bb749821a1) |
+
+Account: [`4DBCxp3G…n7FGb`](https://testnet.ccdexplorer.io/testnet/account/4DBCxp3GVDmTwtB1Z718ojSCEy1eBp6oJ7RrNTJk8BUsJn7FGb) ·
+Registry: [13042](https://testnet.ccdexplorer.io/testnet/instance/13042/0) ·
+Card: `https://www.sealedrfq.com/.well-known/agent-card.json`, SHA-256
+`dc12f239397f6af32010bdc2f26b31e154958240809afd9c74874418f4162e12`
+
+A fourth transaction,
+[`2adbb408…b5295`](https://testnet.ccdexplorer.io/testnet/transaction/2adbb4085ba39adadfc66893601257d913e6e0d77c49ae01750a31e2c15b5295),
+re-anchored the same hash on a re-run. It changed nothing and cost a fee to do it, because the
+script noticed the agent already existed but did not compare the hash before setting it. Fixed:
+re-running the script now performs no transactions at all.
+
 Exit condition: G1 and G2. A badge verifies, a proof verifies with replay protection, and the
-explorer links exist.
+explorer links exist. **G1 is met.** G2 — a Web3 ID presentation with replay protection — is not.
 
 State the predicate honestly in the UI from the first screen that shows it. A verified Concordium
 account is not company registration, purchasing authority or beneficial ownership, and the RFC is
