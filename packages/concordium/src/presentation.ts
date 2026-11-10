@@ -118,6 +118,32 @@ function sortKeys(value: unknown): unknown {
   return value;
 }
 
+/**
+ * The cheap half of verification: is this challenge ours, live, and for this purpose?
+ *
+ * Exported so a caller can ask before doing the expensive half. Resolving a presentation's
+ * credentials means several round trips to a Concordium node, and there is no sense spending them
+ * on a challenge we were never going to accept — nor reporting the result as though the node were
+ * at fault. `verifyQualificationPresentation` repeats these checks, so skipping this is safe and
+ * only wasteful.
+ */
+export async function precheckChallenge(
+  store: ChallengeStore,
+  challenge: string,
+  purpose: string,
+  now = Date.now(),
+): Promise<VerificationFailure | undefined> {
+  const issued = await store.peek(challenge);
+  if (!issued) return fail("unknown_challenge", "this challenge was never issued, or is spent");
+  if (issued.expiresAt <= now) {
+    return fail("expired_challenge", `expired at ${new Date(issued.expiresAt).toISOString()}`);
+  }
+  if (issued.purpose !== purpose) {
+    return fail("wrong_purpose", `issued for ${issued.purpose}, presented for ${purpose}`);
+  }
+  return undefined;
+}
+
 export type VerifyPresentationInput = {
   presentation: VerifiablePresentation;
   /** From `client.getCryptographicParameters()`. Fixed per network, so cache it. */

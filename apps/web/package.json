@@ -10,6 +10,10 @@
     "test": "tsc --noEmit && vitest run"
   },
   "dependencies": {
+    "@concordium/browser-wallet-api-helpers": "3.3.0",
+    "@concordium/web-sdk": "^8.1.1",
+    "@sealedrfq/concordium": "workspace:*",
+    "@sealedrfq/db": "workspace:*",
     "@sealedrfq/shared": "workspace:^",
     "@tanstack/react-query": "^5",
     "@xmtp/browser-sdk": "^7.1.0",
@@ -18,9 +22,7 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "viem": "^2",
-    "wagmi": "^2",
-    "@sealedrfq/db": "workspace:*",
-    "@sealedrfq/concordium": "workspace:*"
+    "wagmi": "^2"
   },
   "devDependencies": {
     "@types/node": "^20",

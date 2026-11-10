@@ -246,9 +246,20 @@ checkably the same entity instead of two unrelated registrations that merely sha
       would be intermittent "unknown challenge" errors rather than anything resembling a missing
       store. Single use is enforced in the WHERE clause of a conditional UPDATE, proven by a test
       that claims one challenge eight times concurrently and expects exactly one winner.
-- [ ] A presentation from a real wallet, end to end. The verifier is tested against the real wasm
-      verifier at its boundary and by mutation, but producing a proof needs wallet secrets, so
-      this waits on a browser-wallet request flow
+- [x] The browser-wallet request flow: `/qualify` asks the wallet for a proof, and
+      `/api/concordium/{challenge,verify}` issue and check it. Both routes import one statement
+      from one place, because a request and a check that could drift would mean verifying a
+      question nobody asked while still appearing to work.
+
+      The statement proves residence or registration inside the tender's jurisdiction by set
+      membership rather than by revealing the country: in a thin market, revealing where a losing
+      bidder is established can identify them.
+
+      Smoke-tested against the live routes and the real database. A malformed presentation, a
+      challenge issued for another tender and a challenge never issued are each refused with their
+      own reason, and none of them spends the challenge.
+- [ ] Drive it with a real wallet. Everything up to the wallet prompt is exercised; producing a
+      proof needs a Concordium identity in the browser extension, which is a manual step
 - [ ] Qualification Agent: verifies the proof off-chain, then signs the Arc permit
 - [ ] Capture CCDExplorer links for every registration as they happen, not at the end
 
