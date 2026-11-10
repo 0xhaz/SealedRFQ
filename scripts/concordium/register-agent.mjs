@@ -301,21 +301,10 @@ function reject(result) {
   return result.tag === "failure" ? describeReason(result.reason) : undefined;
 }
 
-/**
- * Dry-run, stop on a rejection, then send and wait. Returns the finalised summary.
- *
- * `expectedDryRunFailure` names the one rejection that is not a problem: during `--dry-run` the
- * key binding has not been sent, so CIS-8004 cannot yet see the CIS-8 entry and `register` must
- * fail. Dying there would report an inherent consequence of not sending anything as a fault.
- */
-async function submit(label, { contract, method, parameter, energy, expectedDryRunFailure }) {
+/** Dry-run, stop on a rejection, then send and wait. Returns the finalised summary. */
+async function submit(label, { contract, method, parameter, energy }) {
   const dry = await client.invokeContract({ invoker: sender, contract, method, parameter });
   const refusal = reject(dry);
-  if (refusal && dryRun && expectedDryRunFailure && refusal.startsWith(expectedDryRunFailure)) {
-    console.log(`\n${label}`);
-    console.log(`  ${refusal}, as expected: the key binding above was not sent`);
-    return null;
-  }
   if (refusal) die(`${label} would be rejected: ${refusal}`);
 
   const dryReturnValue = dry.returnValue;
@@ -425,14 +414,67 @@ const registerMetadata = [
   { key: "settlementChain", value: Buffer.from("arc", "utf8") },
 ];
 
-if (dryRun) {
-  // The external reference cannot validate until the binding is on chain, so check everything
-  // else about the parameter now: the URI, the metadata entries and the energy cost.
-  await submit("CIS-8004 register, without the external reference", {
+/**
+ * Can this registry accept a reference to our CIS-8 entry at all?
+ *
+ * On testnet it cannot. The instance at 13042 is configured with cis8_contract = 10081, which is
+ * the MAINNET CIS-8 address; on testnet that index holds an unrelated contract, so every
+ * external_reference is refused with InvalidExternalReference no matter how correct it is. The
+ * registry's own reference agent has none either, which fits.
+ *
+ * So the reference is attempted and dropped if refused, rather than taken as fatal — but only
+ * once the binding has been confirmed Active and ours. Dropping it on an unverified binding would
+ * turn a real problem with our key into a silent downgrade.
+ */
+const externalReference = await (async () => {
+  const confirmed = await client.invokeContract({
+    contract: KEYS,
+    method: cis8ReceiveName("ownerOfKey"),
+    parameter: ownerOfKeyParameter(externalKey),
+  });
+  const binding =
+    confirmed.tag === "success" && confirmed.returnValue
+      ? parseOwnerOfKey(confirmed.returnValue)
+      : undefined;
+  if (binding?.status !== "Active" || binding.owner !== SDK.AccountAddress.toBase58(sender)) {
+    die(
+      `The CIS-8 binding is not an active entry owned by this sender, so the agent cannot\n  reference it: ${binding ? `status ${binding.status}, owner ${binding.owner}` : "no entry"}`,
+    );
+  }
+
+  const reference = { keyRegistry: KEY_REGISTRY[network], ...externalKey };
+  const probe = await client.invokeContract({
+    invoker: sender,
     contract: REGISTRY,
     method: receiveName("register"),
-    parameter: registerParameter({ agentUri: cardUrl, initialMetadata: registerMetadata }),
+    parameter: registerParameter({ agentUri: cardUrl, externalReference: reference }),
   });
+  if (probe.tag !== "failure") return reference;
+
+  const reason = reject(probe);
+  if (!reason.startsWith("InvalidExternalReference")) {
+    die(`CIS-8004 register would be rejected: ${reason}`);
+  }
+  console.log(
+    `\nCIS-8004 external reference\n  refused: ${reason}. This registry cannot resolve our CIS-8 entry — on testnet it is\n  configured against the mainnet CIS-8 address, so no reference is acceptable to it.\n  Registering without one. The binding is still on chain and the agent card states it,\n  so it stays checkable through CIS-8 directly.`,
+  );
+  return undefined;
+})();
+
+if (dryRun) {
+  await submit("CIS-8004 register", {
+    contract: REGISTRY,
+    method: receiveName("register"),
+    parameter: registerParameter({
+      agentUri: cardUrl,
+      externalReference,
+      initialMetadata: registerMetadata,
+    }),
+  });
+  console.log(
+    `\n  --dry-run complete. Nothing was sent.${externalReference ? "" : "\n  The agent would be registered without an external reference."}`,
+  );
+  process.exit(0);
 }
 
 const registered = await submit("CIS-8004 register", {
@@ -440,21 +482,10 @@ const registered = await submit("CIS-8004 register", {
   method: receiveName("register"),
   parameter: registerParameter({
     agentUri: cardUrl,
-    // Deliberately absent: the card names the agent id, and the id does not exist until this
-    // transaction lands. Anchored in step 3 rather than left as None forever.
-    externalReference: { keyRegistry: KEY_REGISTRY[network], ...externalKey },
+    externalReference,
     initialMetadata: registerMetadata,
   }),
-  expectedDryRunFailure: "InvalidExternalReference",
 });
-
-if (dryRun) {
-  console.log(
-    "\n  --dry-run complete. The key binding and the register parameter are both accepted;" +
-      "\n  the external reference can only be checked once the binding is on chain.\n",
-  );
-  process.exit(0);
-}
 
 /**
  * Which agent id we got.
@@ -500,7 +531,12 @@ const record = {
   origin,
   agentId: Number(agentId),
   owner: SDK.AccountAddress.toBase58(sender),
-  keyBinding: { keyRegistry: KEY_REGISTRY[network], namespace: NAMESPACE },
+  keyBinding: {
+    keyRegistry: KEY_REGISTRY[network],
+    namespace: NAMESPACE,
+    keyType: KEY_TYPE,
+    publicKey: Buffer.from(evaluatorPublicKey).toString("hex"),
+  },
 };
 const hash = cardHash(record);
 console.log(`\ncard            ${cardBytes(record).length} bytes, sha256 ${cardHashHex(record)}`);
@@ -516,13 +552,18 @@ writeFileSync(
   `${JSON.stringify(
     {
       ...record,
+      // bigint indexes do not survive JSON, so they are written as numbers and read back as such.
       keyBinding: {
         keyRegistry: {
           index: Number(KEY_REGISTRY[network].index),
           subindex: Number(KEY_REGISTRY[network].subindex),
         },
         namespace: NAMESPACE,
+        keyType: KEY_TYPE,
+        publicKey: Buffer.from(evaluatorPublicKey).toString("hex"),
       },
+      /** False on testnet: the registry there cannot resolve a CIS-8 entry. See the probe above. */
+      referencedFromRegistry: externalReference !== undefined,
       cardHash: cardHashHex(record),
       transactions: {
         keyBinding: keyBindingTx,

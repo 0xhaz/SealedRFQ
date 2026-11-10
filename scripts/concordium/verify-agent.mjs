@@ -128,39 +128,67 @@ if (card) {
 
 // ---- 4. The Arc key binding ------------------------------------------------------------------
 
-if (!agent.externalReference) {
-  check(false, "an external key is referenced", "none — the badge is not tied to any Arc key");
-} else {
-  const keys = keyRegistryAddress(network);
+/**
+ * Two routes to the same fact, because the registry cannot always carry it.
+ *
+ * Preferred: the agent's own `external_reference`. On testnet that is never present — the registry
+ * at 13042 is configured against the mainnet CIS-8 address, so it refuses every reference. The
+ * card then states the key itself, and the binding is checked directly in CIS-8.
+ *
+ * The card is not trusted for the answer, only for where to look: whatever key it names, CIS-8
+ * has to say that this agent's owner owns it. A card naming a key somebody else owns fails here.
+ */
+const keys = keyRegistryAddress(network);
+const fromRegistry = agent.externalReference;
+const fromCard = (() => {
+  const badge = (card?.capabilities?.extensions ?? []).find((e) =>
+    String(e.uri).includes("concordium-badge"),
+  );
+  const k = badge?.params?.externalKey;
+  return k?.publicKey
+    ? { namespace: k.namespace, keyType: k.keyType, publicKey: k.publicKey }
+    : undefined;
+})();
+
+if (fromRegistry) {
   check(
-    agent.externalReference.keyRegistry === `${keys.index}.${keys.subindex}`,
+    fromRegistry.keyRegistry === `${keys.index}.${keys.subindex}`,
     "the external reference points at the CIS-8 registry we expect",
-    `reference ${agent.externalReference.keyRegistry}`,
+    `reference ${fromRegistry.keyRegistry}`,
+  );
+}
+
+const claimed = fromRegistry ?? fromCard;
+if (!claimed) {
+  check(false, "a CIS-8 key binding is claimed", "neither the registry nor the card names one");
+} else {
+  console.log(
+    `          via ${fromRegistry ? "the registry's external_reference" : "the card, since the registry holds no reference"}`,
   );
   const owner = await client.invokeContract({
     contract: keys,
     method: cis8ReceiveName("ownerOfKey"),
     parameter: ownerOfKeyParameter({
-      namespace: agent.externalReference.namespace,
-      keyType: agent.externalReference.keyType,
-      publicKey: Buffer.from(agent.externalReference.publicKey, "hex"),
+      namespace: claimed.namespace,
+      keyType: claimed.keyType,
+      publicKey: Buffer.from(claimed.publicKey, "hex"),
     }),
   });
   const binding =
     owner.tag === "success" && owner.returnValue ? parseOwnerOfKey(owner.returnValue) : undefined;
   check(
     binding?.status === "Active",
-    "the key binding is Active",
-    `status ${binding?.status ?? "none"}`,
+    "the key binding is Active in CIS-8",
+    `status ${binding?.status ?? "no entry"}`,
   );
   check(
     binding?.owner === agent.owner,
     "the key is bound to the same account that owns the agent",
-    `key owner ${binding?.owner ?? "none"}\n          agent owner ${agent.owner}`,
+    `key owner   ${binding?.owner ?? "none"}\n          agent owner ${agent.owner}`,
   );
   console.log(
-    `          ${agent.externalReference.keyType} ${agent.externalReference.publicKey}` +
-      `\n          proved by ${binding?.proofScheme ?? "?"} in namespace ${agent.externalReference.namespace}`,
+    `          ${claimed.keyType} ${claimed.publicKey}` +
+      `\n          proved by ${binding?.proofScheme ?? "?"} in namespace ${claimed.namespace}`,
   );
 }
 

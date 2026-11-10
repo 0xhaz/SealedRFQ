@@ -35,7 +35,22 @@ export type AgentCardInput = {
   /** Base58 account address that owns the agent token. */
   owner: string;
   /** Optional CIS-8 key binding, present only once a key is actually registered there. */
-  keyBinding?: { keyRegistry: { index: bigint; subindex: bigint }; namespace: string };
+  /**
+   * The CIS-8 binding, stated in the card because CIS-8004 cannot point at it.
+   *
+   * The registry deployed to testnet at 13042 is configured with cis8_contract = 10081, which is
+   * the MAINNET CIS-8 address; on testnet that index holds an unrelated contract. So every
+   * `external_reference` is refused with InvalidExternalReference, which is also why the
+   * registry's own reference agent has none. The binding is real and on chain regardless, so the
+   * card carries enough to find and check it without the registry's help.
+   */
+  keyBinding?: {
+    keyRegistry: { index: bigint; subindex: bigint };
+    namespace: string;
+    keyType: string;
+    /** Hex, no 0x. */
+    publicKey: string;
+  };
 };
 
 /**
@@ -120,6 +135,18 @@ export function agentCard(input: AgentCardInput): Record<string, unknown> {
             tokenAddress: `ccd:${g}/cis-2:${tokenAddress(input.network, input.agentId)}`,
             owner: { account: `ccd:${g}:${input.owner}` },
             contracts: { cis8004: registryRef },
+            ...(input.keyBinding
+              ? {
+                  externalKey: {
+                    registry: `ccd:${g}:${input.keyBinding.keyRegistry.index}.${input.keyBinding.keyRegistry.subindex}`,
+                    namespace: input.keyBinding.namespace,
+                    keyType: input.keyBinding.keyType,
+                    publicKey: input.keyBinding.publicKey,
+                    proofScheme: "ethereum-personal-sign",
+                    note: "The same secp256k1 key the Arc contracts grant EVALUATOR_ROLE to. CIS-8004 cannot reference it on testnet, so check it directly: CIS-8 ownerOfKey must return this agent's owner with status Active.",
+                  },
+                }
+              : {}),
             verify:
               "Resolve the token address through CIS-8004 agentOf; require status Active, the owner above, and SHA-256 of this document's exact bytes equal to metadata_hash.",
           },
@@ -149,12 +176,6 @@ export function agentCard(input: AgentCardInput): Record<string, unknown> {
       },
     ],
     registrations: [{ agentId: Number(input.agentId), agentRegistry: registryRef }],
-    ...(input.keyBinding
-      ? {
-          externalKeyRegistry: `ccd:${g}:${input.keyBinding.keyRegistry.index}.${input.keyBinding.keyRegistry.subindex}`,
-          externalKeyNamespace: input.keyBinding.namespace,
-        }
-      : {}),
   };
 }
 

@@ -158,6 +158,19 @@ already an active CIS-8 entry owned by the sender, with `InvalidExternalReferenc
 order is: bind the key in CIS-8, then register the agent, and the contract enforces it rather than
 merely recommending it.
 
+**And on testnet it is refused anyway.** The CIS-8004 instance at 13042 stores
+`cis8_contract = 10081` — the *mainnet* CIS-8 address. On testnet that index holds an unrelated
+`init_contract`, so no `external_reference` is acceptable to it however correct the binding is.
+Read out of the instance's own state after a correct, finalised binding was still refused; a scan
+of the surrounding index range finds no other CIS-8004 on testnet. It also explains why the
+registry's own reference agent carries `external_reference: None`.
+
+The binding itself is unaffected: it is a CIS-8 fact, and `ownerOfKey` answers for it directly. So
+the agent card states the key, its type, its namespace and its registry, and the verifier resolves
+it through CIS-8 rather than through the agent's reference. The card is trusted only for where to
+look — whatever key it names, CIS-8 must say this agent's owner owns it, so a card naming someone
+else's key fails the check.
+
 **The card hash needs a second transaction.** The card names the agent id, and the id does not
 exist until `register` lands. Leaving `metadata_hash` as `None` — which is what the registry's own
 reference agent does — means the card can be edited afterwards and the registration attests to
