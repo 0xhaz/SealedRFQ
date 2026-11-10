@@ -2,6 +2,10 @@
 .env
 .env.*
 !.env.example
+# Concordium wallet key exports. gitignore keeps them out of the repo; this keeps them out of a
+# build context, which gitignore has no say over.
+*.export
+*.export.json
 .git
 .local
 node_modules

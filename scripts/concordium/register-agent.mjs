@@ -44,7 +44,7 @@
  *
  * Pass `--dry-run` to do everything except send, which is worth doing once before spending.
  */
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import * as SDK from "@concordium/web-sdk";
 import { ConcordiumGRPCNodeClient, credentials } from "@concordium/web-sdk/nodejs";
@@ -105,6 +105,31 @@ function need(name) {
   return v;
 }
 
+/**
+ * A wallet export dropped in the repo root, so `CCD_WALLET` does not have to name a path at all.
+ *
+ * The wallet calls the file `<address>.export`. One is taken; several is ambiguous and worth
+ * stopping on, because silently picking the alphabetically-first account is how you register the
+ * wrong one. `.gitignore` and `.dockerignore` both exclude `*.export`, which is checked by test.
+ */
+function findWalletExport() {
+  let found;
+  try {
+    found = readdirSync(ROOT).filter((f) => f.endsWith(".export"));
+  } catch {
+    return undefined;
+  }
+  if (found.length === 0) return undefined;
+  if (found.length > 1) {
+    die(
+      `${found.length} wallet exports in the repo root: ${found.join(", ")}.\n  Set CCD_WALLET to the one to send from, so the choice is yours rather than alphabetical.`,
+    );
+  }
+  const path = resolve(ROOT, found[0]);
+  console.log(`wallet          ${found[0]} (found in the repo root)`);
+  return path;
+}
+
 /** The variables this script reads. Used to keep the env report to what is relevant. */
 const OURS = new Set([
   "CCD_EVALUATOR_PK",
@@ -159,9 +184,9 @@ function loadEnvFile(path) {
   return path;
 }
 
+const ROOT = resolve(import.meta.dirname, "../..");
 const ENV_FILE = resolve(
-  import.meta.dirname,
-  "../..",
+  ROOT,
   args.includes("--env-file") ? args[args.indexOf("--env-file") + 1] : `.env.${network}`,
 );
 const envFileLoaded = loadEnvFile(ENV_FILE);
@@ -193,7 +218,7 @@ function signWithEvaluatorKey(digest) {
  * what a wallet-created account is. An account with a higher threshold needs the key file.
  */
 const { sender, signer } = (() => {
-  const walletPath = process.env.CCD_WALLET;
+  const walletPath = process.env.CCD_WALLET || findWalletExport();
   const address = process.env.CCD_ACCOUNT;
   const signKey = process.env.CCD_ACCOUNT_SIGN_KEY?.replace(/^0x/, "");
 
@@ -222,8 +247,9 @@ const { sender, signer } = (() => {
 
   if (!address || !signKey) {
     die(
-      "Set CCD_WALLET to a wallet key export, or set both CCD_ACCOUNT (the base58 address) and\n" +
-        "  CCD_ACCOUNT_SIGN_KEY (the account private key, 32 bytes of hex).",
+      "No account to send from. Either drop the wallet's <address>.export file in the repo root\n" +
+        "  (or set CCD_WALLET to it), or set both CCD_ACCOUNT, the base58 address, and\n" +
+        "  CCD_ACCOUNT_SIGN_KEY, the account private key as 32 bytes of hex.",
     );
   }
   if (!/^[0-9a-fA-F]{64}$/.test(signKey)) {

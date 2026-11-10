@@ -18,6 +18,10 @@ contracts/broadcast/**/dry-run/
 .env
 .env.*
 !.env.example
+# Concordium wallet key exports, named <address>.export by the wallet. These are the account:
+# anyone holding one can spend from it and sign as it.
+*.export
+*.export.json
 
 # local data
 apps/agent/data/
