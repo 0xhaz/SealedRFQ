@@ -20,6 +20,10 @@
     "./presentation": {
       "types": "./dist/presentation.d.ts",
       "import": "./dist/presentation.js"
+    },
+    "./finality": {
+      "types": "./dist/finality.d.ts",
+      "import": "./dist/finality.js"
     }
   },
   "scripts": {

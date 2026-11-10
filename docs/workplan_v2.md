@@ -260,7 +260,23 @@ checkably the same entity instead of two unrelated registrations that merely sha
       own reason, and none of them spends the challenge.
 - [ ] Drive it with a real wallet. Everything up to the wallet prompt is exercised; producing a
       proof needs a Concordium identity in the browser extension, which is a manual step
-- [ ] Qualification Agent: verifies the proof off-chain, then signs the Arc permit
+- [x] The pieces the Qualification Agent is made of. `fetchFinalityProof` assembles a real quorum
+      certificate — the certified block, the committee in force for *its* reward period, the
+      signer bitmap and the aggregate signature, decompressed for EIP-2537. A live test verifies
+      the result cryptographically with an independent implementation, so a mistake in assembling
+      the committee or the bitmap surfaces here rather than as a reverted Arc transaction.
+
+      That test also pins the genesis distinction: the certificate verifies against the
+      **current-era** genesis and does **not** verify against the original, while the CIS-8
+      registry commits to the original. Both networks are on protocol 10, so the two differ, and
+      confusing them fails silently.
+
+      `deriveNullifier` is HMAC over a server-held secret, scoped per tender: stable for the same
+      prover so a second wallet collides, unlinkable across tenders, and one-way so an on-chain
+      value does not identify a supplier. It binds a *credential*, not a person — one Concordium
+      identity can back several, so this resists casual duplication rather than a deliberate sybil.
+- [ ] Wire the agent to Arc. Needs the V2 contracts deployed, which is Phase 4; everything up to
+      the transaction exists and is tested
 - [ ] Capture CCDExplorer links for every registration as they happen, not at the end
 
 ### Evidence

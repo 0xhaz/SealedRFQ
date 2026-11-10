@@ -117,3 +117,44 @@ export function describeStatement(policy: QualificationPolicy): string {
     : "";
   return `Proves the supplier is ${where} in one of ${countries}, without revealing which.${revealed} It does not prove the company is trading, solvent, or that the signer may contract for it.`;
 }
+
+/**
+ * The nullifier: what stops one entity bidding twice from two wallets.
+ *
+ * `ConcordiumQualifier` records one nullifier per tender and refuses a second wallet claiming the
+ * same one, which is what a minimum-bidder rule has to mean to mean anything. The value has to be
+ *
+ *   - **stable** for the same prover, so a second wallet collides with the first
+ *   - **scoped to one tender**, so bids cannot be linked across tenders by comparing nullifiers
+ *   - **one-way**, so an on-chain value does not identify the supplier
+ *
+ * HMAC over a server-held secret gives all three. The secret matters: without it, anyone could
+ * compute the nullifier for a known credential and check whether that supplier bid, which is the
+ * linkage the scoping was there to prevent.
+ *
+ * **What this does not do.** It binds a *credential*, not a person. One Concordium identity can
+ * back several credentials, each with its own identifier, so a determined supplier can obtain two
+ * and bid twice. Closing that needs an identity-level nullifier, which the account-credential
+ * presentation does not expose. Written down here rather than discovered later: a minimum-bidder
+ * count is resistant to casual duplication, not to a deliberate sybil.
+ */
+export async function deriveNullifier(input: {
+  /** The credential identifier the proof spoke for, as returned by verification. */
+  subject: string;
+  tenderId: number | string;
+  /** At least 32 bytes. Not derivable from anything public. */
+  secret: Uint8Array;
+}): Promise<`0x${string}`> {
+  if (input.secret.length < 32) {
+    throw new Error("the nullifier secret must be at least 32 bytes");
+  }
+  if (!input.subject) throw new Error("a nullifier needs a subject");
+  const { createHmac } = await import("node:crypto");
+  const mac = createHmac("sha256", Buffer.from(input.secret));
+  // Length-prefixed so `tender:1` + `2...` cannot collide with `tender:12` + `...`.
+  mac.update(`${input.tenderId}`.length.toString());
+  mac.update(":");
+  mac.update(`${input.tenderId}`);
+  mac.update(input.subject);
+  return `0x${mac.digest("hex")}`;
+}

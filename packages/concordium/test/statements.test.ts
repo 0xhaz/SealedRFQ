@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   type QualificationPolicy,
+  deriveNullifier,
   describeStatement,
   qualificationStatement,
 } from "../src/statements.js";
@@ -72,5 +73,54 @@ describe("the qualification statement", () => {
     // The limits are part of the description, not a footnote elsewhere. A buyer who reads
     // "verified" as "vetted" has been misled by us, not by Concordium.
     expect(text).toMatch(/does not prove .*trading, solvent/);
+  });
+});
+
+describe("the nullifier", () => {
+  const secret = new Uint8Array(32).fill(7);
+  const subject = "did:ccd:testnet:cred/aabb";
+
+  it("is the same for the same prover and tender", async () => {
+    expect(await deriveNullifier({ subject, tenderId: 1, secret })).toBe(
+      await deriveNullifier({ subject, tenderId: 1, secret }),
+    );
+  });
+
+  it("differs across tenders, so bids cannot be linked by comparing them", async () => {
+    expect(await deriveNullifier({ subject, tenderId: 1, secret })).not.toBe(
+      await deriveNullifier({ subject, tenderId: 2, secret }),
+    );
+  });
+
+  it("differs across provers, which is what makes a second wallet collide", async () => {
+    expect(await deriveNullifier({ subject, tenderId: 1, secret })).not.toBe(
+      await deriveNullifier({ subject: `${subject}cc`, tenderId: 1, secret }),
+    );
+  });
+
+  it("cannot be computed without the secret", async () => {
+    const other = new Uint8Array(32).fill(8);
+    expect(await deriveNullifier({ subject, tenderId: 1, secret })).not.toBe(
+      await deriveNullifier({ subject, tenderId: 1, secret: other }),
+    );
+  });
+
+  it("cannot be confused by a tender id that runs into the subject", async () => {
+    // Without length prefixing, tender 1 with subject "2x" and tender 12 with subject "x" would
+    // hash the same bytes and collide, letting one supplier's nullifier block another's.
+    expect(await deriveNullifier({ subject: "2x", tenderId: 1, secret })).not.toBe(
+      await deriveNullifier({ subject: "x", tenderId: 12, secret }),
+    );
+  });
+
+  it("refuses a weak secret or a missing subject", async () => {
+    await expect(
+      deriveNullifier({ subject, tenderId: 1, secret: new Uint8Array(16) }),
+    ).rejects.toThrow(/at least 32 bytes/);
+    await expect(deriveNullifier({ subject: "", tenderId: 1, secret })).rejects.toThrow(/subject/);
+  });
+
+  it("is a 32-byte hex value, which is what the contract stores", async () => {
+    expect(await deriveNullifier({ subject, tenderId: 1, secret })).toMatch(/^0x[0-9a-f]{64}$/);
   });
 });
