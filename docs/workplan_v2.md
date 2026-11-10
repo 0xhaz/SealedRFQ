@@ -258,8 +258,21 @@ checkably the same entity instead of two unrelated registrations that merely sha
       Smoke-tested against the live routes and the real database. A malformed presentation, a
       challenge issued for another tender and a challenge never issued are each refused with their
       own reason, and none of them spends the challenge.
-- [ ] Drive it with a real wallet. Everything up to the wallet prompt is exercised; producing a
-      proof needs a Concordium identity in the browser extension, which is a manual step
+- [x] **Driven with a real wallet. G2 is met.** A Concordium testnet identity in the browser
+      extension produced a real verifiable presentation on 2026-11-10, `/qualify` accepted it, and
+      the challenge it answered was spent 16 seconds after issue.
+
+      The first attempt failed with "Site is not whitelisted", which reads like a misconfiguration
+      and was a real defect of ours: the wallet keeps a per-origin allow list, and detecting the
+      extension is not permission to use it. The flow went straight from detection to
+      `requestVerifiablePresentation` and never offered the consent step. `requestAccounts` now runs
+      first — `connect` is deprecated in favour of it — and resolves silently for a site already
+      allowed. No test in the suite could have caught this: all 223 stop where the browser takes
+      over.
+
+      That failed attempt left its challenge **unspent**, which is the verify-then-consume ordering
+      observed working rather than argued for. A holder who hits a wallet error keeps the challenge
+      they were entitled to retry with, so nobody able to post garbage can deny them one.
 - [x] The pieces the Qualification Agent is made of. `fetchFinalityProof` assembles a real quorum
       certificate — the certified block, the committee in force for *its* reward period, the
       signer bitmap and the aggregate signature, decompressed for EIP-2537. A live test verifies
