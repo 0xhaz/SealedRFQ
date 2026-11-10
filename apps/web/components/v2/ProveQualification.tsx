@@ -10,7 +10,7 @@ import { useState } from "react";
  * statement comes back with it, so what the wallet is asked and what the server checks are the
  * same question — and so the supplier can read it before approving rather than after.
  */
-type Phase = "idle" | "requesting" | "proving" | "verifying" | "done" | "failed";
+type Phase = "idle" | "requesting" | "connecting" | "proving" | "verifying" | "done" | "failed";
 
 type ChallengeResponse = {
   challenge: string;
@@ -40,7 +40,7 @@ export function ProveQualification({ tenderId }: { tenderId: number }) {
       const { challenge, statement, description }: ChallengeResponse = await issued.json();
       setDescription(description);
 
-      setPhase("proving");
+      setPhase("connecting");
       // Imported here rather than at the top: it touches `window` and must not run on the server.
       const { detectConcordiumProvider } = await import("@concordium/browser-wallet-api-helpers");
       const wallet = await detectConcordiumProvider(2000).catch(() => {
@@ -48,6 +48,32 @@ export function ProveQualification({ tenderId }: { tenderId: number }) {
           "No Concordium wallet found. Install the Concordium Wallet for Web and switch it to Testnet.",
         );
       });
+
+      /**
+       * Connect before asking for anything. Detecting the extension is not permission to use it:
+       * the wallet keeps a per-origin allow list and refuses an unconnected site with "Site is not
+       * whitelisted", which reads like a configuration problem on our end and is actually a consent
+       * step that was never offered. `requestAccounts` is the current call — `connect` is
+       * deprecated in favour of it — and it resolves without prompting once a site is allowed, so
+       * running it every time costs a returning supplier nothing.
+       */
+      let accounts: string[];
+      try {
+        accounts = await wallet.requestAccounts();
+      } catch {
+        throw new Error(
+          "The wallet refused the connection. Open the Concordium extension and allow this site, then try again.",
+        );
+      }
+      if (accounts.length === 0) {
+        // Connected, but with no account selected. The wallet documents an empty list as possible,
+        // and a presentation needs a credential to speak for.
+        throw new Error(
+          "The wallet connected but shared no account. Select an account in the extension and try again.",
+        );
+      }
+
+      setPhase("proving");
       const presentation = await wallet.requestVerifiablePresentation(challenge, statement);
 
       setPhase("verifying");
@@ -69,7 +95,11 @@ export function ProveQualification({ tenderId }: { tenderId: number }) {
     }
   }
 
-  const busy = phase === "requesting" || phase === "proving" || phase === "verifying";
+  const busy =
+    phase === "requesting" ||
+    phase === "connecting" ||
+    phase === "proving" ||
+    phase === "verifying";
 
   return (
     <div className="panel">
@@ -94,6 +124,7 @@ export function ProveQualification({ tenderId }: { tenderId: number }) {
 
       <button className="btn-primary" type="button" onClick={run} disabled={busy}>
         {phase === "requesting" && "Asking for a challenge…"}
+        {phase === "connecting" && "Allow this site in your wallet…"}
         {phase === "proving" && "Waiting for your wallet…"}
         {phase === "verifying" && "Checking the proof…"}
         {(phase === "idle" || phase === "failed" || phase === "done") && "Prove with Concordium"}
