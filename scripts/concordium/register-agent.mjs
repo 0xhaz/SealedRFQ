@@ -22,8 +22,11 @@
  *
  * Usage, with the key read straight out of the env file rather than pasted:
  *
- *   set -a; . ./.env.testnet; set +a
- *   SITE_ORIGIN=https://www.sealedrfq.com node scripts/concordium/register-agent.mjs --dry-run
+ *   node scripts/concordium/register-agent.mjs --dry-run
+ *
+ * It reads `.env.<network>` at the repo root by itself, so nothing needs pasting onto the command
+ * line where it would land in shell history. Anything already set in the environment wins over the
+ * file, and `--env-file <path>` points it elsewhere.
  *
  * The sending account comes either from `CCD_WALLET`, the `<address>.export` file the browser
  * extension writes, or from `CCD_ACCOUNT` and `CCD_ACCOUNT_SIGN_KEY`, the address and the private
@@ -94,9 +97,74 @@ function die(message) {
 
 function need(name) {
   const v = process.env[name];
-  if (!v) die(`${name} is not set. See the comment at the top of this script.`);
+  if (!v) {
+    die(
+      `${name} is not set, and ${envFileLoaded ?? ENV_FILE} ${envFileLoaded ? "does not set it" : "does not exist"}.\n  See the comment at the top of this script for what each variable is.`,
+    );
+  }
   return v;
 }
+
+/** The variables this script reads. Used to keep the env report to what is relevant. */
+const OURS = new Set([
+  "CCD_EVALUATOR_PK",
+  "CCD_WALLET",
+  "CCD_ACCOUNT",
+  "CCD_ACCOUNT_SIGN_KEY",
+  "SITE_ORIGIN",
+]);
+
+/**
+ * Load `.env.<network>` so nothing has to be pasted onto the command line, where it lands in shell
+ * history. Anything already in the environment wins, so an explicit value on the command line is
+ * never silently overridden by a stale file.
+ *
+ * Deliberately not `process.loadEnvFile`: that overwrites, which gets the precedence backwards,
+ * and it throws when the file is absent rather than carrying on with whatever is already set.
+ */
+function loadEnvFile(path) {
+  let text;
+  try {
+    text = readFileSync(path, "utf8");
+  } catch {
+    return null;
+  }
+  const loaded = [];
+  for (const line of text.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq < 1) continue;
+    const key = trimmed.slice(0, eq).trim();
+    if (process.env[key] !== undefined) continue;
+    let value = trimmed.slice(eq + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    // An empty placeholder is not a value. Skipping it keeps `CCD_WALLET=` from counting as set
+    // and keeps the report honest about what the file actually supplied.
+    if (value === "") continue;
+    process.env[key] = value;
+    loaded.push(key);
+  }
+  // Only the variables this script reads, and only their names. The file holds unrelated role
+  // keys whose names are nobody's business here, and the values are what must never reach a log.
+  const mine = loaded.filter((k) => OURS.has(k));
+  console.log(
+    `env             ${path}${mine.length ? `: ${mine.join(", ")}` : " (nothing we need)"}`,
+  );
+  return path;
+}
+
+const ENV_FILE = resolve(
+  import.meta.dirname,
+  "../..",
+  args.includes("--env-file") ? args[args.indexOf("--env-file") + 1] : `.env.${network}`,
+);
+const envFileLoaded = loadEnvFile(ENV_FILE);
 
 const origin = need("SITE_ORIGIN").replace(/\/+$/, "");
 // Read the Arc key, derive what we need from it, and keep it out of every log line and every
