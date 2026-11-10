@@ -17,6 +17,14 @@ export function Header() {
         Suppliers
       </Link>
       {/*
+        The cross-chain claims, checked on load rather than recited. In the header because a
+        project whose argument is that its claims are checkable should not make the checking hard
+        to find.
+      */}
+      <Link className="chip" href="/evidence">
+        Evidence
+      </Link>
+      {/*
         Documentation rather than the repository. Someone asking how a tender works should not be
         sent to a source tree to find out; the source is for people who want to check the answer,
         and that link belongs in the footer where they will look for it.

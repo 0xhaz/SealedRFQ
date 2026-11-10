@@ -328,16 +328,43 @@ blunt about this in four separate places.
 
 ## Phase 4: vertical slice (Nov 30 to Dec 5)
 
-- [ ] Deploy V2 contracts to Arc testnet, granting `EVALUATOR_ROLE` to
+- [x] Deploy V2 contracts to Arc testnet, granting `EVALUATOR_ROLE` to
       `0x82d0ab44cbdd811e6836c7f88ff6ecb094d26774`, the key bound in CIS-8. Until that holds, the
       badge demonstrates the binding mechanism while attesting to nothing: the claim it makes is
-      that the agent controls the key Arc accepts recommendations from
+      that the agent controls the key Arc accepts recommendations from.
+      Done in Phase 3; `/evidence` reads the role holder live, so the claim is checkable rather
+      than recorded
 - [ ] Wire the application to V2 and to the Qualification Agent
 - [ ] Deterministic evaluator with cited observations and a reproducible score calculation
 - [ ] Human approval that the model cannot bypass, plus one deliberately rejected unauthorized
       agent action kept visible as evidence
 - [ ] One milestone escrow receipt with real transaction hashes
-- [ ] Evidence dashboard linking both chains
+- [x] **Evidence dashboard linking both chains.** `/evidence` checks both halves when it loads
+      rather than reciting a recorded pack: fourteen badge checks against Concordium, the Arc
+      contracts read live, and the claim that joins them — that the key bound in CIS-8 is the key
+      holding `EVALUATOR` on Arc — computed in the request by decompressing the secp256k1 point
+      and hashing it, then compared against the role holder read off chain.
+
+      The badge checks are the same function `verify-agent.mjs` runs, extracted to
+      `packages/concordium/src/verifyAgent.ts`. Two copies would have drifted in a predictable
+      direction: the page continuing to report a pass the script had stopped giving.
+
+      Four outcomes stay distinct — verified, failed, absent and **unreachable** — because a
+      dashboard that renders "we could not ask" as "the answer is no" is worse than no dashboard.
+      Arc is read live and fails closed the same way: an unreachable RPC shows nothing rather than
+      zeroes, since a zero `periodsBehind` and a false `hasRole` would read as a registry that had
+      fallen behind and a role never granted.
+
+      `periodsBehind > 0` is rendered as a failure, not a tick. The registry is fail-closed, so
+      that state is the design working *and* an outage of the feature.
+
+      Two defects surfaced while building it, both in the same family the project cares about.
+      `biome check --write` reformatted the checked-in agent card fixture — 3036 bytes became 3508
+      and its SHA-256 changed — so `**/test/fixtures/**` is now ignored by the formatter with a
+      guard test that fails first and states why. And the committee stake, about 2.7e16 microCCD,
+      is past `Number.MAX_SAFE_INTEGER`, so converting it through a double silently lost the low
+      digits of the one figure on the page whose whole purpose is comparison against a node; it is
+      integer arithmetic now, with a test pinning it against what the lossy version produced
 
 Only after this works end to end, and only if there is time: the single optional Concordium x402
 paid agent call. ADR-014 allows one rail, so the legacy Arc Gateway paid evaluation must be disabled

@@ -24,6 +24,10 @@
     "./finality": {
       "types": "./dist/finality.d.ts",
       "import": "./dist/finality.js"
+    },
+    "./verifyAgent": {
+      "types": "./dist/verifyAgent.d.ts",
+      "import": "./dist/verifyAgent.js"
     }
   },
   "scripts": {

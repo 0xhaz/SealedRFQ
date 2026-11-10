@@ -6613,3 +6613,20 @@ button.field-wallet {
 .ds-pill.paused i {
   background: var(--paper);
 }
+
+/*
+  Visually hidden but still announced. Used where a glyph carries the meaning — a ✓ or ✕ marked
+  aria-hidden needs the word beside it, or a screen reader reads the label with no verdict attached.
+  Not `display:none`, which removes it from the accessibility tree as well as from the page.
+*/
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

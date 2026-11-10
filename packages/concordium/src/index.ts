@@ -2,6 +2,7 @@
 // the agent card and the SDK's wasm does not belong in that bundle. Scripts that transact import
 // `@sealedrfq/concordium/cis8004` directly.
 export * from "./committee.js";
+export * from "./arcIdentity.js";
 export * from "./registryAddresses.js";
 export * from "./agentCard.js";
 export * from "./cis8Message.js";

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Header } from "@/components/Header";
 import { ProveQualification } from "@/components/v2/ProveQualification";
 import { QUALIFICATION_DESCRIPTION } from "@/lib/v2/qualification";
@@ -48,8 +49,33 @@ export default function QualifyPage() {
               so it cannot be replayed under the same one.
             </div>
           </div>
+
+          {/*
+            Whoever is deciding whether to hand over a proof is entitled to know what is on the
+            other side of it. The evidence page is where that is checkable rather than claimed, so
+            it is linked from the screen that asks, not only from the header.
+          */}
+          <div className="panel">
+            <div className="head">
+              Who is asking<span className="hint">checkable, not claimed</span>
+            </div>
+            <div className="note">
+              The agent behind this request is registered on Concordium and the key it signs with is
+              the one the Arc contracts accept decisions from.{" "}
+              <Link href="/evidence">See both claims checked against the chains →</Link>
+            </div>
+          </div>
         </div>
       </div>
+
+      <nav className="page-nav">
+        <Link className="btn-nav" href="/evidence">
+          ← The evidence behind this
+        </Link>
+        <Link className="btn-nav ghost" href="/rfqs">
+          All RFQs
+        </Link>
+      </nav>
     </div>
   );
 }

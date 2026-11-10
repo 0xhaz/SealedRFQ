@@ -4,6 +4,7 @@
     "ignore": [
       "web/**",
       "packages/shared/src/abis/**",
+      "**/test/fixtures/**",
       "contracts/**",
       "**/dist/**",
       "**/.next/**",
