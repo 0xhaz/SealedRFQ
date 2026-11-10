@@ -308,9 +308,34 @@ checkably the same entity instead of two unrelated registrations that merely sha
       fail-closed, so a period with no committee refuses every certificate — the intended failure,
       and still one that needs someone to notice. `scripts/concordium/update-committee.mjs` does
       it, refusing to register against a period the registry disagrees about.
-- [ ] Wire the Qualification Agent end to end: verify a presentation, derive the nullifier, call
-      `recordQualification`. Every piece exists and is tested; what is missing is the agent process
-      that joins them
+- [x] **Wired end to end, and run with a real identity. 2026-11-10.**
+
+      A Concordium testnet identity in the browser wallet proved set membership — country of
+      residence in one of DK, FI, NO, SE, without revealing which — `/qualify` verified it, the
+      agent derived the nullifier and the Arc contract verified the finality certificate itself
+      before recording:
+
+      | | |
+      |---|---|
+      | Qualification tx | [`0x9e92083e…2c390`](https://explorer.testnet.arc.io/tx/0x9e92083efb15e497b0a1e58ef00eb0ddcf038f5b25dfb7704aa9a228fbf2c390) |
+      | Bidder | `0x54812efcB8633224EdC32a268A7D580E0aBfB9Ae`, tender 1 |
+      | Concordium epoch proved | 6535 |
+      | Gas | 484,191 — almost all of it the BLS aggregate verification over EIP-2537 |
+      | Signed by | `0xcd81F6b5…44C2`, which holds `QUALIFIER_ROLE` and nothing else |
+
+      The proof is bound to the bidder through the challenge's purpose,
+      `tender:1:bid:0x54812efc…`, so a proof obtained for one address is refused for another —
+      verified live, and the refused submission leaves the challenge unspent.
+
+      Three outcomes stay distinct and all three have now been seen: refused, recorded, and
+      **accepted but not recorded**. The third fired on the first attempt because the web process
+      had no `AGENT_API_TOKEN`, and it said so precisely rather than reporting the supplier as
+      rejected. That separation earned its keep the first time it was tested.
+
+      What this does **not** establish: that the holder controls the bidder address. The purpose
+      binds a proof to an address; nothing yet checks the address's key. Under the full design the
+      bidder is an `organization_signers` row whose control was established by signature, and that
+      layer is not built.
 - [ ] Capture CCDExplorer links for every registration as they happen, not at the end
 
 ### Evidence
