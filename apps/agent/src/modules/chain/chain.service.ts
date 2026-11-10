@@ -18,7 +18,14 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
-export type Role = "EVALUATOR" | "AWARDER" | "VERIFIER" | "ATTESTOR" | "ARBITER" | "ADMIN";
+export type Role =
+  | "EVALUATOR"
+  | "AWARDER"
+  | "VERIFIER"
+  | "ATTESTOR"
+  | "ARBITER"
+  | "ADMIN"
+  | "CCD_QUALIFIER";
 
 type Deployment = {
   chainId: number;

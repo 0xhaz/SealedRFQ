@@ -11,10 +11,12 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@concordium/web-sdk": "^8.1.1",
     "@circle-fin/x402-batching": "^3.5.0",
     "@nestjs/common": "^11",
     "@nestjs/core": "^11",
     "@nestjs/platform-express": "^11",
+    "@sealedrfq/concordium": "workspace:^",
     "@sealedrfq/shared": "workspace:^",
     "@x402/core": "^2.26.0",
     "@x402/evm": "^2.26.0",

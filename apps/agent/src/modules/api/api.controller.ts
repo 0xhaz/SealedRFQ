@@ -1,5 +1,7 @@
 import {
+  BadRequestException,
   Body,
+  ConflictException,
   Controller,
   Get,
   Header,
@@ -9,6 +11,8 @@ import {
   Query,
   Req,
   Res,
+  ServiceUnavailableException,
+  UnprocessableEntityException,
   UseGuards,
 } from "@nestjs/common";
 import { hashCanonical } from "@sealedrfq/shared";
@@ -21,6 +25,7 @@ import { ClarificationsService } from "../clarifications/clarifications.service.
 import { DocumentsService } from "../documents/documents.service.js";
 import { EvaluatorService } from "../evaluator/evaluator.service.js";
 import { IndexerService } from "../indexer/indexer.service.js";
+import { QualifierService } from "../qualifier/qualifier.service.js";
 import { DirectoryService } from "../reputation/directory.service.js";
 import { ReputationService } from "../reputation/reputation.service.js";
 import { StatsService } from "../reputation/stats.service.js";
@@ -33,6 +38,7 @@ export class ApiController {
     private readonly indexer: IndexerService,
     private readonly evaluator: EvaluatorService,
     private readonly awarder: AwarderService,
+    private readonly qualifier: QualifierService,
     private readonly x402: X402Middleware,
     private readonly documents: DocumentsService,
     private readonly reputation: ReputationService,
@@ -397,6 +403,55 @@ export class ApiController {
   @UseGuards(TokenGuard)
   award(@Param("id") id: string) {
     return this.awarder.award(Number(id));
+  }
+
+  /**
+   * Spends the CCD_QUALIFIER key, so it sits behind the same gate as award.
+   *
+   * The token is what stands in for "this subject was verified": the body names a subject and the
+   * agent takes the caller's word for it. A refusal is a 4xx/5xx of its own kind, never one
+   * error, because a taken nullifier, a lagging registry and a weak certificate need different
+   * responses from whoever is calling.
+   */
+  @Post("qualifications")
+  @UseGuards(TokenGuard)
+  async qualify(
+    @Body() body: {
+      subject?: string;
+      bidder?: string;
+      tenderId?: number | string;
+      synthetic?: boolean;
+    },
+  ) {
+    if (!body?.subject || !body.bidder || body.tenderId === undefined) {
+      throw new BadRequestException("subject, bidder and tenderId are required");
+    }
+    if (typeof body.synthetic !== "boolean") {
+      throw new BadRequestException("synthetic must be stated as true or false");
+    }
+    if (!/^0x[0-9a-fA-F]{40}$/.test(body.bidder)) {
+      throw new BadRequestException("bidder must be an address");
+    }
+    const result = await this.qualifier.qualify({
+      subject: body.subject,
+      bidder: body.bidder as `0x${string}`,
+      tenderId: BigInt(body.tenderId),
+      synthetic: body.synthetic,
+    });
+    const json = JSON.parse(
+      JSON.stringify(result, (_k, v) => (typeof v === "bigint" ? v.toString() : v)),
+    );
+    switch (result.status) {
+      case "recorded":
+      case "already-qualified":
+        return json;
+      case "nullifier-used":
+        throw new ConflictException(json);
+      case "registry-behind":
+        throw new ServiceUnavailableException(json);
+      case "below-quorum":
+        throw new UnprocessableEntityException(json);
+    }
   }
 
   /** Force an indexer pass (the loop also runs on a timer). Token-gated: it costs RPC budget. */
