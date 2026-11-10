@@ -18,11 +18,18 @@ export type Organization = {
   role: string;
 };
 
-/** Every organization the user belongs to: the one read that spans organizations, so no active one. */
+/**
+ * Every organization the user belongs to: the one read that spans organizations, so no active one.
+ *
+ * `role` is Clerk's role key (`org:admin`, or any custom `org:*` key), read from `clerk_role`,
+ * which the membership webhook keeps current. The older `memberships.role` enum is not written by
+ * that projection and cannot represent Clerk's custom roles; it is to be dropped in the sweep that
+ * removes `users.wallet`, and must not be read for display.
+ */
 export async function myOrganizations(userId: string): Promise<Organization[]> {
   return withUser(userId, async (q) => {
     const { rows } = await q.query<Organization>(
-      `SELECT o.id, o.name, o.country, o.can_buy, o.can_supply, m.role
+      `SELECT o.id, o.name, o.country, o.can_buy, o.can_supply, m.clerk_role AS role
          FROM organizations o
          JOIN memberships m ON m.org_id = o.id AND m.user_id = $1
         ORDER BY o.name`,

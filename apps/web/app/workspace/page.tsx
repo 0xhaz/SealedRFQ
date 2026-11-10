@@ -89,7 +89,7 @@ export default async function Workspace() {
                         <b>{o.name}</b>
                         {o.country && <span className="hint"> {o.country}</span>}
                       </td>
-                      <td className="mono-sm">{o.role}</td>
+                      <td className="mono-sm">{o.role.replace(/^org:/, "")}</td>
                       <td className="hint">
                         {[o.can_buy && "buy", o.can_supply && "supply"].filter(Boolean).join(" and ")}
                       </td>

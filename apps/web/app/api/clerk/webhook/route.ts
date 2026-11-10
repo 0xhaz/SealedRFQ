@@ -1,10 +1,5 @@
 import { verifyWebhook } from "@clerk/nextjs/webhooks";
-import {
-  removeMembership,
-  upsertMembership,
-  upsertOrganization,
-  upsertUser,
-} from "@sealedrfq/db/identity";
+import { applyClerkEvent } from "@sealedrfq/db/identity";
 import type { NextRequest } from "next/server";
 
 /**
@@ -14,10 +9,16 @@ import type { NextRequest } from "next/server";
  * route writes the input to the tenant boundary and is reachable by the public internet. It
  * authenticates by signature alone, and nothing is read from the body until that passes.
  *
- * Status codes are chosen for Clerk's retry: 400 means "this will never work" (bad signature,
- * malformed event), 500 means "try again" (the database), and an event we do not handle is 200,
- * because Clerk retries any non-2xx and would otherwise retry it forever.
+ * Status codes: Svix retries every non-2xx, 400 included, so none of them stops a retry. 400 is
+ * for a request that is wrong however often it is sent (bad signature, a malformed event) and
+ * will be retried a bounded number of times and then dropped. 500 is for our own failures (the
+ * database, a missing secret). What stops retries is 200, which is why an event type we do not
+ * project returns it: otherwise Clerk would keep redelivering something we will never handle.
  */
+
+/** Ordering uses the event's own time; anything before this is a null/zero, not a real event. */
+const MIN_EVENT_MS = 1_600_000_000_000;
+
 export async function POST(req: NextRequest): Promise<Response> {
   // verifyWebhook throws for a missing secret exactly as it does for a bad signature. That is our
   // misconfiguration, not the sender's, so it must not be reported as a rejected request.
@@ -33,43 +34,18 @@ export async function POST(req: NextRequest): Promise<Response> {
     return new Response("invalid signature", { status: 400 });
   }
 
-  // Ordering is by the event's own time, so an event without one cannot be applied safely.
-  const at = new Date(event.timestamp);
-  if (!Number.isFinite(at.getTime())) return new Response("event has no timestamp", { status: 400 });
+  // A zero or null timestamp would become 1970: a create stamped then loses to everything, and a
+  // removal stamped then is overridden by any later create. Neither ordering means anything.
+  if (!Number.isFinite(event.timestamp) || event.timestamp < MIN_EVENT_MS) {
+    return new Response("event has no usable timestamp", { status: 400 });
+  }
 
   try {
-    switch (event.type) {
-      case "user.created":
-      case "user.updated":
-        await upsertUser(event.data.id);
-        break;
-      case "organization.created":
-      case "organization.updated":
-        await upsertOrganization(event.data.id, event.data.name);
-        break;
-      case "organizationMembership.created":
-      case "organizationMembership.updated": {
-        const userId = event.data.public_user_data?.user_id;
-        const orgId = event.data.organization?.id;
-        if (!userId || !orgId || !event.data.role) {
-          return new Response("malformed membership event", { status: 400 });
-        }
-        await upsertMembership({ clerkUserId: userId, clerkOrgId: orgId, role: event.data.role, at });
-        break;
-      }
-      case "organizationMembership.deleted": {
-        const userId = event.data.public_user_data?.user_id;
-        const orgId = event.data.organization?.id;
-        if (!userId || !orgId) return new Response("malformed membership event", { status: 400 });
-        await removeMembership({ clerkUserId: userId, clerkOrgId: orgId, at });
-        break;
-      }
-      default:
-        return new Response("ignored", { status: 200 });
-    }
+    const outcome = await applyClerkEvent(event);
+    if (outcome === "malformed") return new Response("malformed event", { status: 400 });
+    return new Response(outcome === "ignored" ? "ignored" : "ok", { status: 200 });
   } catch (err) {
     console.error("clerk webhook: database write failed", err instanceof Error ? err.message : err);
     return new Response("database error", { status: 500 });
   }
-  return new Response("ok", { status: 200 });
 }

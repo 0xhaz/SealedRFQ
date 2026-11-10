@@ -1,6 +1,7 @@
 import pg from "pg";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import {
+  applyClerkEvent,
   removeMembership,
   upsertMembership,
   upsertOrganization,
@@ -280,5 +281,90 @@ withDb("Membership projection", () => {
       /permission denied/i,
     );
     expect(await memberships()).toHaveLength(0);
+  });
+
+  it("reports a membership role as the organization list shows it: Clerk's key, not the old enum", async () => {
+    const userId = await upsertUser("user_1");
+    await upsertMembership({ ...ids, role: "org:admin", at: T1 });
+    const orgs = await myOrganizations(userId);
+    expect(orgs.map((o) => o.role)).toEqual(["org:admin"]);
+  });
+
+  it("the name-free form cannot rename an organization", async () => {
+    await upsertOrganization("org_1", "Acme");
+    await pool.query("SELECT app.sync_organization($1)", ["org_1"]);
+    const { rows } = await admin.query("SELECT name FROM organizations WHERE clerk_org_id='org_1'");
+    expect(rows[0].name).toBe("Acme");
+  });
+});
+
+const T_MS = T1.getTime();
+const memEvent = (type: string, timestamp: number, role = "org:member") => ({
+  type,
+  timestamp,
+  data: {
+    id: "orgmem_1",
+    role,
+    organization: { id: "org_1", name: "Acme" },
+    public_user_data: { user_id: "user_1" },
+  },
+});
+
+withDb("Applying verified Clerk events", () => {
+  it("projects a membership with the event's time and the organization's real name", async () => {
+    expect(await applyClerkEvent(memEvent("organizationMembership.created", T_MS))).toBe("applied");
+    const m = await admin.query("SELECT clerk_role, synced_at FROM memberships");
+    expect(m.rows).toHaveLength(1);
+    expect(m.rows[0].synced_at).toEqual(T1);
+    const o = await admin.query("SELECT name FROM organizations WHERE clerk_org_id='org_1'");
+    expect(o.rows[0].name).toBe("Acme");
+  });
+
+  it("takes a renamed organization from organization.updated", async () => {
+    await applyClerkEvent(memEvent("organizationMembership.created", T_MS));
+    await applyClerkEvent({
+      type: "organization.updated",
+      timestamp: T_MS,
+      data: { id: "org_1", name: "Acme Ltd" },
+    });
+    const o = await admin.query("SELECT name FROM organizations WHERE clerk_org_id='org_1'");
+    expect(o.rows[0].name).toBe("Acme Ltd");
+  });
+
+  it("creates a user from user.created", async () => {
+    await applyClerkEvent({ type: "user.created", timestamp: T_MS, data: { id: "user_9" } });
+    expect((await admin.query("SELECT 1 FROM users WHERE clerk_user_id='user_9'")).rowCount).toBe(
+      1,
+    );
+  });
+
+  it("does not let a created that arrives after a newer deleted resurrect the member", async () => {
+    await applyClerkEvent(memEvent("organizationMembership.deleted", T_MS + 2000));
+    await applyClerkEvent(memEvent("organizationMembership.created", T_MS));
+    expect(await memberships()).toHaveLength(0);
+  });
+
+  it("removes a membership on a newer delete", async () => {
+    await applyClerkEvent(memEvent("organizationMembership.created", T_MS));
+    await applyClerkEvent(memEvent("organizationMembership.deleted", T_MS + 1000));
+    expect(await memberships()).toHaveLength(0);
+  });
+
+  it("ignores a type it does not project, writing nothing", async () => {
+    expect(
+      await applyClerkEvent({ type: "session.created", timestamp: T_MS, data: { id: "s" } }),
+    ).toBe("ignored");
+    expect((await admin.query("SELECT 1 FROM users")).rowCount).toBe(0);
+    expect((await admin.query("SELECT 1 FROM organizations")).rowCount).toBe(0);
+  });
+
+  it("calls a signed membership event missing its ids malformed, writing nothing", async () => {
+    const bad = {
+      type: "organizationMembership.created",
+      timestamp: T_MS,
+      data: { role: "org:member" },
+    };
+    expect(await applyClerkEvent(bad)).toBe("malformed");
+    expect((await admin.query("SELECT 1 FROM users")).rowCount).toBe(0);
   });
 });
