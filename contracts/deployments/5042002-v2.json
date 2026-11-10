@@ -28,10 +28,16 @@
     "agentId": 1
   },
   "committee": {
-    "period": 271,
-    "membersHash": "0x6256a6e89fb30711adf6c09f6071d990056a43f8cc48302832c96cb35f6eb0a7",
-    "totalStake": "26992086996748425",
-    "tx": "0x4e1deb6b1823bac4a686bae7fc2be8b21874c7701dfafb6e2c012adf2eab0982",
+    "period": 272,
+    "membersHash": "0xbe15a13d4ecfa0e5da42a9afd374c50c66b6a8c1a608cc5aa81738abd7e72a90",
+    "totalStake": "26993673266374281",
+    "tx": "0x47bdd4e8af3c323ab85974af24ae1bb44fb1420c750fd669f509231be84dc3dc",
     "note": "Must be re-registered every reward period, which is 24 hours. The registry is fail-closed: a period with no committee refuses every certificate."
+  },
+  "qualifierRole": {
+    "address": "0xcd81F6b5c9Ae5D62fDF5af4A906916ab167144C2",
+    "note": "Holds QUALIFIER_ROLE on ConcordiumQualifier and nothing else. A leaked qualifier key can write qualifications but cannot award, attest or move escrow. Granted 2026-11-11 and revoked from the admin key in the same run, so the compromised admin can no longer record a qualification; it keeps DEFAULT_ADMIN_ROLE and can therefore re-grant if this key is lost.",
+    "grantTx": "0x4647151b4ab7bf5ef30d6b30321cba2195edc1f703804fe3eeea4ce1ba9d9a55",
+    "revokeFromAdminTx": "0xc6853504f45264a121c6524f6811e81102858dbfde2826c916e4645959aef0e3"
   }
 }
