@@ -24,29 +24,41 @@ import { privateKeyToAccount } from "viem/accounts";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const dryRun = process.argv.includes("--dry-run");
+/** Report whether the registry is current and exit non-zero if not. Needs no signing key. */
+const checkOnly = process.argv.includes("--check");
 
 function die(message) {
   console.error(`\n  ${message}\n`);
   process.exit(1);
 }
 
-// Same convention as register-agent.mjs: read the env file so nothing lands in shell history.
-for (const line of readFileSync(resolve(ROOT, ".env.testnet"), "utf8").split("\n")) {
-  const t = line.trim();
-  if (!t || t.startsWith("#")) continue;
-  const eq = t.indexOf("=");
-  if (eq < 1) continue;
-  const key = t.slice(0, eq).trim();
-  const value = t.slice(eq + 1).trim();
-  if (value && process.env[key] === undefined) process.env[key] = value;
+// Locally, read the env file so nothing lands in shell history. In CI there is no file and the
+// values come from the environment already, so a missing file is normal rather than an error.
+// Overridable through CCD_ENV_FILE rather than a flag: Node has its own `--env-file` and would
+// consume the argument before this script ever saw it, failing with a message about a file this
+// script never asked for.
+const ENV_FILE = process.env.CCD_ENV_FILE
+  ? resolve(process.env.CCD_ENV_FILE)
+  : resolve(ROOT, ".env.testnet");
+try {
+  for (const line of readFileSync(ENV_FILE, "utf8").split("\n")) {
+    const t = line.trim();
+    if (!t || t.startsWith("#")) continue;
+    const eq = t.indexOf("=");
+    if (eq < 1) continue;
+    const key = t.slice(0, eq).trim();
+    const value = t.slice(eq + 1).trim();
+    if (value && process.env[key] === undefined) process.env[key] = value;
+  }
+} catch (e) {
+  if (e.code !== "ENOENT") throw e;
 }
 
 const REGISTRY = process.env.V2_EPOCH_REGISTRY;
 const RPC = process.env.ARC_TESTNET_RPC_URL;
 const PK = process.env.ADMIN_PK;
-if (!REGISTRY || !RPC || !PK) {
-  die("V2_EPOCH_REGISTRY, ARC_TESTNET_RPC_URL and ADMIN_PK must all be set in .env.testnet");
-}
+if (!REGISTRY || !RPC) die("V2_EPOCH_REGISTRY and ARC_TESTNET_RPC_URL must be set");
+if (!PK && !checkOnly) die("ADMIN_PK must be set, or pass --check to report without updating");
 
 const ABI = parseAbi([
   "function currentPeriod() view returns (uint64)",
@@ -63,8 +75,10 @@ const arc = {
   rpcUrls: { default: { http: [RPC] } },
 };
 const publicClient = createPublicClient({ chain: arc, transport: http(RPC) });
-const account = privateKeyToAccount(PK.startsWith("0x") ? PK : `0x${PK}`);
-const wallet = createWalletClient({ account, chain: arc, transport: http(RPC) });
+const account = PK ? privateKeyToAccount(PK.startsWith("0x") ? PK : `0x${PK}`) : undefined;
+const wallet = account
+  ? createWalletClient({ account, chain: arc, transport: http(RPC) })
+  : undefined;
 
 const ccd = new ConcordiumGRPCNodeClient(
   process.env.CCD_GRPC_HOST ?? "grpc.testnet.concordium.com",
@@ -78,9 +92,19 @@ const [period, epoch, behind] = await Promise.all([
   publicClient.readContract({ address: REGISTRY, abi: ABI, functionName: "periodsBehind" }),
 ]);
 console.log(`\nregistry        ${REGISTRY}`);
-console.log(`updater         ${account.address}`);
+console.log(`updater         ${account?.address ?? "(none: --check)"}`);
 console.log(`epoch / period  ${epoch} / ${period}`);
 console.log(`periods behind  ${behind}`);
+
+if (checkOnly) {
+  // Behind by one period or more means the registry is refusing every certificate right now.
+  console.log(
+    behind === 0n
+      ? "\nregistry is current\n"
+      : `\nREGISTRY IS ${behind} PERIOD(S) BEHIND — every qualification is being refused\n`,
+  );
+  process.exit(behind === 0n ? 0 : 1);
+}
 
 // The committee comes from a real finalized block, so what is registered is what actually signs.
 const proof = await fetchFinalityProof(ccd);

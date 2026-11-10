@@ -26,7 +26,7 @@
  *
  * It reads `.env.<network>` at the repo root by itself, so nothing needs pasting onto the command
  * line where it would land in shell history. Anything already set in the environment wins over the
- * file, and `--env-file <path>` points it elsewhere.
+ * file, and `CCD_ENV_FILE` points it elsewhere.
  *
  * The sending account comes either from `CCD_WALLET`, the `<address>.export` file the browser
  * extension writes, or from `CCD_ACCOUNT` and `CCD_ACCOUNT_SIGN_KEY`, the address and the private
@@ -197,10 +197,11 @@ function loadEnvFile(path) {
 }
 
 const ROOT = resolve(import.meta.dirname, "../..");
-const ENV_FILE = resolve(
-  ROOT,
-  args.includes("--env-file") ? args[args.indexOf("--env-file") + 1] : `.env.${network}`,
-);
+// CCD_ENV_FILE rather than a `--env-file` flag: Node has its own `--env-file` and would consume
+// the argument before this script saw it, failing with a message about a file nobody asked for.
+const ENV_FILE = process.env.CCD_ENV_FILE
+  ? resolve(process.env.CCD_ENV_FILE)
+  : resolve(ROOT, `.env.${network}`);
 const envFileLoaded = loadEnvFile(ENV_FILE);
 
 const origin = need("SITE_ORIGIN").replace(/\/+$/, "");
