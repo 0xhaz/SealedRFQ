@@ -1,11 +1,14 @@
 /**
  * Writes the Postgres projection of Clerk's users, organizations and memberships.
  *
- * Every write goes through a SECURITY DEFINER function in schema `app` (migration 0009), called
- * on the ordinary application pool. The memberships table is what `app.active_org()` trusts, so
- * the application role has no direct write access to it; these functions are the only door, and
- * the ordering rule (an event applies only if it is at least as new as the stored row) lives in
- * their SQL where concurrent deliveries cannot race it.
+ * Every projection write goes through a SECURITY DEFINER function in schema `app` (migration
+ * 0009), called on the ordinary application pool. The memberships table is what
+ * `app.active_org()` trusts, so the application role has no direct write access to it; these
+ * functions are the only door, and the ordering rule (an event applies only if it is at least as
+ * new as the stored row) lives in their SQL where concurrent deliveries cannot race it.
+ *
+ * `linkWallet` at the foot of this file is the exception: `wallet_links` is ordinary tenant data,
+ * written through RLS as the user, and only the challenge it spends needs the privileged door.
  */
 import { pool, withUser } from "./index.js";
 
@@ -143,7 +146,13 @@ export async function linkWallet(input: {
       input.challengeId,
     ]);
     if (spent.rowCount === 0) throw new Error("linkWallet: challenge is unknown, spent or expired");
-    if (spent.rows[0].wallet.toLowerCase() !== address.toLowerCase()) {
+    // Compared the same way it was normalised above, and for the same reason: a case-insensitive
+    // compare on a base58 address would let a challenge issued for `3kBx…` be spent to link `3KBX…`,
+    // which is a different account. Only eip155 may ignore case.
+    const issued = spent.rows[0].wallet;
+    const sameAddress =
+      input.chainNamespace === "eip155" ? issued.toLowerCase() === address : issued === address;
+    if (!sameAddress) {
       throw new Error("linkWallet: challenge was issued for a different address");
     }
     const { rows } = await q.query(

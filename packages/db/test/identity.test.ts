@@ -480,6 +480,30 @@ withDb("wallet links", () => {
     expect(c.rows[0].consumed_at).toBeNull();
   });
 
+  it("still accepts an eip155 challenge recorded in checksum case", async () => {
+    // The leniency the next test must not take away: for EVM, casing is a typo guard, not data.
+    const challengeId = await challengeFor(ADDR);
+    await expect(
+      linkWallet({ ...BASE, address: ADDR.toLowerCase(), challengeId }),
+    ).resolves.toBeTruthy();
+  });
+
+  it("refuses a case-variant of a ccd challenge, because base58 case is data", async () => {
+    // Fails open if the comparison lowercases both sides regardless of namespace: `3kBx…` and
+    // `3KBX…` are different Concordium accounts, so a challenge for one could be spent on the other.
+    const challengeId = await challengeFor(CCD_ADDR);
+    await expect(
+      linkWallet({
+        ...BASE,
+        chainNamespace: "ccd",
+        chainId: 0,
+        address: CCD_ADDR.toUpperCase(),
+        challengeId,
+      }),
+    ).rejects.toThrow(/different/);
+    expect((await admin.query("SELECT 1 FROM wallet_links")).rowCount).toBe(0);
+  });
+
   it("refuses an expired challenge", async () => {
     const challengeId = await challengeFor(ADDR, "-1 minute");
     await expect(linkWallet({ ...BASE, address: ADDR, challengeId })).rejects.toThrow(/challenge/);
