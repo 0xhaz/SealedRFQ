@@ -55,6 +55,25 @@ SUPPLIER_3_PK=$SUPPLIER_3_PK
 EOF
 }
 
+# The web app and the scripts import `@sealedrfq/shared` and `@sealedrfq/db` through their built
+# `dist/`, which is gitignored, so a fresh clone has none. `turbo run dev` does not build
+# dependencies, and without this the first page load fails with ERR_MODULE_NOT_FOUND.
+build_packages() {
+  echo "── building the workspace packages (shared, db, concordium)"
+  pnpm --filter "./packages/*" build >/dev/null
+}
+
+# Clerk's keys cannot be generated here, so they are forwarded from the environment rather than
+# written into a file. Only non-empty ones are passed: a `NEXT_PUBLIC_*` set to the empty string
+# would win over apps/web/.env.local, which Next reads for itself, and break a real setup.
+clerk_env() {
+  local v
+  for v in CLERK_PUBLISHABLE_KEY NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY CLERK_SECRET_KEY \
+           CLERK_WEBHOOK_SIGNING_SECRET APP_DATABASE_URL DOCUMENT_ENCRYPTION_KEY; do
+    if [[ -n ${!v:-} ]]; then printf '%s=%s\n' "$v" "${!v}"; fi
+  done
+}
+
 seconds() { # 5m -> 300
   local v=$1
   case "$v" in
@@ -112,14 +131,23 @@ up() {
   warp 90   # push the short-clock RFQs into their reveal window
   STAGE=reveal run_forge SeedLocal
 
+  build_packages
+
   echo "── starting the agent (indexer + evaluator) on :4020"
   (cd "$ROOT/apps/agent" && pnpm build >/dev/null 2>&1)
   (cd "$ROOT/apps/agent" && rm -f data/local.db*)
   (cd "$ROOT/apps/agent" && nohup env PORT=4020 node dist/main.js </dev/null > "$RUN/agent.log" 2>&1 & disown)
 
   echo "── starting the web app on :3000"
+  local line; local -a web_env=()
+  while IFS= read -r line; do web_env+=("$line"); done < <(clerk_env)
   (cd "$ROOT/apps/web" && nohup env NEXT_PUBLIC_ARC_CHAIN_ID=31337 \
-    NEXT_PUBLIC_AGENT_URL=http://127.0.0.1:4020 pnpm dev </dev/null > "$RUN/web.log" 2>&1 & disown)
+    NEXT_PUBLIC_AGENT_URL=http://127.0.0.1:4020 ${web_env[@]+"${web_env[@]}"} pnpm dev \
+    </dev/null > "$RUN/web.log" 2>&1 & disown)
+  if [[ -z ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-} && ! -f "$ROOT/apps/web/.env.local" ]]; then
+    echo "   no Clerk key: the landing page, /evidence, /audit, /qualify and /docs serve;"
+    echo "   /app answers 503. See 'Run it locally' in README.md to enable accounts."
+  fi
 
   cat <<EOF
 

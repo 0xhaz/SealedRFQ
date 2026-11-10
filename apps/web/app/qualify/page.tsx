@@ -6,8 +6,11 @@ import { QUALIFICATION_DESCRIPTION } from "@/lib/v2/qualification";
 export const dynamic = "force-dynamic";
 
 /**
- * A standalone page for the qualification proof, so the flow can be exercised and shown without
- * first creating a tender. The real gate lives on the bid page; this is the same code path.
+ * The qualification proof, on a page of its own.
+ *
+ * It was the standalone twin of the gate on the V1 bid page; that page is gone, so this is now the
+ * only way to make the proof. Public, because proving your own wallet's attributes needs no account
+ * and the public evidence page links here.
  */
 export default function QualifyPage() {
   return (

@@ -17,7 +17,7 @@
  */
 import { readFileSync } from "node:fs";
 import { RFQRegistryAbi, chainById } from "@sealedrfq/shared";
-import { createPublicClient, createWalletClient, formatUnits, http, parseAbiItem } from "viem";
+import { http, createPublicClient, createWalletClient, formatUnits } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -82,7 +82,9 @@ const head = await publicClient.getBlockNumber();
 const start = fromArg >= 0 ? BigInt(args[fromArg + 1]) : BigInt(deployment.startBlock);
 const rfqCount = await read("rfqCount");
 console.log(`V1 RFQRegistry ${registry} on chain ${chainId}`);
-console.log(`rfqCount=${rfqCount} totalHeld=${usdc(await read("totalHeld"))} totalWithdrawable=${usdc(await read("totalWithdrawable"))}`);
+console.log(
+  `rfqCount=${rfqCount} totalHeld=${usdc(await read("totalHeld"))} totalWithdrawable=${usdc(await read("totalWithdrawable"))}`,
+);
 
 const bidders = new Map(); // rfqId -> Set<address>
 const credited = new Set();
@@ -145,7 +147,12 @@ if (!key) {
 const account = privateKeyToAccount(key);
 const wallet = createWalletClient({ account, chain, transport });
 const send = async (functionName, args) => {
-  const hash = await wallet.writeContract({ address: registry, abi: RFQRegistryAbi, functionName, args });
+  const hash = await wallet.writeContract({
+    address: registry,
+    abi: RFQRegistryAbi,
+    functionName,
+    args,
+  });
   await publicClient.waitForTransactionReceipt({ hash });
   console.log(`${functionName} ${hash}`);
 };
@@ -153,5 +160,10 @@ const send = async (functionName, args) => {
 for (const s of settlements) await send("settleDeposit", [s.rfqId, s.bidder]);
 const mine = await read("withdrawable", [account.address]);
 if (mine > 0n) await send("withdraw", []);
-else console.log(`${account.address} has nothing to withdraw; other beneficiaries must run this themselves.`);
-console.log(`totalHeld=${usdc(await read("totalHeld"))} totalWithdrawable=${usdc(await read("totalWithdrawable"))}`);
+else
+  console.log(
+    `${account.address} has nothing to withdraw; other beneficiaries must run this themselves.`,
+  );
+console.log(
+  `totalHeld=${usdc(await read("totalHeld"))} totalWithdrawable=${usdc(await read("totalWithdrawable"))}`,
+);
