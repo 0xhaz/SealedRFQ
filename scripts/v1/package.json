@@ -1,0 +1,9 @@
+{
+  "name": "@sealedrfq/scripts-v1",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@sealedrfq/shared": "workspace:*",
+    "viem": "^2"
+  }
+}

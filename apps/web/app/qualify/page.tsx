@@ -72,8 +72,8 @@ export default function QualifyPage() {
         <Link className="btn-nav" href="/evidence">
           ← The evidence behind this
         </Link>
-        <Link className="btn-nav ghost" href="/rfqs">
-          All RFQs
+        <Link className="btn-nav ghost" href="/app">
+          Open the app
         </Link>
       </nav>
     </div>

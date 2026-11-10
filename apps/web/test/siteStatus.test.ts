@@ -28,18 +28,6 @@ describe("site status", () => {
 describe("what a pause is allowed to touch", () => {
   const read = (p: string) => require("node:fs").readFileSync(new URL(p, import.meta.url), "utf8");
 
-  it("gates the two pages that create a new commitment", () => {
-    expect(read("../app/rfqs/new/page.tsx")).toContain("isPaused");
-    expect(read("../app/rfqs/[id]/bid/page.tsx")).toContain("isPaused");
-  });
-
-  it("never gates a route that returns money", () => {
-    // Withdrawals and deposit settlement are how committed funds come back. The V2 plan's own
-    // legacy-safety gate says a new deployment must not hide withdrawal paths.
-    expect(read("../components/Payouts.tsx")).not.toContain("isPaused");
-    expect(read("../components/SettleDeposit.tsx")).not.toContain("isPaused");
-  });
-
   it("never gates the audit trail", () => {
     expect(read("../app/audit/[id]/page.tsx")).not.toContain("isPaused");
   });

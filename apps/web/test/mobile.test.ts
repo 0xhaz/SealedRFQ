@@ -39,12 +39,8 @@ describe("mobile card layout", () => {
   });
 
   it("gives the board and the bid table the card layout at all", () => {
-    // These are the two a supplier meets first, and both are too wide for a handset.
-    for (const f of [
-      "app/rfqs/page.tsx",
-      "app/rfqs/[id]/page.tsx",
-      "app/app/[org]/inbox/page.tsx",
-    ]) {
+    // The inbox is what a supplier meets first, and it is too wide for a handset as a table.
+    for (const f of ["app/app/[org]/inbox/page.tsx"]) {
       expect(readFileSync(join(process.cwd(), f), "utf8"), f).toContain('className="row"');
     }
   });

@@ -59,14 +59,12 @@ export default function Home() {
             An AI can recommend the winner. <b>Only the contract can award.</b>
           </p>
           <div className="hero-cta">
-            <Link className="btn-primary" href="/rfqs">
-              ▶ Browse open RFQs
+            <Link className="btn-primary" href="/app">
+              ▶ Open the app
             </Link>
-            {!isPaused && (
-              <Link className="btn-outline" href="/rfqs/new">
-                Post an RFQ
-              </Link>
-            )}
+            <Link className="btn-outline" href="/evidence">
+              Check the evidence
+            </Link>
           </div>
           <p className="hero-links">
             <a href={explorerAddress(contracts.RFQRegistry)} target="_blank" rel="noreferrer">

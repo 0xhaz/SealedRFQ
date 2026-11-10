@@ -510,8 +510,8 @@ export default async function EvidencePage({
         <Link className="btn-nav" href="/qualify">
           Prove you may bid →
         </Link>
-        <Link className="btn-nav ghost" href="/rfqs">
-          All RFQs
+        <Link className="btn-nav ghost" href="/app">
+          Open the app
         </Link>
       </nav>
     </div>

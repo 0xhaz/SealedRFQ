@@ -121,6 +121,33 @@ exist.
 
 Run it yourself: `./script/demo.sh testnet`.
 
+## V1 is retired: legacy contracts, no V1 interface
+
+The wallet-first V1 pages (`/rfqs`, `/suppliers`, `/admin`) are gone from the application, which now
+runs on Clerk organizations under `/app`. The contracts they talked to are **not** gone and were not
+touched: they are immutable, still deployed, and still callable by anyone. The addresses above are
+the **legacy V1** deployments, kept because they are part of the record.
+
+Retiring the interface did not hide a withdrawal path, and any funds still in V1 remain reachable by
+two permissionless calls on those immutable contracts:
+
+1. `settleDeposit(rfqId, bidder)` on an RFQ that is `Awarded` or `NoAward`, callable by anyone, which
+   moves a held deposit to its beneficiary's `withdrawable` balance.
+2. `withdraw()`, called by each beneficiary, which pays `msg.sender` only.
+
+`scripts/v1/settle-and-withdraw.mjs` is the convenience path: `node scripts/v1/settle-and-withdraw.mjs
+--dry-run` lists what it would send without needing a key, and without the flag it sends the
+`settleDeposit` calls and then `withdraw()` for the key in `PRIVATE_KEY`. Calling the contract
+directly works just as well; the script is not required.
+
+State as of **2026-11-10**:
+
+- **Arc mainnet** V1 `RFQRegistry`: `rfqCount` is 0 and every balance is 0. Nothing was ever held.
+- **Arc testnet** V1 `RFQRegistry`: `rfqCount` is 6 and it holds 4.650000 USDC of test money,
+  accounted for as 0.25 credited (`totalWithdrawable`, awaiting `withdraw()` by each beneficiary)
+  plus 4.40 held (`totalHeld`, deposits not yet settled). It has not been drained: the funds have no
+  value, and the exit path is a property of the contracts rather than of having exercised it.
+
 ## How it works
 
 Five contracts. `RFQRegistry` owns everything up to the award; `SealedRFQAdapter` owns everything
