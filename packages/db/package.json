@@ -13,6 +13,10 @@
       "types": "./dist/auth.d.ts",
       "import": "./dist/auth.js"
     },
+    "./identity": {
+      "types": "./dist/identity.d.ts",
+      "import": "./dist/identity.js"
+    },
     "./requests": {
       "types": "./dist/requests.d.ts",
       "import": "./dist/requests.js"
