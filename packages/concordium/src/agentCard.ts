@@ -45,7 +45,10 @@ export type AgentCardInput = {
    * card carries enough to find and check it without the registry's help.
    */
   keyBinding?: {
-    keyRegistry: { index: bigint; subindex: bigint };
+    // `number` as well as `bigint`: this is read back out of a JSON record, and JSON has no
+    // bigint. The index is only ever interpolated into a `ccd:` identifier, so either is exact
+    // for every contract index that exists.
+    keyRegistry: { index: bigint | number; subindex: bigint | number };
     namespace: string;
     keyType: string;
     /** Hex, no 0x. */

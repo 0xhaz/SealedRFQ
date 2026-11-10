@@ -133,6 +133,23 @@ describe.skipIf(!live)("Concordium testnet registries", () => {
       expect(describeReject(rejectCode(result) ?? 0)).toBe("AgentNotFound");
     }, 60_000);
 
+    it("reads an anchored agent back, hash and all", async () => {
+      // The regression that matters: byte arrays come out of the schema deserialiser as bigints
+      // for some types, and handing one to Buffer throws. `metadata_hash` is absent on an
+      // unanchored agent, so this stayed hidden until the first agent that had one — which is the
+      // first agent worth verifying, and the verifier is what would have crashed.
+      const result = await client.invokeContract({
+        contract: REGISTRY,
+        method: receiveName("agentOf"),
+        parameter: agentOfParameter(1),
+      });
+      if (result.tag !== "success" || !result.returnValue) throw new Error("agentOf failed");
+      const agent = parseAgentOf(result.returnValue);
+      expect(agent?.agentId).toBe(1n);
+      expect(agent?.metadataHash).toMatch(/^[0-9a-f]{64}$/);
+      expect(agent?.agentUri).toBe("https://www.sealedrfq.com/.well-known/agent-card.json");
+    }, 60_000);
+
     it("reads agent 0 back through our parser", async () => {
       const result = await client.invokeContract({
         contract: REGISTRY,

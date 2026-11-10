@@ -126,15 +126,23 @@ export type AgentRecord = {
 
 type Opt<T> = { None: [] } | { Some: [T] };
 const some = <T>(o: Opt<T>): T | undefined => ("Some" in o ? o.Some[0] : undefined);
-const hex = (b: number[]) => Buffer.from(b).toString("hex");
+/**
+ * Byte arrays out of the schema deserialiser arrive as bigints for some numeric types, so they are
+ * coerced rather than handed straight to Buffer, which throws on one. This only bites once a field
+ * is actually populated: `metadata_hash` is absent on an unanchored agent, so the crash waited
+ * until the first agent that had one — the first agent worth verifying.
+ */
+const hex = (b: (number | bigint)[]) => Buffer.from(b.map(Number)).toString("hex");
 
 /** The JSON shape `SCHEMA.agentOfReturn` deserialises to. Named so the parse is checked, not cast. */
-type Cis8Kind = { Cis8: [{ namespace: string; key_type: string; public_key: number[] }] };
+type Cis8Kind = {
+  Cis8: [{ namespace: string; key_type: string; public_key: (number | bigint)[] }];
+};
 type RawAgent = {
   token_id: string;
   owner_account: string;
   agent_uri: Opt<string>;
-  metadata_hash: Opt<number[]>;
+  metadata_hash: Opt<(number | bigint)[]>;
   external_reference: Opt<{
     contract_address: { index: number; subindex: number };
     kind: Cis8Kind;
@@ -144,7 +152,7 @@ type RawAgent = {
   registered_at: string;
   revoked_at: Opt<string>;
   revocation_reason: Opt<string>;
-  on_chain_metadata: { key: string; value: number[] }[];
+  on_chain_metadata: { key: string; value: (number | bigint)[] }[];
 };
 
 /** Parse `agentOf`'s return value. Returns undefined when no such agent exists. */

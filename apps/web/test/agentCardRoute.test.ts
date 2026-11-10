@@ -12,14 +12,36 @@ const EXAMPLE = {
 };
 
 describe("the agent card route", () => {
-  it("claims no badge until a registration exists", async () => {
-    // The committed record is a placeholder, so this is the state the site ships in. A card that
-    // named a registration which did not exist would be worse than no card: the badge is an
-    // invitation to rely on it.
-    expect(agentRegistration).toBeNull();
+  it("serves the registration that is actually on chain", async () => {
+    // Not a fixture. This is the record the registration script wrote, and the hash below is the
+    // one anchored in CIS-8004 agent 1 on Concordium testnet. If the card ever stops hashing to
+    // it, the badge stops verifying for everyone, and this is where that is caught.
+    expect(agentRegistration).not.toBeNull();
+    expect(agentRegistration?.agentId).toBe(1);
+    expect(agentRegistration?.network).toBe("testnet");
+    expect(cardHashHex(agentRegistration!)).toBe(agentRegistration?.cardHash);
+    expect(agentRegistration?.cardHash).toBe(
+      "dc12f239397f6af32010bdc2f26b31e154958240809afd9c74874418f4162e12",
+    );
+  });
+
+  it("serves those exact bytes, and says so in the header", async () => {
     const response = GET();
-    expect(response.status).toBe(404);
-    expect(await response.json()).toMatchObject({ error: "not_registered" });
+    expect(response.status).toBe(200);
+    const body = Buffer.from(await response.arrayBuffer());
+    expect(createHash("sha256").update(body).digest("hex")).toBe(agentRegistration?.cardHash);
+    expect(response.headers.get("x-agent-card-sha256")).toBe(agentRegistration?.cardHash);
+  });
+
+  it("names the key whose CIS-8 binding proves who the agent is", () => {
+    // The registry on testnet cannot hold an external reference, so the card is the only place
+    // that says which key to look up. Losing it would leave the badge unlinked to anything.
+    const card = JSON.parse(cardBytes(agentRegistration!).toString("utf8"));
+    const badge = card.capabilities.extensions.find((e: { uri: string }) =>
+      e.uri.includes("concordium-badge"),
+    );
+    expect(badge.params.externalKey.publicKey).toBe(agentRegistration?.keyBinding?.publicKey);
+    expect(badge.params.externalKey.proofScheme).toBe("ethereum-personal-sign");
   });
 
   it("serves bytes that hash to the value anchored on chain", async () => {

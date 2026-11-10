@@ -20,7 +20,7 @@ export type AgentRegistration = AgentCardInput & {
   registeredAt: string;
 };
 
-const stored = record as Partial<AgentRegistration> & { placeholder?: true };
+const stored = record as unknown as Partial<AgentRegistration> & { placeholder?: true };
 
 export const agentRegistration: AgentRegistration | null = stored.placeholder
   ? null

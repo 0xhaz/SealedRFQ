@@ -1,4 +1,23 @@
 {
-  "placeholder": true,
-  "comment": "Replaced by scripts/concordium/register-agent.mjs once the agent is registered on Concordium. Until then the site claims no badge."
+  "network": "testnet",
+  "origin": "https://www.sealedrfq.com",
+  "agentId": 1,
+  "owner": "4DBCxp3GVDmTwtB1Z718ojSCEy1eBp6oJ7RrNTJk8BUsJn7FGb",
+  "keyBinding": {
+    "keyRegistry": {
+      "index": 12940,
+      "subindex": 0
+    },
+    "namespace": "sealedrfq",
+    "keyType": "secp256k1-compressed",
+    "publicKey": "03c5528c02501158aa5286c621394ef47e95c36edc35b21c71c76d13be8e7198dd"
+  },
+  "referencedFromRegistry": false,
+  "cardHash": "dc12f239397f6af32010bdc2f26b31e154958240809afd9c74874418f4162e12",
+  "transactions": {
+    "keyBinding": "2223b6f821569e613fed7950ddf5633d95ce4712b9413eb3bea23a01cbe9148b",
+    "register": "eb5305bf7d6aceda1285ecc7a9f2ba447da7749013298bb27b64cac0baf85d37",
+    "anchorHash": "a872ab1c6a792362f153807ef0e1eb031b017aa753e1aa98de7b50bb749821a1"
+  },
+  "registeredAt": "2026-11-10T06:01:41.644Z"
 }

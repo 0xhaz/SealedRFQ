@@ -87,6 +87,16 @@ const NAMESPACE = "sealedrfq";
 const KEY_TYPE = "secp256k1-compressed";
 const RECORD = resolve(import.meta.dirname, "../../apps/web/lib/v2/agentRegistration.json");
 
+/** Whatever a previous run recorded, so a resumed run adds to it rather than replacing it. */
+function previousRecord() {
+  try {
+    const parsed = JSON.parse(readFileSync(RECORD, "utf8"));
+    return parsed.placeholder ? {} : parsed;
+  } catch {
+    return {};
+  }
+}
+
 const args = process.argv.slice(2);
 const network = args.includes("--network") ? args[args.indexOf("--network") + 1] : "testnet";
 const dryRun = args.includes("--dry-run");
@@ -543,6 +553,7 @@ const agentId = await (async () => {
 
 // ---- 3. Anchor the card hash ----------------------------------------------------------------
 
+const previous = previousRecord();
 const record = {
   network,
   origin,
@@ -591,10 +602,13 @@ writeFileSync(
       /** False on testnet: the registry there cannot resolve a CIS-8 entry. See the probe above. */
       referencedFromRegistry: externalReference !== undefined,
       cardHash: cardHashHex(record),
+      // A resumed run skips steps it already did, and knows no hash for them. JSON.stringify drops
+      // an undefined value silently, so merging with whatever the last run recorded is what keeps
+      // the evidence trail whole across a retry instead of quietly shortening it.
       transactions: {
-        keyBinding: keyBindingTx,
-        // Absent when the step was already done on an earlier run; the explorer has it either way.
-        register: registerTx,
+        ...previous.transactions,
+        ...(keyBindingTx ? { keyBinding: keyBindingTx } : {}),
+        ...(registerTx ? { register: registerTx } : {}),
         anchorHash: anchored.hash,
       },
       registeredAt: new Date().toISOString(),
