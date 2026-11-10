@@ -16,6 +16,10 @@
     "./cis8": {
       "types": "./dist/cis8.d.ts",
       "import": "./dist/cis8.js"
+    },
+    "./presentation": {
+      "types": "./dist/presentation.d.ts",
+      "import": "./dist/presentation.js"
     }
   },
   "scripts": {

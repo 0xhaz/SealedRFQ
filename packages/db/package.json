@@ -35,7 +35,8 @@
   },
   "dependencies": {
     "pg": "^8.13.1",
-    "viem": "^2"
+    "viem": "^2",
+    "@sealedrfq/concordium": "workspace:*"
   },
   "devDependencies": {
     "@types/pg": "^8.11.10",

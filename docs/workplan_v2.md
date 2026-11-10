@@ -227,7 +227,28 @@ checkably the same entity instead of two unrelated registrations that merely sha
       once per account and only while it has no incoming transactions. A testnet identity needs no
       real ID; pick the Concordium testnet identity provider.
 - [x] Capture the CCDExplorer links as they happen
-- [ ] One supported identity or Web3 ID presentation with a fresh challenge and replay protection
+- [x] Presentation verification, with the challenge handling G2 asks for. Five checks, and the
+      fifth is the one that is easy to omit: `verifyPresentation` returns whatever the proof
+      actually proves, not what was asked for, so the proved statements are compared against the
+      requested ones. Without that a holder can answer a question nobody asked — membership of a
+      set containing every country — and have it accepted as the real predicate.
+
+      Replay protection is two layers. The challenge seeds the Fiat-Shamir transcript, so a proof
+      made for one challenge cannot be presented under another; that is cryptographic and needs
+      nothing from us. Replaying the same proof under the same challenge is not prevented by
+      anything in the proof, so the challenge is single-use and short-lived. It is verified first
+      and consumed afterwards, atomically: verifying first means invalid garbage cannot burn a
+      challenge a holder is entitled to retry with, and consuming last means two identical
+      presentations racing cannot both win.
+
+      The store is Postgres, not memory. On a serverless deployment each invocation has its own
+      memory, so a challenge issued by one request would be unknown to the next and the symptom
+      would be intermittent "unknown challenge" errors rather than anything resembling a missing
+      store. Single use is enforced in the WHERE clause of a conditional UPDATE, proven by a test
+      that claims one challenge eight times concurrently and expects exactly one winner.
+- [ ] A presentation from a real wallet, end to end. The verifier is tested against the real wasm
+      verifier at its boundary and by mutation, but producing a proof needs wallet secrets, so
+      this waits on a browser-wallet request flow
 - [ ] Qualification Agent: verifies the proof off-chain, then signs the Arc permit
 - [ ] Capture CCDExplorer links for every registration as they happen, not at the end
 
