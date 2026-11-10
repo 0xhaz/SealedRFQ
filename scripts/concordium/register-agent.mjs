@@ -70,6 +70,8 @@ import {
   registerExternalKeyParameter,
 } from "@sealedrfq/concordium/cis8";
 import {
+  agentOfParameter,
+  parseAgentOf,
   receiveName,
   registerParameter,
   registryAddress,
@@ -461,8 +463,45 @@ const externalReference = await (async () => {
   return undefined;
 })();
 
-if (dryRun) {
-  await submit("CIS-8004 register", {
+/**
+ * Find an agent this sender already registered for this card URL.
+ *
+ * The three steps are separate transactions, so the script has to be safe to re-run: the first
+ * attempt bound the key and registered the agent, then fell over before anchoring the hash. Without
+ * this it would mint a second agent on every retry and leave the first orphaned.
+ */
+async function findExistingAgent(limit = 64n) {
+  const mine = SDK.AccountAddress.toBase58(sender);
+  for (let id = 0n; id < limit; id++) {
+    const result = await client.invokeContract({
+      contract: REGISTRY,
+      method: receiveName("agentOf"),
+      parameter: agentOfParameter(id),
+    });
+    if (result.tag !== "success" || !result.returnValue) continue;
+    const agent = parseAgentOf(result.returnValue);
+    // Revoked agents are skipped: a revoked registration is not one to resume into.
+    if (agent?.owner === mine && agent.agentUri === cardUrl && agent.status === "Active") {
+      return agent;
+    }
+  }
+  return undefined;
+}
+
+const existing = await findExistingAgent();
+let registerTx;
+
+const agentId = await (async () => {
+  if (existing) {
+    console.log("\nCIS-8004 register");
+    console.log(`  agent ${existing.agentId} is already registered for this card URL; skipping`);
+    if (existing.metadataHash) {
+      console.log(`  its card hash is already anchored: ${existing.metadataHash}`);
+    }
+    return existing.agentId;
+  }
+
+  const registered = await submit("CIS-8004 register", {
     contract: REGISTRY,
     method: receiveName("register"),
     parameter: registerParameter({
@@ -471,31 +510,11 @@ if (dryRun) {
       initialMetadata: registerMetadata,
     }),
   });
-  console.log(
-    `\n  --dry-run complete. Nothing was sent.${externalReference ? "" : "\n  The agent would be registered without an external reference."}`,
-  );
-  process.exit(0);
-}
 
-const registered = await submit("CIS-8004 register", {
-  contract: REGISTRY,
-  method: receiveName("register"),
-  parameter: registerParameter({
-    agentUri: cardUrl,
-    externalReference,
-    initialMetadata: registerMetadata,
-  }),
-});
-
-/**
- * Which agent id we got.
- *
- * Not read from the transaction summary: an update summary carries trace events, not a return
- * value, so the id is not there. The dry run that preceded the send does return it, and `agentOf`
- * then confirms the registration actually landed as ours. If someone else registered in the same
- * window the id shifts, so a short forward scan covers that rather than trusting the prediction.
- */
-const agentId = await (async () => {
+  // Not read from the transaction summary: an update summary carries trace events, not a return
+  // value, so the id is not there. The dry run that preceded the send does return it, and
+  // `agentOf` then confirms the registration landed as ours rather than taking it on faith.
+  registerTx = registered.hash;
   const predicted = registered.dryReturnValue
     ? agentIdFromTokenId(
         SDK.ReturnValue.parseWithSchemaTypeBase64(registered.dryReturnValue, "HQA="),
@@ -512,9 +531,7 @@ const agentId = await (async () => {
     const agent = parseAgentOf(result.returnValue);
     if (agent?.owner === mine && agent.agentUri === cardUrl) {
       console.log(
-        id === predicted
-          ? `  agent id ${id}`
-          : `  agent id ${id} (the dry run predicted ${predicted})`,
+        id === predicted ? `  agent id ${id}` : `  agent id ${id} (dry run predicted ${predicted})`,
       );
       return id;
     }
@@ -547,6 +564,15 @@ const anchored = await submit("CIS-8004 setAgentURI", {
   parameter: setAgentUriParameter({ agentId, agentUri: cardUrl, metadataHash: hash }),
 });
 
+if (dryRun) {
+  console.log(
+    `\n  --dry-run complete. Nothing was sent.${
+      externalReference ? "" : "\n  The agent carries no external reference."
+    }`,
+  );
+  process.exit(0);
+}
+
 writeFileSync(
   RECORD,
   `${JSON.stringify(
@@ -567,7 +593,8 @@ writeFileSync(
       cardHash: cardHashHex(record),
       transactions: {
         keyBinding: keyBindingTx,
-        register: registered.hash,
+        // Absent when the step was already done on an earlier run; the explorer has it either way.
+        register: registerTx,
         anchorHash: anchored.hash,
       },
       registeredAt: new Date().toISOString(),
