@@ -5,8 +5,8 @@ import {
   inviteAction,
   respondAction,
   setStatusAction,
-} from "@/app/workspace/requests/actions";
-import { useRouter } from "next/navigation";
+} from "@/app/app/[org]/requests/actions";
+import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 
 /**
@@ -29,6 +29,7 @@ export function RequestActions(props: {
   hasResponded: boolean;
 }) {
   const router = useRouter();
+  const { org } = useParams<{ org: string }>();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -138,7 +139,7 @@ export function RequestActions(props: {
                 onClick={() =>
                   run(
                     () => convertAction(props.requestId, tenderTitle),
-                    (id) => router.push(`/workspace/requests/${id}`),
+                    (id) => router.push(`/app/${org}/requests/${id}`),
                   )
                 }>
                 Convert to RFQ

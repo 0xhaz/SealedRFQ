@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { WalletChip } from "./WalletChip";
 
 export function Header() {
   return (
@@ -9,7 +8,6 @@ export function Header() {
       </Link>
       <span className="tagline">sealed-bid procurement · on arc</span>
       <div className="spacer" />
-      <WalletChip />
       <Link className="chip" href="/rfqs">
         RFQ board
       </Link>

@@ -1,5 +1,4 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { myOrganizations } from "@sealedrfq/db/workspace";
 import { cookies } from "next/headers";
 
 /**
@@ -62,16 +61,3 @@ export const sessionCookie = (userId: string) => ({
 });
 
 export const clearedCookie = () => ({ ...sessionCookie(""), value: "", maxAge: 0 });
-
-/**
- * The organization this user is acting for, until a session carries one.
- *
- * Returns the id only when the user belongs to exactly one organization. With several there is no
- * honest answer to "which?", and picking the first would show one organization's work to someone
- * who may be acting as another; null makes every policy match nothing instead. A session that
- * names its organization replaces this.
- */
-export async function activeOrgId(userId: string): Promise<string | null> {
-  const orgs = await myOrganizations(userId);
-  return orgs.length === 1 ? (orgs[0]?.id ?? null) : null;
-}

@@ -1,21 +1,21 @@
-import { Header } from "@/components/Header";
 import { RequestActions } from "@/components/v2/RequestActions";
-import { activeOrgId, currentUserId } from "@/lib/v2/session";
+import { requireOrg } from "@/lib/v2/tenant";
 import { directory, getRequest, myOrganizations, responsesFor } from "@sealedrfq/db/workspace";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-export default async function RequestPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const userId = await currentUserId();
-  if (!userId) redirect("/workspace");
+export default async function RequestPage({
+  params,
+}: {
+  params: Promise<{ org: string; id: string }>;
+}) {
+  const { org, id } = await params;
+  const { userId, orgId, orgSlug } = await requireOrg(org);
 
   // Invisible and absent are the same answer here, deliberately. A request you were not invited to
   // should not be distinguishable from one that does not exist, or the id becomes an oracle.
-  const orgId = await activeOrgId(userId);
-  if (!orgId) notFound();
   const request = await getRequest(userId, orgId, id);
   if (!request) notFound();
 
@@ -25,12 +25,13 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
     // Organisations that chose to be listed. Not every organisation: being findable is opt-in.
     directory(userId, { supplying: true }),
   ]);
-  const isOwner = orgs.some((o) => o.id === request.org_id);
-  const mySupplierOrgs = orgs.filter((o) => o.can_supply && o.id !== request.org_id);
+  // Against the organization acted as, not every organization the user belongs to: acting as A on
+  // a request owned by their other organization B must not show B's buyer controls.
+  const isOwner = request.org_id === orgId;
+  const mySupplierOrgs = orgs.filter((o) => o.id === orgId && o.can_supply && !isOwner);
 
   return (
-    <div className="shell">
-      <Header />
+    <>
       <section className="desk-head">
         <h2 className="section-title">{request.title}</h2>
         <p className="desk-head-sub">
@@ -38,7 +39,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
           {request.parent_rfi_id && (
             <>
               {" · converted from "}
-              <Link className="linklike" href={`/workspace/requests/${request.parent_rfi_id}`}>
+              <Link className="linklike" href={`/app/${orgSlug}/requests/${request.parent_rfi_id}`}>
                 the original RFI
               </Link>
             </>
@@ -106,6 +107,6 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
           />
         </div>
       </div>
-    </div>
+    </>
   );
 }

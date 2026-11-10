@@ -1,6 +1,6 @@
 "use server";
 
-import { activeOrgId, currentUserId } from "@/lib/v2/session";
+import { type Tenant, sessionTenant } from "@/lib/v2/tenant";
 import {
   convertToTender,
   createRequest,
@@ -17,18 +17,12 @@ import { revalidatePath } from "next/cache";
  * in from a form is a user id an attacker can change, and the whole tenant model rests on that
  * value being the server's own belief about who is asking.
  */
-async function requireUser(): Promise<string> {
-  const userId = await currentUserId();
-  if (!userId) throw new Error("you are not signed in");
-  return userId;
-}
-
-/** The user and the organization they act for; both are the server's belief, never the form's. */
-async function requireTenant(): Promise<{ userId: string; orgId: string }> {
-  const userId = await requireUser();
-  const orgId = await activeOrgId(userId);
-  if (!orgId) throw new Error("no active organization");
-  return { userId, orgId };
+async function requireTenant(): Promise<Tenant> {
+  // The organization is the verified Clerk session's, never the membership projection's and never
+  // the form's, so the database's membership check remains an independent second gate.
+  const tenant = await sessionTenant();
+  if (!tenant) throw new Error("you are not signed in to an organization");
+  return tenant;
 }
 
 export type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
@@ -41,7 +35,7 @@ const fail = (e: unknown): ActionResult => ({
 
 export async function createRequestAction(form: FormData): Promise<ActionResult> {
   try {
-    const { userId, orgId } = await requireTenant();
+    const { userId, orgId, orgSlug } = await requireTenant();
     const title = String(form.get("title") ?? "").trim();
     if (!title) return { ok: false, error: "a request needs a title" };
     const row = await createRequest(userId, {
@@ -51,7 +45,7 @@ export async function createRequestAction(form: FormData): Promise<ActionResult>
       type: form.get("type") === "RFQ" ? "RFQ" : "RFI",
       title,
     });
-    revalidatePath("/workspace");
+    revalidatePath(`/app/${orgSlug}/inbox`);
     return { ok: true, id: row.id };
   } catch (e) {
     return fail(e);
@@ -60,11 +54,11 @@ export async function createRequestAction(form: FormData): Promise<ActionResult>
 
 export async function setStatusAction(requestId: string, next: string): Promise<ActionResult> {
   try {
-    const { userId, orgId } = await requireTenant();
+    const { userId, orgId, orgSlug } = await requireTenant();
     // The database holds the state machine; this does not second-guess which moves are legal.
     await setStatus(userId, orgId, requestId, next as never);
-    revalidatePath(`/workspace/requests/${requestId}`);
-    revalidatePath("/workspace");
+    revalidatePath(`/app/${orgSlug}/requests/${requestId}`);
+    revalidatePath(`/app/${orgSlug}/inbox`);
     return { ok: true };
   } catch (e) {
     return fail(e);
@@ -75,7 +69,7 @@ export async function inviteAction(requestId: string, inviteeOrgId: string): Pro
   try {
     const tenant = await requireTenant();
     await invite(tenant.userId, tenant.orgId, requestId, inviteeOrgId);
-    revalidatePath(`/workspace/requests/${requestId}`);
+    revalidatePath(`/app/${tenant.orgSlug}/requests/${requestId}`);
     return { ok: true };
   } catch (e) {
     return fail(e);
@@ -89,9 +83,9 @@ export async function respondAction(
 ): Promise<ActionResult> {
   try {
     // Responds as the session's organization; the argument is kept only so callers need not change.
-    const { userId, orgId } = await requireTenant();
+    const { userId, orgId, orgSlug } = await requireTenant();
     const id = await respond(userId, { requestId, orgId, body });
-    revalidatePath(`/workspace/requests/${requestId}`);
+    revalidatePath(`/app/${orgSlug}/requests/${requestId}`);
     return { ok: true, id };
   } catch (e) {
     return fail(e);
@@ -104,13 +98,13 @@ export async function respondAction(
  */
 export async function convertAction(rfiId: string, title: string): Promise<ActionResult> {
   try {
-    const { userId, orgId } = await requireTenant();
+    const { userId, orgId, orgSlug } = await requireTenant();
     const { tender } = await convertToTender(userId, orgId, {
       rfiId,
       type: "RFQ",
       title: title.trim() || "Untitled tender",
     });
-    revalidatePath("/workspace");
+    revalidatePath(`/app/${orgSlug}/inbox`);
     return { ok: true, id: tender.id };
   } catch (e) {
     return fail(e);

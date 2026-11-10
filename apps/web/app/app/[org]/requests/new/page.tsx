@@ -1,23 +1,19 @@
-import { Header } from "@/components/Header";
 import { NewRequestForm } from "@/components/v2/NewRequestForm";
-import { activeOrgId, currentUserId } from "@/lib/v2/session";
+import { requireOrg } from "@/lib/v2/tenant";
 import { myOrganizations } from "@sealedrfq/db/workspace";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-export default async function NewRequest() {
-  const userId = await currentUserId();
-  if (!userId) redirect("/workspace");
+export default async function NewRequest({ params }: { params: Promise<{ org: string }> }) {
+  const { org } = await params;
+  const { userId, orgId, orgSlug } = await requireOrg(org);
 
   // Offered only the organization actually acted as; the action ignores any other.
-  const orgId = await activeOrgId(userId);
   const buying = (await myOrganizations(userId)).filter((o) => o.can_buy && o.id === orgId);
 
   return (
-    <div className="shell">
-      <Header />
+    <>
       <section className="desk-head">
         <h2 className="section-title">New request</h2>
         <p className="desk-head-sub">
@@ -32,7 +28,7 @@ export default async function NewRequest() {
             <div className="panel">
               <div className="head">Nothing to post from</div>
               <div className="note" style={{ margin: "0 20px 18px" }}>
-                None of your organisations can buy. <Link href="/workspace">Back to the workspace</Link>.
+                This organisation cannot buy. <Link href={`/app/${orgSlug}/inbox`}>Back to the inbox</Link>.
               </div>
             </div>
           ) : (
@@ -55,6 +51,6 @@ export default async function NewRequest() {
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
