@@ -1,37 +1,49 @@
-import { createPublicClient, custom, getAddress } from "viem";
+import { createPublicClient, custom, encodeAbiParameters, getAddress, hashMessage } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { describe, expect, it } from "vitest";
+import { arcTest } from "../src/chains.js";
 import { verifyWalletSignature } from "../src/walletSignature.js";
 
 const MSG = "Link this wallet to SealedRFQ. Nonce: abc123";
-const SAFE = getAddress("0x00000000000000000000000000000000000050fe".toLowerCase());
+const SAFE = getAddress("0x00000000000000000000000000000000000050fe");
+const CHAIN = arcTest.id;
+const MAGIC = `0x1626ba7e${"0".repeat(56)}`;
+const REVERT_DATA = `0x08c379a0${encodeAbiParameters([{ type: "string" }], ["no"]).slice(2)}`;
+
+type Chain = {
+  code: string;
+  /** What the account's isValidSignature answers, or how the call fails. */
+  answer?: string | "revert" | "outage";
+  codeDown?: boolean;
+};
 
 /**
- * A client that answers only what the verifier asks. `eth_call` is the ERC-6492 validator that
- * viem deploys for the call; its answer is a bool, so what is faked here is the account's verdict,
- * not the EIP-1271 magic-value comparison, which lives inside viem's validator and is covered by
- * the live test against a real Safe.
+ * A client whose RPC is a script. This is a fake chain, not a Safe: it can show that the verifier
+ * asks isValidSignature(hashMessage(message), signature) and maps the answer correctly, including
+ * the 0x1626ba7e comparison. It cannot show that a real Safe answers that way. No test in this
+ * repo exercises EIP-1271 against a real contract. Doing so needs a Safe deployed on Arc testnet
+ * with a known owner and an owner signature over the Safe-wrapped message hash (see the task 8
+ * report); safe.live.test.ts only proves the Safe handler has bytecode.
  */
-function fakeClient(chain: {
-  code: string;
-  call?: "valid" | "invalid" | "revert";
-  codeDown?: boolean;
-}) {
-  const calls: string[] = [];
+function fakeClient(chain: Chain) {
+  const calls: { data: string }[] = [];
   const client = createPublicClient({
+    chain: arcTest,
     transport: custom({
-      async request({ method }) {
-        calls.push(method);
+      async request({ method, params }) {
         if (method === "eth_getCode") {
           if (chain.codeDown) throw new Error("connection refused");
           return chain.code;
         }
         if (method === "eth_call") {
-          if (chain.call === "valid") return `0x${"0".repeat(63)}1`;
-          if (chain.call === "invalid") return `0x${"0".repeat(64)}`;
-          const err = new Error("execution reverted") as Error & { code: number };
-          err.code = 3;
-          throw err;
+          calls.push({ data: (params as [{ data: string }])[0].data });
+          if (chain.answer === "revert") {
+            throw Object.assign(new Error("execution reverted"), { code: 3, data: REVERT_DATA });
+          }
+          if (chain.answer === "outage") {
+            throw Object.assign(new Error("503 upstream"), { code: -32603 });
+          }
+          return chain.answer ?? MAGIC;
         }
         throw new Error(`unexpected ${method}`);
       },
@@ -42,81 +54,100 @@ function fakeClient(chain: {
 
 describe("verifyWalletSignature", () => {
   const eoa = privateKeyToAccount(generatePrivateKey());
+  const base = { chainId: CHAIN, message: MSG };
 
   it("accepts an EOA's own signature without a contract call", async () => {
     const signature = await eoa.signMessage({ message: MSG });
     const { client, calls } = fakeClient({ code: "0x" });
     await expect(
-      verifyWalletSignature({ client, address: eoa.address, message: MSG, signature }),
-    ).resolves.toEqual({ ok: true, accountType: "eoa" });
-    expect(calls).not.toContain("eth_call");
+      verifyWalletSignature({ ...base, client, address: eoa.address, signature }),
+    ).resolves.toEqual({ ok: true, accountType: "eoa", chainId: CHAIN });
+    expect(calls).toHaveLength(0);
   });
 
-  it("rejects an EOA signature made by another key", async () => {
+  it("rejects an EOA signature made by another key, and one over another message", async () => {
     const other = privateKeyToAccount(generatePrivateKey());
-    const signature = await other.signMessage({ message: MSG });
     const { client } = fakeClient({ code: "0x" });
-    const r = await verifyWalletSignature({
-      client,
-      address: eoa.address,
-      message: MSG,
-      signature,
-    });
-    expect(r.ok).toBe(false);
-    expect(r.accountType).toBe("eoa");
-    expect(r.reason).toBeTruthy();
-  });
-
-  it("rejects a signature over a different message", async () => {
-    const signature = await eoa.signMessage({ message: "something else" });
-    const { client } = fakeClient({ code: "0x" });
-    expect(
-      (await verifyWalletSignature({ client, address: eoa.address, message: MSG, signature })).ok,
-    ).toBe(false);
+    for (const signature of [
+      await other.signMessage({ message: MSG }),
+      await eoa.signMessage({ message: "something else" }),
+    ]) {
+      const r = await verifyWalletSignature({ ...base, client, address: eoa.address, signature });
+      expect(r.ok).toBe(false);
+      expect(r.accountType).toBe("eoa");
+    }
   });
 
   it("rejects a malformed signature rather than throwing", async () => {
     const { client } = fakeClient({ code: "0x" });
     const r = await verifyWalletSignature({
+      ...base,
       client,
       address: eoa.address,
-      message: MSG,
       signature: "0x1234",
     });
-    expect(r).toMatchObject({ ok: false, accountType: "eoa" });
+    expect(r).toMatchObject({ ok: false, accountType: "eoa", reason: "signature is malformed" });
   });
 
-  it("accepts a contract account that validates the signature", async () => {
-    // An owner's ECDSA signature stands in for a Safe's signature bytes; the fake decides.
+  it("says to deploy first when an address with no code fails, as an undeployed Safe would", async () => {
+    const owner = privateKeyToAccount(generatePrivateKey());
+    const signature = await owner.signMessage({ message: MSG });
+    const { client } = fakeClient({ code: "0x" });
+    const r = await verifyWalletSignature({ ...base, client, address: SAFE, signature });
+    expect(r.ok).toBe(false);
+    expect(r.reason).toMatch(/deploy it first/);
+  });
+
+  it("asks the contract with the message hash and the signature, and accepts the magic value", async () => {
     const signature = await eoa.signMessage({ message: MSG });
-    const { client } = fakeClient({ code: "0x608060", call: "valid" });
+    const { client, calls } = fakeClient({ code: "0x608060" });
     await expect(
-      verifyWalletSignature({ client, address: SAFE, message: MSG, signature }),
-    ).resolves.toEqual({ ok: true, accountType: "contract" });
+      verifyWalletSignature({ ...base, client, address: SAFE, signature }),
+    ).resolves.toEqual({ ok: true, accountType: "contract", chainId: CHAIN });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.data.startsWith("0x1626ba7e")).toBe(true);
+    expect(calls[0]?.data).toContain(hashMessage(MSG).slice(2));
+    expect(calls[0]?.data).toContain(signature.slice(2));
   });
 
-  it("does not accept a contract account on the strength of an owner's ECDSA signature alone", async () => {
-    // The point of the module: the recovered signer is not the Safe, so only the contract's verdict counts.
+  it("rejects a contract that answers anything but the magic value", async () => {
     const signature = await eoa.signMessage({ message: MSG });
-    const { client } = fakeClient({ code: "0x608060", call: "invalid" });
-    const r = await verifyWalletSignature({ client, address: SAFE, message: MSG, signature });
+    const { client } = fakeClient({ code: "0x608060", answer: `0xffffffff${"0".repeat(56)}` });
+    const r = await verifyWalletSignature({ ...base, client, address: SAFE, signature });
     expect(r).toMatchObject({ ok: false, accountType: "contract" });
   });
 
-  it("rejects a contract account whose validation reverts", async () => {
+  it("rejects a contract whose validation reverts, or that has no such function", async () => {
     const signature = await eoa.signMessage({ message: MSG });
-    const { client } = fakeClient({ code: "0x608060", call: "revert" });
-    const r = await verifyWalletSignature({ client, address: SAFE, message: MSG, signature });
-    expect(r).toMatchObject({ ok: false, accountType: "contract" });
+    for (const answer of ["revert", "0x"]) {
+      const { client } = fakeClient({ code: "0x608060", answer });
+      const r = await verifyWalletSignature({ ...base, client, address: SAFE, signature });
+      expect(r).toMatchObject({ ok: false, accountType: "contract" });
+    }
   });
 
-  it("throws when the chain cannot be reached, rather than reporting a bad signature", async () => {
-    // viem folds a failed eth_call into "invalid", so the only outage this can distinguish is the
-    // code lookup that precedes it; that one must not read as a wrong signature.
+  it("throws when the chain is unreachable, on both paths, rather than reporting a bad signature", async () => {
     const signature = await eoa.signMessage({ message: MSG });
-    const { client } = fakeClient({ code: "0x", codeDown: true });
+    const down = fakeClient({ code: "0x", codeDown: true }).client;
     await expect(
-      verifyWalletSignature({ client, address: eoa.address, message: MSG, signature }),
+      verifyWalletSignature({ ...base, client: down, address: eoa.address, signature }),
     ).rejects.toThrow();
+    const flaky = fakeClient({ code: "0x608060", answer: "outage" }).client;
+    await expect(
+      verifyWalletSignature({ ...base, client: flaky, address: SAFE, signature }),
+    ).rejects.toThrow(/could not query the chain/);
+  });
+
+  it("refuses to verify on a client for a different chain than the one being linked", async () => {
+    const { client } = fakeClient({ code: "0x" });
+    await expect(
+      verifyWalletSignature({
+        client,
+        chainId: 1,
+        address: eoa.address,
+        message: MSG,
+        signature: await eoa.signMessage({ message: MSG }),
+      }),
+    ).rejects.toThrow(/chain/);
   });
 });

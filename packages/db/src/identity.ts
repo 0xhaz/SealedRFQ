@@ -122,8 +122,9 @@ export async function applyClerkEvent(
  * after the spend, which rolls the spend back with everything else, so an honest retry is not
  * punished for a caller's bug. Verifying the signature itself is the caller's job, and
  * `verifyWalletSignature` in @sealedrfq/shared is the one to use: it handles contract accounts
- * (a Safe) that ECDSA recovery alone would reject. Pass the `accountType` it returned, so the link
- * records what was verified.
+ * (a Safe) that ECDSA recovery alone would reject. Pass the `accountType` it returned. The database cannot
+ * check it, so it records what the caller reports, not independent proof; and take `chainId` from
+ * the same result, since a contract account's identity is per chain.
  *
  * Runs as the user, not an organization: a wallet belongs to a person.
  */

@@ -523,13 +523,17 @@ withDb("wallet links", () => {
   });
 
   it("refuses an account type outside the two known", async () => {
-    await expect(
-      admin.query(
-        `INSERT INTO wallet_links (user_id, chain_namespace, chain_id, address, verified_at, account_type)
-         VALUES ($1,'eip155',1,'0xbeef',now(),'multisig')`,
-        [USER],
-      ),
-    ).rejects.toThrow(/account_type|check/i);
+    // 23514 is check_violation; a message regex would also pass on a NOT NULL violation that
+    // names the column. 'EOA' is included to show the two values are exact, lowercase.
+    for (const bad of ["multisig", "EOA"]) {
+      await expect(
+        admin.query(
+          `INSERT INTO wallet_links (user_id, chain_namespace, chain_id, address, verified_at, account_type)
+           VALUES ($1,'eip155',1,'0xbeef',now(),$2)`,
+          [USER, bad],
+        ),
+      ).rejects.toMatchObject({ code: "23514" });
+    }
   });
 
   it("does not let the application role rewrite the account type", async () => {

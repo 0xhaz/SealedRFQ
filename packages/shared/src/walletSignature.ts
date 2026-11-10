@@ -8,75 +8,132 @@
  * signature yields an owner's key (or garbage), never the Safe, so a recovery-only check rejects
  * every Safe, and any workaround that accepts the recovered owner instead would let one owner
  * claim the whole Safe. The standard answer is EIP-1271: ask the account, `isValidSignature(hash,
- * signature)`, and accept the magic value 0x1626ba7e. viem's `verifyMessage` does that dispatch
- * (through its ERC-6492 validator, a deployless call that also covers EIP-1271), so we use it
- * rather than hand-rolling it.
+ * signature)`, and accept the magic value 0x1626ba7e.
  *
- * The EOA case is still ECDSA, and deliberately taken without an RPC call when the address has no
- * code. That ordering matters for one reason: `verifyMessage` also accepts ERC-6492 signatures
- * for contracts that are not deployed yet. A counterfactual account is not yet something that can
- * be a signer, so an address with no code is only ever verified by recovery, and a wrapped 6492
- * signature for it simply fails to recover.
+ * Beware that viem's root export `verifyMessage` is the client-less, ECDSA-only util and rejects
+ * contract accounts; the client action in "viem/actions" is the one that does not.
+ *
+ * The EIP-1271 call is made directly (readContract) rather than through viem's `verifyMessage`
+ * action, for one reason: that action folds every failed `eth_call`, a timeout or a 5xx included,
+ * into plain `false`. "We could not ask" and "the account said no" lead the user to opposite
+ * actions (retry versus sign again), so an unreachable chain must throw, on this path exactly as
+ * it does on the EOA path's code lookup. Only a revert, or an account with no answer to the
+ * question, is a rejection.
+ *
+ * An address with no code is only ever verified by recovery. A counterfactual (undeployed) account
+ * cannot be a signer yet, and accepting ERC-6492 wrapped signatures would let one in.
  */
 import {
   type Address,
+  BaseError,
+  ContractFunctionRevertedError,
+  ContractFunctionZeroDataError,
   type Hex,
   type PublicClient,
+  hashMessage,
   isAddressEqual,
+  parseAbi,
   recoverMessageAddress,
 } from "viem";
-// The root export of `verifyMessage` is the client-less ECDSA-only util; the client action is the
-// one with the contract fallback.
-import { verifyMessage } from "viem/actions";
 
 export type WalletAccountType = "eoa" | "contract";
 
 export type WalletSignatureResult = {
   ok: boolean;
-  /**
-   * What the address was when it was checked. Reported even when `ok` is false so a caller can say
-   * why, but only meaningful to store when `ok` is true.
-   */
+  /** What the address was when it was checked; only meaningful to store when `ok` is true. */
   accountType: WalletAccountType;
+  /**
+   * The chain the check ran on. A contract account's identity and owners are per chain, so a
+   * caller must store this, not a chain id it holds separately.
+   */
+  chainId: number;
   reason?: string;
 };
 
+const EIP1271_MAGIC = "0x1626ba7e";
+const erc1271Abi = parseAbi([
+  "function isValidSignature(bytes32 hash, bytes signature) view returns (bytes4)",
+]);
+
 export async function verifyWalletSignature(input: {
   client: PublicClient;
+  /** The chain the caller intends to link under; must be the client's chain. */
+  chainId: number;
   address: Address;
   message: string;
   signature: Hex;
 }): Promise<WalletSignatureResult> {
-  const { client, address, message, signature } = input;
+  const { client, chainId, address, message, signature } = input;
+  if (client.chain?.id !== chainId) {
+    throw new Error(
+      `verifyWalletSignature: client is on chain ${client.chain?.id}, asked to verify for ${chainId}`,
+    );
+  }
 
   const code = await client.getCode({ address });
-  // EIP-7702 delegated EOAs carry code too (0xef0100 + target). They are treated as contract
-  // accounts, which is safe: verifyMessage accepts their ordinary ECDSA signatures as well.
-  const isContract = code !== undefined && code !== "0x";
+  const hasCode = code !== undefined && code !== "0x";
+  // An EIP-7702 delegated EOA carries code (0xef0100 + target) yet signs with its own key.
+  const delegated = hasCode && code.toLowerCase().startsWith("0xef0100");
 
-  if (!isContract) {
+  if (!hasCode || delegated) {
+    let recovered: Address | undefined;
     try {
-      const recovered = await recoverMessageAddress({ message, signature });
-      return isAddressEqual(recovered, address)
-        ? { ok: true, accountType: "eoa" }
-        : { ok: false, accountType: "eoa", reason: "signature was made by a different key" };
+      recovered = await recoverMessageAddress({ message, signature });
     } catch {
-      return { ok: false, accountType: "eoa", reason: "signature is malformed" };
+      return { ok: false, accountType: "eoa", chainId, reason: "signature is malformed" };
     }
+    if (isAddressEqual(recovered, address)) return { ok: true, accountType: "eoa", chainId };
+    if (delegated) {
+      return {
+        ok: false,
+        accountType: "eoa",
+        chainId,
+        reason: "signature was made by a different key",
+      };
+    }
+    return {
+      ok: false,
+      accountType: "eoa",
+      chainId,
+      reason:
+        "no code at this address and the signature is not from its key; if this is a contract account that is not deployed yet, deploy it first",
+    };
   }
 
+  let magic: Hex;
   try {
-    const ok = await verifyMessage(client, { address, message, signature });
-    return ok
-      ? { ok: true, accountType: "contract" }
-      : {
-          ok: false,
-          accountType: "contract",
-          reason: "contract account did not accept the signature (EIP-1271)",
-        };
+    magic = await client.readContract({
+      address,
+      abi: erc1271Abi,
+      functionName: "isValidSignature",
+      args: [hashMessage(message), signature],
+    });
   } catch (e) {
-    // viem reports a reverted or failed validation call as plain "invalid", so an outage during
-    // this call is indistinguishable from a rejection; only the code lookup above surfaces one.
+    // viem also files a bare -32603 "internal error" under ContractFunctionRevertedError, so a
+    // revert only counts when the node returned revert data to decode (even an empty "0x").
+    const rejected =
+      e instanceof BaseError &&
+      e.walk(
+        (x) =>
+          (x instanceof ContractFunctionRevertedError && x.raw !== undefined) ||
+          x instanceof ContractFunctionZeroDataError,
+      );
+    if (rejected) {
+      return {
+        ok: false,
+        accountType: "contract",
+        chainId,
+        reason: "contract account reverted or does not implement EIP-1271",
+      };
+    }
     throw new Error(`verifyWalletSignature: could not query the chain: ${(e as Error).message}`);
   }
+  return magic.toLowerCase() === EIP1271_MAGIC
+    ? { ok: true, accountType: "contract", chainId }
+    : {
+        ok: false,
+        accountType: "contract",
+        chainId,
+        reason: "contract account did not return the EIP-1271 magic value",
+      };
 }

@@ -1,11 +1,15 @@
--- Record what kind of account a linked wallet was verified as.
+-- Record what kind of account a linked wallet was reported to be.
 --
 -- An externally owned account proves control by an ECDSA signature; a smart-contract account such
 -- as a Safe proves it by answering EIP-1271 from inside the contract. Those are different facts
--- with different failure modes, so the link keeps which one was actually checked at link time.
--- It is stored rather than re-derived later because a contract's code can change after the fact
--- (an upgradeable account, a delegated EOA), and the link should say what was true when it was
--- accepted.
+-- with different failure modes, so the link keeps which one was checked at link time. It is stored
+-- rather than re-derived later because a contract's code can change after the fact (an upgradeable
+-- account, a delegated EOA).
+--
+-- This is caller-asserted, not enforced: linkWallet stores what it is given (default 'eoa') and
+-- the database cannot check it, so a caller could record 'contract' for an EOA. The single
+-- intended caller passes verifyWalletSignature's accountType straight through, and the CHECK only
+-- bounds the values.
 --
 -- Existing rows are EOAs: wallet login, the only way they were created, was ECDSA-only.
 --
