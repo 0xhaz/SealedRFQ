@@ -1,6 +1,7 @@
 # @sealedrfq/db
 
-Tenant state for V2: organizations, members, requests, responses and documents, in PostgreSQL.
+Tenant state for V2 in PostgreSQL: the projection of Clerk's organizations and members, plus
+requests, responses, documents, wallet links and organization signers.
 
 ## Running it locally
 
@@ -44,21 +45,57 @@ Policies never read another protected table directly. The first version had `req
 with `infinite recursion detected in policy`. Cross-table questions go through `SECURITY DEFINER`
 functions in the `app` schema, which run as the owner and so do not re-enter the calling policy.
 
-## Signing in
+## Where identity comes from
 
-Authentication is the one operation that cannot be tenant-scoped: the row being created *is* the
-identity, so it cannot satisfy a policy keyed on the current user. The first attempt failed exactly
-that way, with `new row violates row-level security policy for table "users"`.
+Clerk, not this database. Accounts, organizations and memberships are created and revoked in Clerk;
+Postgres keeps a **projection** of them, because a row-level security policy cannot call an HTTP API
+and `app.active_org()` has to resolve membership in SQL. `docs/v2_saas_refactor.md` argues this out
+as ADR-024, including what the projection does when a revocation webhook is late.
 
-The fix is not a permissive INSERT policy, which would let any session mint accounts. Sign-in goes
-through three `SECURITY DEFINER` functions in the `app` schema that do the pre-auth work and nothing
-else, so the privilege escalation is named and greppable rather than hidden in a policy that is
-broader than it looks. `wallet_challenges` is revoked from the application role entirely; those
-functions are the only way in.
+The projection is written only by Clerk's verified webhook, through four `SECURITY DEFINER`
+functions in the `app` schema — `sync_user`, `sync_organization`, `sync_membership`,
+`remove_membership` (migration `0009`) — wrapped by `src/identity.ts`. The application role has no
+direct write access to `memberships`, because that table is the second of the two gates and must not
+be writable by the side it is meant to check. Each function applies an event only if it is at least
+as new as the stored row, and `remove_membership` leaves a `membership_removals` tombstone so a
+replayed or reordered `organizationMembership.created` cannot resurrect a revoked member.
 
-A nonce is single-use and short-lived, and both rules live in one `UPDATE ... WHERE` so there is no
-window between checking and claiming. Two requests racing the same nonce cannot both win, which is
-tested. A wrong signature still burns the nonce, so a stolen one cannot be ground against.
+There is no login here any more. `0012` dropped `app.issue_challenge` and `app.upsert_user`; nothing
+mints a user or signs anyone in by wallet.
+
+## Linking a wallet
+
+A wallet is now a capability attached to an account that already exists, not the account. `0011`
+holds two tables for it:
+
+- `wallet_links` — the addresses a *person* has proven control of, one row per namespace and chain
+  (`eip155` for Arc, `ccd` for Concordium). Keyed on the user, so it stays yours whichever
+  organization you are acting for.
+- `organization_signers` — which of those wallets may be signed *for* an organization, with a scope
+  and limits. Deliberately not a membership table: being in an organization decides what you may
+  **see**, being a signer decides what may be **signed**. Folding them together would make every
+  reader a spender.
+
+`wallet_challenges` survives from the wallet-login era, repurposed. `app.consume_challenge` is the
+one function left of the three: it spends a nonce single-use and short-lived, both rules in one
+`UPDATE ... WHERE` so there is no window between checking and claiming. Two requests racing the same
+nonce cannot both win, which is tested. The table itself is revoked from the application role
+entirely, so that function is the only way in.
+
+What a successful check now means is "this user controls this address", not "you are this user".
+`linkWallet` spends the challenge before inserting, so a replayed nonce links nothing, and it
+refuses a challenge issued for a different address — otherwise a nonce obtained for a wallet you
+control could be spent to claim one you do not. That refusal throws *after* the spend, inside the
+transaction, so the spend rolls back with it: a caller's own bug does not burn the user's nonce. The
+address is compared case-insensitively only for `eip155`, since a base58 address in different case
+is a different account.
+
+Unlike the projection, `wallet_links` is written through RLS as the user rather than by a privileged
+function. It is ordinary tenant data; only the challenge needs the privileged door.
+
+Verifying the signature is the caller's job, not this package's. `verifyWalletSignature` in
+`@sealedrfq/shared` is the one to use: it handles contract accounts (a Safe) that ECDSA recovery
+alone would reject.
 
 ## The request lifecycle
 
@@ -118,7 +155,7 @@ They pass with the policies switched off unless they are written to fail. Confir
 ```bash
 docker exec sealedrfq-pg psql -U sealedrfq -d sealedrfq \
   -c "ALTER TABLE request_responses DISABLE ROW LEVEL SECURITY;"
-pnpm --filter @sealedrfq/db test     # four tests should fail, including the rival-leak one
+pnpm --filter @sealedrfq/db test     # five tests should fail, including the rival-leak one
 docker exec sealedrfq-pg psql -U sealedrfq -d sealedrfq \
   -c "ALTER TABLE request_responses ENABLE ROW LEVEL SECURITY;"
 ```

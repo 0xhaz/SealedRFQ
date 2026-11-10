@@ -98,7 +98,8 @@ withDb("a user who belongs to two organizations", () => {
   });
 
   it("cannot be fooled by a temp table shadowing memberships", async () => {
-    // active_org() pins its search_path; without that this forged row would confirm ORG_STRANGER.
+    // Defeated twice over: active_org() pins its search_path *and* reads `public.memberships` by
+    // name. So this pins the outcome, not either mechanism — it still passes if one is dropped.
     const r = await withTenant(USER_BOTH, ORG_STRANGER, async (q) => {
       await q.query("CREATE TEMP TABLE memberships (org_id uuid, user_id uuid, role text)");
       await q.query("INSERT INTO pg_temp.memberships VALUES ($1,$2,'owner')", [

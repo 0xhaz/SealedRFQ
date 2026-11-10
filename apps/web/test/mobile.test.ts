@@ -38,7 +38,7 @@ describe("mobile card layout", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("gives the board and the bid table the card layout at all", () => {
+  it("gives the inbox the card layout at all", () => {
     // The inbox is what a supplier meets first, and it is too wide for a handset as a table.
     for (const f of ["app/app/[org]/inbox/page.tsx"]) {
       expect(readFileSync(join(process.cwd(), f), "utf8"), f).toContain('className="row"');

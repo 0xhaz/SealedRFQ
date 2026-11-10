@@ -109,9 +109,18 @@ legitimately cross-organization: listing which organizations you belong to, so t
 drawn.
 
 That is the whole of the two-gate argument, in SQL. A stale projection row grants nothing, because
-the session must *also* name that organization and Clerk will not put a revoked one in a session
-token. A missing projection row denies. Neither side can admit anyone alone. Unset means null means
-no rows, which is the existing fail-closed default rather than a new one.
+the session must *also* name that organization and Clerk will not *issue* a token naming a revoked
+one. A missing projection row denies. Unset means null means no rows, which is the existing
+fail-closed default rather than a new one.
+
+One clause has to be exact, because it is the failure this ADR exists to survive. A token issued
+*before* the revocation keeps naming the organization for the rest of its lifetime — Clerk's
+default is 60 seconds — so during that window the session gate is still satisfied and only the
+projection can refuse. What makes it refuse is `0009`'s `app.remove_membership`: it deletes the row
+and records a `membership_removals` tombstone, so a late or replayed `organizationMembership.created`
+cannot resurrect it and the deny is permanent rather than a race the webhook order decides. So:
+**neither side can admit anyone alone beyond the life of a session token already issued**, and the
+tombstone is what holds the Postgres side shut once it has.
 
 Two negative tests, not comments: revoke a membership in Clerk, leave the projection row, and assert
 the organization's requests become unreadable; then set `app.current_org_id` to an organization the
