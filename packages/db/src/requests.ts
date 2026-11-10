@@ -44,7 +44,8 @@ export async function createRequest(
   userId: string,
   input: { orgId: string; type: RequestType; title: string; inviteOnly?: boolean },
 ): Promise<RequestRow> {
-  return withTenant(userId, async (q) => {
+  // The organization being created for is the one acted as, so RLS checks the membership.
+  return withTenant(userId, input.orgId, async (q) => {
     const { rows } = await q.query<RequestRow>(
       `INSERT INTO requests (org_id, type, title, invite_only)
        VALUES ($1, $2, $3, $4) RETURNING *`,
@@ -59,10 +60,11 @@ export async function createRequest(
 
 export async function setStatus(
   userId: string,
+  orgId: string,
   requestId: string,
   next: RequestStatus,
 ): Promise<RequestRow> {
-  return withTenant(userId, async (q) => {
+  return withTenant(userId, orgId, async (q) => {
     const current = await loadOwned(q, requestId);
     assertTransition(current.status, next);
     const { rows } = await q.query<RequestRow>(
@@ -75,13 +77,18 @@ export async function setStatus(
   });
 }
 
-export async function invite(userId: string, requestId: string, orgId: string): Promise<void> {
-  await withTenant(userId, async (q) => {
+export async function invite(
+  userId: string,
+  orgId: string,
+  requestId: string,
+  inviteeOrgId: string,
+): Promise<void> {
+  await withTenant(userId, orgId, async (q) => {
     await loadOwned(q, requestId); // only the buying organization invites
     await q.query(
       `INSERT INTO request_invitations (request_id, org_id) VALUES ($1, $2)
        ON CONFLICT DO NOTHING`,
-      [requestId, orgId],
+      [requestId, inviteeOrgId],
     );
   });
 }
@@ -90,7 +97,7 @@ export async function respond(
   userId: string,
   input: { requestId: string; orgId: string; body: string },
 ): Promise<string> {
-  return withTenant(userId, async (q) => {
+  return withTenant(userId, input.orgId, async (q) => {
     // Visible through RLS only if this user's organization owns the request or was invited to it,
     // so an uninvited supplier cannot answer a request it should not know exists.
     const seen = await q.query("SELECT status FROM requests WHERE id = $1", [input.requestId]);
@@ -118,9 +125,10 @@ export async function respond(
  */
 export async function convertToTender(
   userId: string,
+  orgId: string,
   input: { rfiId: string; type: "RFQ" | "RFP"; title: string },
 ): Promise<{ tender: RequestRow; rfi: RequestRow }> {
-  return withTenant(userId, async (q) => {
+  return withTenant(userId, orgId, async (q) => {
     const rfi = await loadOwned(q, input.rfiId);
     if (rfi.type !== "RFI") throw new WorkflowError("only an RFI can be converted");
     assertTransition(rfi.status, "converted");
@@ -154,11 +162,11 @@ function assertTransition(from: RequestStatus, to: RequestStatus): void {
   }
 }
 
-/** Load a request this user's organization owns. An invited supplier gets no write access here. */
+/** Load a request the active organization owns. An invited supplier gets no write access here. */
 async function loadOwned(q: PoolClient, requestId: string): Promise<RequestRow> {
   const { rows } = await q.query<RequestRow>(
     `SELECT r.* FROM requests r
-      WHERE r.id = $1 AND r.org_id IN (SELECT app.member_orgs())`,
+      WHERE r.id = $1 AND r.org_id = app.active_org()`,
     [requestId],
   );
   const row = rows[0];

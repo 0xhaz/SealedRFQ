@@ -36,7 +36,7 @@ withDb("signing in with a wallet", () => {
     const userId = await verifyChallenge(c.nonce, await sign(c));
     expect(userId).toMatch(/^[0-9a-f-]{36}$/);
     // The point of the id: it is what withTenant takes.
-    await expect(withTenant(userId, async () => "ok")).resolves.toBe("ok");
+    await expect(withTenant(userId, null, async () => "ok")).resolves.toBe("ok");
   });
 
   it("is the same user on a second sign-in, not a duplicate", async () => {

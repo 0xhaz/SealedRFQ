@@ -50,7 +50,7 @@ afterAll(async () => {
 
 const openRfi = async (title = "Route optimisation") => {
   const rfi = await createRequest(BUYER, { orgId: ORG_BUYER, type: "RFI", title });
-  await setStatus(BUYER, rfi.id, "open");
+  await setStatus(BUYER, ORG_BUYER, rfi.id, "open");
   return rfi;
 };
 
@@ -60,6 +60,7 @@ withDb("an RFI", () => {
     expect(rfi.status).toBe("draft");
     const supplierSees = await withTenant(
       SUP_A,
+      ORG_A,
       async (q) => (await q.query("SELECT id FROM requests WHERE id = $1", [rfi.id])).rowCount,
     );
     expect(supplierSees).toBe(0);
@@ -67,12 +68,12 @@ withDb("an RFI", () => {
 
   it("takes responses only while open", async () => {
     const rfi = await openRfi();
-    await invite(BUYER, rfi.id, ORG_A);
+    await invite(BUYER, ORG_BUYER, rfi.id, ORG_A);
     await expect(
       respond(SUP_A, { requestId: rfi.id, orgId: ORG_A, body: "our approach" }),
     ).resolves.toBeTruthy();
 
-    await setStatus(BUYER, rfi.id, "closed");
+    await setStatus(BUYER, ORG_BUYER, rfi.id, "closed");
     await expect(respond(SUP_A, { requestId: rfi.id, orgId: ORG_A, body: "late" })).rejects.toThrow(
       /closed request takes no responses/,
     );
@@ -80,7 +81,7 @@ withDb("an RFI", () => {
 
   it("cannot be answered by a supplier who was not invited", async () => {
     const rfi = await openRfi();
-    await invite(BUYER, rfi.id, ORG_A);
+    await invite(BUYER, ORG_BUYER, rfi.id, ORG_A);
     await expect(
       respond(SUP_B, { requestId: rfi.id, orgId: ORG_B, body: "uninvited" }),
     ).rejects.toThrow(/not invited/);
@@ -88,17 +89,17 @@ withDb("an RFI", () => {
 
   it("cannot be invited to by anyone but the buyer", async () => {
     const rfi = await openRfi();
-    await expect(invite(SUP_A, rfi.id, ORG_A)).rejects.toThrow(/not yours to change/);
+    await expect(invite(SUP_A, ORG_A, rfi.id, ORG_A)).rejects.toThrow(/not yours to change/);
   });
 });
 
 withDb("converting an RFI into a tender", () => {
   it("creates a new request and leaves the RFI intact", async () => {
     const rfi = await openRfi();
-    await invite(BUYER, rfi.id, ORG_A);
+    await invite(BUYER, ORG_BUYER, rfi.id, ORG_A);
     await respond(SUP_A, { requestId: rfi.id, orgId: ORG_A, body: "our approach" });
 
-    const { tender, rfi: after } = await convertToTender(BUYER, {
+    const { tender, rfi: after } = await convertToTender(BUYER, ORG_BUYER, {
       rfiId: rfi.id,
       type: "RFQ",
       title: "Route optimisation, tendered",
@@ -115,6 +116,7 @@ withDb("converting an RFI into a tender", () => {
     // The RFI keeps its own answers.
     const responses = await withTenant(
       BUYER,
+      ORG_BUYER,
       async (q) =>
         (await q.query("SELECT id FROM request_responses WHERE request_id = $1", [rfi.id]))
           .rowCount,
@@ -124,38 +126,42 @@ withDb("converting an RFI into a tender", () => {
 
   it("produces a draft, so opening it stays a separate human act", async () => {
     const rfi = await openRfi();
-    const { tender } = await convertToTender(BUYER, { rfiId: rfi.id, type: "RFQ", title: "T" });
+    const { tender } = await convertToTender(BUYER, ORG_BUYER, {
+      rfiId: rfi.id,
+      type: "RFQ",
+      title: "T",
+    });
     expect(tender.status).toBe("draft");
   });
 
   it("refuses to convert twice", async () => {
     const rfi = await openRfi();
-    await convertToTender(BUYER, { rfiId: rfi.id, type: "RFQ", title: "first" });
+    await convertToTender(BUYER, ORG_BUYER, { rfiId: rfi.id, type: "RFQ", title: "first" });
     await expect(
-      convertToTender(BUYER, { rfiId: rfi.id, type: "RFQ", title: "second" }),
+      convertToTender(BUYER, ORG_BUYER, { rfiId: rfi.id, type: "RFQ", title: "second" }),
     ).rejects.toThrow(/converted request is final/);
   });
 
   it("refuses to convert an RFQ", async () => {
     const rfq = await createRequest(BUYER, { orgId: ORG_BUYER, type: "RFQ", title: "Already" });
     await expect(
-      convertToTender(BUYER, { rfiId: rfq.id, type: "RFQ", title: "nope" }),
+      convertToTender(BUYER, ORG_BUYER, { rfiId: rfq.id, type: "RFQ", title: "nope" }),
     ).rejects.toThrow(/only an RFI can be converted/);
   });
 
   it("cannot be done by a supplier who merely answered it", async () => {
     const rfi = await openRfi();
-    await invite(BUYER, rfi.id, ORG_A);
+    await invite(BUYER, ORG_BUYER, rfi.id, ORG_A);
     await respond(SUP_A, { requestId: rfi.id, orgId: ORG_A, body: "our approach" });
     await expect(
-      convertToTender(SUP_A, { rfiId: rfi.id, type: "RFQ", title: "hijack" }),
+      convertToTender(SUP_A, ORG_A, { rfiId: rfi.id, type: "RFQ", title: "hijack" }),
     ).rejects.toThrow(/not yours to change/);
   });
 
   it("stops the RFI taking further answers", async () => {
     const rfi = await openRfi();
-    await invite(BUYER, rfi.id, ORG_A);
-    await convertToTender(BUYER, { rfiId: rfi.id, type: "RFQ", title: "T" });
+    await invite(BUYER, ORG_BUYER, rfi.id, ORG_A);
+    await convertToTender(BUYER, ORG_BUYER, { rfiId: rfi.id, type: "RFQ", title: "T" });
     await expect(
       respond(SUP_A, { requestId: rfi.id, orgId: ORG_A, body: "too late" }),
     ).rejects.toThrow(/converted request takes no responses/);
@@ -165,13 +171,15 @@ withDb("converting an RFI into a tender", () => {
 withDb("the status machine", () => {
   it("refuses a move that is not on the map", async () => {
     const rfi = await createRequest(BUYER, { orgId: ORG_BUYER, type: "RFI", title: "D" });
-    await expect(setStatus(BUYER, rfi.id, "closed")).rejects.toThrow(WorkflowError);
-    await expect(setStatus(BUYER, rfi.id, "closed")).rejects.toThrow(/can only become open/);
+    await expect(setStatus(BUYER, ORG_BUYER, rfi.id, "closed")).rejects.toThrow(WorkflowError);
+    await expect(setStatus(BUYER, ORG_BUYER, rfi.id, "closed")).rejects.toThrow(
+      /can only become open/,
+    );
   });
 
   it("treats cancelled as final", async () => {
     const rfi = await openRfi();
-    await setStatus(BUYER, rfi.id, "cancelled");
-    await expect(setStatus(BUYER, rfi.id, "open")).rejects.toThrow(/final/);
+    await setStatus(BUYER, ORG_BUYER, rfi.id, "cancelled");
+    await expect(setStatus(BUYER, ORG_BUYER, rfi.id, "open")).rejects.toThrow(/final/);
   });
 });

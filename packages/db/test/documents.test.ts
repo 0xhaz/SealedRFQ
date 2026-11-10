@@ -60,28 +60,30 @@ const upload = () =>
 withDb("reading a private document", () => {
   it("returns the exact bytes to the organization that uploaded it", async () => {
     const doc = await upload();
-    const got = await getDocument(SUP_A, doc.id);
+    const got = await getDocument(SUP_A, ORG_A, doc.id);
     expect(got.bytes.equals(SECRET)).toBe(true);
     expect(got.filename).toBe("a-pricing.pdf");
   });
 
   it("reaches the buyer who asked for it", async () => {
     const doc = await upload();
-    await expect(getDocument(BUYER, doc.id)).resolves.toMatchObject({ filename: "a-pricing.pdf" });
+    await expect(getDocument(BUYER, ORG_BUYER, doc.id)).resolves.toMatchObject({
+      filename: "a-pricing.pdf",
+    });
   });
 
   it("is refused to a rival supplier holding the document id", async () => {
     // Supplier B is invited to the same request, so it is not a stranger. It still must not read
     // another bidder's attachment.
     const doc = await upload();
-    await expect(getDocument(SUP_B, doc.id)).rejects.toThrow(/not yours to read/);
+    await expect(getDocument(SUP_B, ORG_B, doc.id)).rejects.toThrow(/not yours to read/);
   });
 
   it("is refused to a caller with no session at all", async () => {
     const doc = await upload();
-    await expect(getDocument("00000000-0000-0000-0000-000000000000", doc.id)).rejects.toThrow(
-      DocumentError,
-    );
+    await expect(
+      getDocument("00000000-0000-0000-0000-000000000000", ORG_A, doc.id),
+    ).rejects.toThrow(DocumentError);
   });
 });
 
@@ -128,7 +130,7 @@ withDb("what is actually on disk", () => {
     const raw = readFileSync(file);
     raw[raw.length - 1] ^= 0xff; // flip a bit in the ciphertext
     writeFileSync(file, raw);
-    await expect(getDocument(SUP_A, doc.id)).rejects.toThrow(/integrity check/);
+    await expect(getDocument(SUP_A, ORG_A, doc.id)).rejects.toThrow(/integrity check/);
   });
 });
 

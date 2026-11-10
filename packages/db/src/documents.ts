@@ -66,7 +66,7 @@ export async function putDocument(
   await writeFile(path, Buffer.concat([iv, tag, ciphertext]), { mode: 0o600 });
 
   try {
-    return await withTenant(userId, async (q) => {
+    return await withTenant(userId, input.orgId, async (q) => {
       const { rows } = await q.query<StoredDocument>(
         `INSERT INTO documents (org_id, request_id, sha256, filename, storage_key)
          VALUES ($1, $2, $3, $4, $5) RETURNING id, sha256, filename`,
@@ -93,9 +93,10 @@ export async function putDocument(
  */
 export async function getDocument(
   userId: string,
+  orgId: string,
   documentId: string,
 ): Promise<{ filename: string; sha256: string; bytes: Buffer }> {
-  const row = await withTenant(userId, async (q) => {
+  const row = await withTenant(userId, orgId, async (q) => {
     const { rows } = await q.query<{ storage_key: string; filename: string; sha256: string }>(
       "SELECT storage_key, filename, sha256 FROM documents WHERE id = $1",
       [documentId],

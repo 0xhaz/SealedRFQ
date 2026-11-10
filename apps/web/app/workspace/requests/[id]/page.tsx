@@ -1,6 +1,6 @@
 import { Header } from "@/components/Header";
 import { RequestActions } from "@/components/v2/RequestActions";
-import { currentUserId } from "@/lib/v2/session";
+import { activeOrgId, currentUserId } from "@/lib/v2/session";
 import { directory, getRequest, myOrganizations, responsesFor } from "@sealedrfq/db/workspace";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -14,12 +14,14 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
 
   // Invisible and absent are the same answer here, deliberately. A request you were not invited to
   // should not be distinguishable from one that does not exist, or the id becomes an oracle.
-  const request = await getRequest(userId, id);
+  const orgId = await activeOrgId(userId);
+  if (!orgId) notFound();
+  const request = await getRequest(userId, orgId, id);
   if (!request) notFound();
 
   const [orgs, responses, suppliers] = await Promise.all([
     myOrganizations(userId),
-    responsesFor(userId, id),
+    responsesFor(userId, orgId, id),
     // Organisations that chose to be listed. Not every organisation: being findable is opt-in.
     directory(userId, { supplying: true }),
   ]);

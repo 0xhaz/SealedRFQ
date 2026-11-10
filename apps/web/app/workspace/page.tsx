@@ -1,7 +1,7 @@
 import { Header } from "@/components/Header";
 import { SignIn } from "@/components/v2/SignIn";
 import { SignOut } from "@/components/v2/SignOut";
-import { currentUserId } from "@/lib/v2/session";
+import { activeOrgId, currentUserId } from "@/lib/v2/session";
 import { myOrganizations, visibleRequests } from "@sealedrfq/db/workspace";
 import Link from "next/link";
 
@@ -43,7 +43,11 @@ export default async function Workspace() {
     );
   }
 
-  const [orgs, requests] = await Promise.all([myOrganizations(userId), visibleRequests(userId)]);
+  const orgId = await activeOrgId(userId);
+  const [orgs, requests] = await Promise.all([
+    myOrganizations(userId),
+    orgId ? visibleRequests(userId, orgId) : [],
+  ]);
 
   return (
     <div className="shell">

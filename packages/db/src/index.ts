@@ -9,7 +9,7 @@ import pg from "pg";
  * - The pool connects as `sealedrfq_app`, which owns no tables and has no BYPASSRLS. A connection
  *   as the migration role would disable every policy without any error, so `assertNotPrivileged`
  *   checks it at startup and the test suite checks it again.
- * - The acting user is set with `SET LOCAL` inside a transaction, so it cannot outlive the query
+ * - The acting user and organization are set transaction-locally, so it cannot outlive the query
  *   and cannot leak onto the next borrower of a pooled connection.
  */
 const DEFAULT_URL = "postgres://sealedrfq_app:localdev@localhost:5433/sealedrfq";
@@ -23,24 +23,54 @@ export const pool = new pg.Pool({
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Run a query as a given user, inside one transaction.
+ * Run a query as a given user acting for one organization, inside one transaction.
  *
- * Everything the callback does sees exactly the rows that user is entitled to. There is no
- * "as nobody" shortcut: a caller with no user id gets a transaction where every policy evaluates
- * to false, which is the correct answer for an unauthenticated request rather than an error to
- * handle somewhere else.
+ * Everything the callback does sees exactly the rows that user is entitled to *as that
+ * organization*. The organization is required rather than defaulted: a default would be a way to
+ * ask for "whichever", and the database would have to guess. Naming an organization the user is
+ * not in is not an error; the policies simply match nothing, the same as no user at all.
+ *
+ * There is no "as nobody" shortcut: a caller with no user id gets a transaction where every policy
+ * evaluates to false, which is the correct answer for an unauthenticated request rather than an
+ * error to handle somewhere else.
  */
 export async function withTenant<T>(
   userId: string | null,
+  orgId: string | null,
   fn: (q: pg.PoolClient) => Promise<T>,
 ): Promise<T> {
   if (userId !== null && !UUID.test(userId)) throw new Error("withTenant: userId is not a uuid");
+  if (orgId !== null && !UUID.test(orgId)) throw new Error("withTenant: orgId is not a uuid");
+  return inTransaction(userId, orgId, fn);
+}
+
+/**
+ * Run a query as a user with no active organization.
+ *
+ * For the reads that are about the user rather than any one organization, chiefly listing which
+ * organizations they belong to so a switcher can be drawn. Procurement tables are empty here,
+ * because nothing names an organization to act as.
+ */
+export async function withUser<T>(
+  userId: string | null,
+  fn: (q: pg.PoolClient) => Promise<T>,
+): Promise<T> {
+  if (userId !== null && !UUID.test(userId)) throw new Error("withUser: userId is not a uuid");
+  return inTransaction(userId, null, fn);
+}
+
+async function inTransaction<T>(
+  userId: string | null,
+  orgId: string | null,
+  fn: (q: pg.PoolClient) => Promise<T>,
+): Promise<T> {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    // SET LOCAL, so it is discarded at COMMIT and cannot bleed into the next use of this
+    // Transaction-local, so it is discarded at COMMIT and cannot bleed into the next use of this
     // connection. The parameterised form keeps the value out of the statement text.
     await client.query("SELECT set_config('app.current_user_id', $1, true)", [userId ?? ""]);
+    await client.query("SELECT set_config('app.current_org_id', $1, true)", [orgId ?? ""]);
     const out = await fn(client);
     await client.query("COMMIT");
     return out;

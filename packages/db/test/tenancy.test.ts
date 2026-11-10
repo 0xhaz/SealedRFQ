@@ -75,8 +75,8 @@ afterAll(async () => {
   await pool.end();
 });
 
-const bodies = (userId: string | null) =>
-  withTenant(userId, async (q) =>
+const bodies = (userId: string | null, orgId: string | null) =>
+  withTenant(userId, orgId, async (q) =>
     (await q.query<{ body: string }>("SELECT body FROM request_responses ORDER BY body")).rows.map(
       (r) => r.body,
     ),
@@ -91,12 +91,12 @@ withDb("the connection itself", () => {
 
 withDb("a supplier invited to a request", () => {
   it("sees its own response and not a rival's", async () => {
-    expect(await bodies(SUP_A)).toEqual(["A: confidential approach"]);
-    expect(await bodies(SUP_B)).toEqual(["B: confidential approach"]);
+    expect(await bodies(SUP_A, ORG_A)).toEqual(["A: confidential approach"]);
+    expect(await bodies(SUP_B, ORG_B)).toEqual(["B: confidential approach"]);
   });
 
   it("sees the request it was invited to, and no other request the buyer owns", async () => {
-    const titles = await withTenant(SUP_A, async (q) =>
+    const titles = await withTenant(SUP_A, ORG_A, async (q) =>
       (await q.query<{ title: string }>("SELECT title FROM requests")).rows.map((r) => r.title),
     );
     expect(titles).toEqual(["Route optimisation"]);
@@ -107,6 +107,7 @@ withDb("a supplier invited to a request", () => {
     // rather than listing.
     const rows = await withTenant(
       SUP_A,
+      ORG_A,
       async (q) =>
         (await q.query("SELECT filename FROM documents WHERE org_id = $1", [ORG_B])).rows,
     );
@@ -115,7 +116,7 @@ withDb("a supplier invited to a request", () => {
 
   it("cannot write a response in another organization's name", async () => {
     await expect(
-      withTenant(SUP_A, (q) =>
+      withTenant(SUP_A, ORG_A, (q) =>
         q.query("INSERT INTO request_responses (request_id, org_id, body) VALUES ($1,$2,$3)", [
           OPEN_RFI,
           ORG_B,
@@ -128,17 +129,22 @@ withDb("a supplier invited to a request", () => {
 
 withDb("the buyer who owns the request", () => {
   it("sees every response to it", async () => {
-    expect(await bodies(BUYER)).toEqual(["A: confidential approach", "B: confidential approach"]);
+    expect(await bodies(BUYER, ORG_BUYER)).toEqual([
+      "A: confidential approach",
+      "B: confidential approach",
+    ]);
   });
 
   it("sees its own unsent draft, which no supplier can", async () => {
     const mine = await withTenant(
       BUYER,
+      ORG_BUYER,
       async (q) =>
         (await q.query("SELECT id FROM requests WHERE id = $1", [PRIVATE_DRAFT])).rowCount,
     );
     const theirs = await withTenant(
       SUP_A,
+      ORG_A,
       async (q) =>
         (await q.query("SELECT id FROM requests WHERE id = $1", [PRIVATE_DRAFT])).rowCount,
     );
@@ -149,8 +155,9 @@ withDb("the buyer who owns the request", () => {
 
 withDb("an unauthenticated caller", () => {
   it("fails closed rather than open", async () => {
-    expect(await bodies(null)).toEqual([]);
+    expect(await bodies(null, null)).toEqual([]);
     const requests = await withTenant(
+      null,
       null,
       async (q) => (await q.query("SELECT id FROM requests")).rowCount,
     );
@@ -158,7 +165,9 @@ withDb("an unauthenticated caller", () => {
   });
 
   it("is refused a user id that is not a uuid", async () => {
-    await expect(withTenant("'; SET ROLE sealedrfq; --", async () => 1)).rejects.toThrow(/uuid/);
+    await expect(withTenant("'; SET ROLE sealedrfq; --", null, async () => 1)).rejects.toThrow(
+      /uuid/,
+    );
   });
 });
 
@@ -191,7 +200,7 @@ withDb("discoverability", () => {
     const { withTenant } = await import("../src/index.js");
 
     // Supplier A is listed. Supplier B, a stranger to it, still sees none of its work.
-    const seen = await withTenant(SUP_B, async (q) => ({
+    const seen = await withTenant(SUP_B, ORG_B, async (q) => ({
       responses: (await q.query("SELECT id FROM request_responses WHERE org_id = $1", [ORG_A]))
         .rowCount,
       documents: (await q.query("SELECT id FROM documents WHERE org_id = $1", [ORG_A])).rowCount,

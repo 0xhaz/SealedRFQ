@@ -1,6 +1,6 @@
 "use server";
 
-import { currentUserId } from "@/lib/v2/session";
+import { activeOrgId, currentUserId } from "@/lib/v2/session";
 import {
   convertToTender,
   createRequest,
@@ -21,6 +21,14 @@ async function requireUser(): Promise<string> {
   const userId = await currentUserId();
   if (!userId) throw new Error("you are not signed in");
   return userId;
+}
+
+/** The user and the organization they act for; both are the server's belief, never the form's. */
+async function requireTenant(): Promise<{ userId: string; orgId: string }> {
+  const userId = await requireUser();
+  const orgId = await activeOrgId(userId);
+  if (!orgId) throw new Error("no active organization");
+  return { userId, orgId };
 }
 
 export type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
@@ -50,9 +58,9 @@ export async function createRequestAction(form: FormData): Promise<ActionResult>
 
 export async function setStatusAction(requestId: string, next: string): Promise<ActionResult> {
   try {
-    const userId = await requireUser();
+    const { userId, orgId } = await requireTenant();
     // The database holds the state machine; this does not second-guess which moves are legal.
-    await setStatus(userId, requestId, next as never);
+    await setStatus(userId, orgId, requestId, next as never);
     revalidatePath(`/workspace/requests/${requestId}`);
     revalidatePath("/workspace");
     return { ok: true };
@@ -63,7 +71,8 @@ export async function setStatusAction(requestId: string, next: string): Promise<
 
 export async function inviteAction(requestId: string, orgId: string): Promise<ActionResult> {
   try {
-    await invite(await requireUser(), requestId, orgId);
+    const tenant = await requireTenant();
+    await invite(tenant.userId, tenant.orgId, requestId, orgId);
     revalidatePath(`/workspace/requests/${requestId}`);
     return { ok: true };
   } catch (e) {
@@ -91,7 +100,8 @@ export async function respondAction(
  */
 export async function convertAction(rfiId: string, title: string): Promise<ActionResult> {
   try {
-    const { tender } = await convertToTender(await requireUser(), {
+    const { userId, orgId } = await requireTenant();
+    const { tender } = await convertToTender(userId, orgId, {
       rfiId,
       type: "RFQ",
       title: title.trim() || "Untitled tender",
