@@ -15,6 +15,9 @@ const isPublicRoute = createRouteMatcher([
   "/docs(.*)",
   "/.well-known/agent-card.json",
   "/api/clerk/webhook",
+  // Must be public: a pending session (organization not yet chosen) is sent by the server to the
+  // hosted /tasks page, never to `taskUrls`, so protecting this route would make it unreachable.
+  "/app/choose-organization",
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
@@ -24,7 +27,7 @@ export default clerkMiddleware(async (auth, req) => {
 export const config = {
   matcher: [
     // Skip Next internals and static files, unless they appear in the search params.
-    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/((?!_next|\\.well-known|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
     "/(api|trpc)(.*)",
   ],
 };

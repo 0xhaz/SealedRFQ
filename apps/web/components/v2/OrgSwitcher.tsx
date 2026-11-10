@@ -12,6 +12,7 @@ export function OrgSwitcher() {
       hidePersonal
       afterSelectOrganizationUrl="/app/:slug/inbox"
       afterCreateOrganizationUrl="/app/:slug/inbox"
+      afterLeaveOrganizationUrl="/app/choose-organization"
     />
   );
 }
