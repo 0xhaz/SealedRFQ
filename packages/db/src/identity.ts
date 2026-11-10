@@ -7,7 +7,7 @@
  * the ordering rule (an event applies only if it is at least as new as the stored row) lives in
  * their SQL where concurrent deliveries cannot race it.
  */
-import { pool } from "./index.js";
+import { pool, withUser } from "./index.js";
 
 /** The Postgres id for a Clerk user, creating the row if the webhook has not delivered it yet. */
 export async function upsertUser(clerkUserId: string): Promise<string> {
@@ -111,4 +111,42 @@ export async function applyClerkEvent(
     default:
       return "ignored";
   }
+}
+
+/**
+ * Attach a wallet to a user, once control of it has been proven by a signed challenge.
+ *
+ * Check, then spend, then write, in one transaction. The challenge is consumed before the insert
+ * so a replayed nonce links nothing; and it must have been issued for this address, or a nonce
+ * obtained for a wallet you control could be spent to claim one you do not. The mismatch throws
+ * after the spend, which rolls the spend back with everything else, so an honest retry is not
+ * punished for a caller's bug. Verifying the signature itself is the caller's job, as in sign-in.
+ *
+ * Runs as the user, not an organization: a wallet belongs to a person.
+ */
+export async function linkWallet(input: {
+  userId: string;
+  chainNamespace: string;
+  chainId: number;
+  address: string;
+  challengeId: string;
+}): Promise<string> {
+  // Only EVM addresses are case-insensitive; a base58 address lowercased is a different address.
+  const address = input.chainNamespace === "eip155" ? input.address.toLowerCase() : input.address;
+  return withUser(input.userId, async (q) => {
+    const spent = await q.query("SELECT wallet FROM app.consume_challenge($1)", [
+      input.challengeId,
+    ]);
+    if (spent.rowCount === 0) throw new Error("linkWallet: challenge is unknown, spent or expired");
+    if (spent.rows[0].wallet.toLowerCase() !== address.toLowerCase()) {
+      throw new Error("linkWallet: challenge was issued for a different address");
+    }
+    const { rows } = await q.query(
+      `INSERT INTO wallet_links
+         (user_id, chain_namespace, chain_id, address, challenge_id, verified_at)
+       VALUES ($1, $2, $3, $4, $5, now()) RETURNING id`,
+      [input.userId, input.chainNamespace, input.chainId, address, input.challengeId],
+    );
+    return rows[0].id;
+  });
 }

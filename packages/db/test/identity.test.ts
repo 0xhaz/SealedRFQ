@@ -1,7 +1,9 @@
+import { readFileSync } from "node:fs";
 import pg from "pg";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import {
   applyClerkEvent,
+  linkWallet,
   removeMembership,
   upsertMembership,
   upsertOrganization,
@@ -366,5 +368,170 @@ withDb("Applying verified Clerk events", () => {
     };
     expect(await applyClerkEvent(bad)).toBe("malformed");
     expect((await admin.query("SELECT 1 FROM users")).rowCount).toBe(0);
+  });
+});
+
+withDb("wallet links", () => {
+  const U2 = "22222222-2222-2222-2222-222222222222";
+  const ADDR = "0xAbCdEf0123456789abcdef0123456789ABCDEF01";
+  const CCD_ADDR = "3kBx2h5Y2veb4hZgAJWPrr8RyQESKm5TjzF3ti1QQ4VSYLwK1G";
+  const BASE = { userId: USER, chainNamespace: "eip155", chainId: 5042002 };
+
+  // A challenge issued for the address, as sign-in would have. Seeded privileged: the application
+  // role has no access to the table, only to the functions over it.
+  let n = 0;
+  async function challengeFor(wallet: string, ttl = "5 minutes"): Promise<string> {
+    const nonce = `nonce-${++n}-${Math.random()}`;
+    await admin.query(
+      "INSERT INTO wallet_challenges (nonce, wallet, expires_at) VALUES ($1,$2, now() + $3::interval)",
+      [nonce, wallet, ttl],
+    );
+    return nonce;
+  }
+  const link = async (over: Partial<Parameters<typeof linkWallet>[0]> & { address: string }) =>
+    linkWallet({
+      ...BASE,
+      challengeId: await challengeFor(over.address),
+      ...over,
+    });
+
+  beforeEach(async () => {
+    if (!reachable) return;
+    await admin.query("TRUNCATE wallet_links, organization_signers, wallet_challenges CASCADE");
+    await admin.query(
+      "INSERT INTO users (id, wallet) VALUES ($1, '0xlegacy1'), ($2, '0xlegacy2')",
+      [USER, U2],
+    );
+  });
+
+  it("backfills a link for exactly the users that have a wallet, stamped with their creation time", async () => {
+    // Seeded through the privileged pool, then the migration's own INSERT is run against them, so
+    // this fails if the real statement stops filtering or stops copying created_at.
+    await admin.query("TRUNCATE wallet_links, users CASCADE");
+    await admin.query(
+      `INSERT INTO users (id, wallet, clerk_user_id, created_at) VALUES
+        ('aaaaaaaa-1111-1111-1111-000000000001', '0xAAAA000000000000000000000000000000000001', 'u_a', '2024-01-02T03:04:05Z'),
+        ('aaaaaaaa-1111-1111-1111-000000000002', NULL, 'u_clerk_only', '2024-02-03T04:05:06Z'),
+        ('aaaaaaaa-1111-1111-1111-000000000003', '0xbbbb000000000000000000000000000000000003', 'u_b', '2024-03-04T05:06:07Z')`,
+    );
+    const sql = readFileSync(
+      new URL("../migrations/0011_wallet_links.sql", import.meta.url),
+      "utf8",
+    );
+    const backfill = sql.match(/INSERT INTO wallet_links[\s\S]*?;/)?.[0];
+    expect(backfill).toBeTruthy();
+    await admin.query(backfill as string);
+
+    const { rows } = await admin.query(
+      `SELECT l.user_id, l.address, l.chain_namespace, l.chain_id, (l.verified_at = u.created_at) AS stamped
+         FROM wallet_links l JOIN users u ON u.id = l.user_id ORDER BY l.user_id`,
+    );
+    expect(rows.map((r) => r.user_id)).toEqual([
+      "aaaaaaaa-1111-1111-1111-000000000001",
+      "aaaaaaaa-1111-1111-1111-000000000003",
+    ]);
+    expect(rows.every((r) => r.stamped)).toBe(true);
+    expect(rows.every((r) => r.chain_namespace === "eip155" && r.chain_id === 5042002)).toBe(true);
+    expect(rows[0].address).toBe("0xaaaa000000000000000000000000000000000001");
+  });
+
+  it("refuses the same address linked twice while both links are live", async () => {
+    await link({ address: ADDR });
+    await expect(link({ address: ADDR.toUpperCase().replace("0X", "0x") })).rejects.toThrow(
+      /unique|duplicate/i,
+    );
+  });
+
+  it("refuses a case-variant of a live address even when it reaches the table unnormalised", async () => {
+    // Bypasses linkWallet's lowercasing to prove the index itself, on a non-eip155 namespace where
+    // the CHECK does not force lowercase.
+    await admin.query(
+      `INSERT INTO wallet_links (user_id, chain_namespace, chain_id, address, verified_at)
+       VALUES ($1,'other',1,'AbC',now())`,
+      [USER],
+    );
+    await expect(
+      admin.query(
+        `INSERT INTO wallet_links (user_id, chain_namespace, chain_id, address, verified_at)
+         VALUES ($1,'other',1,'aBc',now())`,
+        [U2],
+      ),
+    ).rejects.toThrow(/wallet_links_live_address|unique|duplicate/i);
+  });
+
+  it("permits relinking an address whose previous link was revoked", async () => {
+    const id = await link({ address: ADDR });
+    await admin.query("UPDATE wallet_links SET revoked_at=now() WHERE id=$1", [id]);
+    await expect(link({ address: ADDR })).resolves.toBeTruthy();
+  });
+
+  it("permits one user to link wallets on two namespaces", async () => {
+    await link({ address: ADDR });
+    await expect(
+      link({ chainNamespace: "ccd", chainId: 0, address: CCD_ADDR }),
+    ).resolves.toBeTruthy();
+    const { rows } = await admin.query(
+      "SELECT address FROM wallet_links WHERE chain_namespace='ccd'",
+    );
+    expect(rows[0].address).toBe(CCD_ADDR); // base58 case preserved
+  });
+
+  it("stores an EVM address lowercase", async () => {
+    await link({ address: ADDR });
+    const { rows } = await admin.query("SELECT address FROM wallet_links");
+    expect(rows[0].address).toBe(ADDR.toLowerCase());
+  });
+
+  it("spends the challenge: the same nonce links nothing a second time", async () => {
+    const challengeId = await challengeFor(ADDR);
+    await linkWallet({ ...BASE, address: ADDR, challengeId });
+    await expect(linkWallet({ ...BASE, address: CCD_ADDR, challengeId })).rejects.toThrow(
+      /challenge/,
+    );
+    expect((await admin.query("SELECT 1 FROM wallet_links")).rowCount).toBe(1);
+  });
+
+  it("refuses a challenge issued for a different address, and leaves it unspent", async () => {
+    const challengeId = await challengeFor("0x0000000000000000000000000000000000000001");
+    await expect(linkWallet({ ...BASE, address: ADDR, challengeId })).rejects.toThrow(/different/);
+    expect((await admin.query("SELECT 1 FROM wallet_links")).rowCount).toBe(0);
+    const c = await admin.query("SELECT consumed_at FROM wallet_challenges WHERE nonce=$1", [
+      challengeId,
+    ]);
+    expect(c.rows[0].consumed_at).toBeNull();
+  });
+
+  it("refuses an expired challenge", async () => {
+    const challengeId = await challengeFor(ADDR, "-1 minute");
+    await expect(linkWallet({ ...BASE, address: ADDR, challengeId })).rejects.toThrow(/challenge/);
+  });
+
+  it("shows a user only their own links through the application role", async () => {
+    await link({ address: ADDR });
+    await link({ userId: U2, address: "0x0000000000000000000000000000000000000002" });
+    const mine = await withUser(USER, (q) => q.query("SELECT user_id FROM wallet_links"));
+    expect(mine.rows.map((r) => r.user_id)).toEqual([USER]);
+    const nobody = await withUser(null, (q) => q.query("SELECT 1 FROM wallet_links"));
+    expect(nobody.rowCount).toBe(0);
+    // And the truth, through the privileged pool, so the two zeroes above are not vacuous.
+    expect((await admin.query("SELECT 1 FROM wallet_links")).rowCount).toBe(2);
+  });
+
+  it("cannot be used to link a wallet to someone else", async () => {
+    await expect(
+      withUser(USER, (q) =>
+        q.query(
+          `INSERT INTO wallet_links (user_id, chain_namespace, chain_id, address, verified_at)
+           VALUES ($1,'eip155',1,'0xdead',now())`,
+          [U2],
+        ),
+      ),
+    ).rejects.toThrow(/row-level security/);
+  });
+
+  it("gives the application role no access to organization_signers", async () => {
+    await expect(
+      withUser(USER, (q) => q.query("SELECT 1 FROM organization_signers")),
+    ).rejects.toThrow(/permission denied/);
   });
 });
