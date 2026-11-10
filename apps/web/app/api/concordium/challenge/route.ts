@@ -2,6 +2,7 @@ import { QUALIFICATION_DESCRIPTION, QUALIFICATION_STATEMENT, purposeFor } from "
 import { newChallenge } from "@sealedrfq/concordium";
 import { PostgresChallengeStore } from "@sealedrfq/db";
 import { NextResponse } from "next/server";
+import { isAddress } from "viem";
 
 export const dynamic = "force-dynamic";
 
@@ -17,8 +18,9 @@ const store = new PostgresChallengeStore();
  */
 export async function POST(request: Request) {
   let tenderId: unknown;
+  let bidder: unknown;
   try {
-    ({ tenderId } = await request.json());
+    ({ tenderId, bidder } = await request.json());
   } catch {
     return NextResponse.json({ error: "expected a JSON body" }, { status: 400 });
   }
@@ -26,7 +28,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "tenderId must be a positive integer" }, { status: 400 });
   }
 
-  const challenge = newChallenge(purposeFor(tenderId));
+  // Strict, so a checksum typo is refused here rather than bound into a purpose nobody can use.
+  if (typeof bidder !== "string" || !isAddress(bidder)) {
+    return NextResponse.json({ error: "bidder must be an EVM address" }, { status: 400 });
+  }
+
+  const challenge = newChallenge(purposeFor(tenderId, bidder));
   try {
     await store.issue(challenge);
   } catch {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { isAddress } from "viem";
 
 /**
  * Ask the Concordium wallet for a proof, then have the server check it.
@@ -11,6 +12,11 @@ import { useState } from "react";
  * same question — and so the supplier can read it before approving rather than after.
  */
 type Phase = "idle" | "requesting" | "connecting" | "proving" | "verifying" | "done" | "failed";
+
+type Recorded =
+  | { status: "recorded"; tx: string }
+  | { status: "already-qualified" }
+  | { status: "not-recorded"; reason: string; detail: string };
 
 type ChallengeResponse = {
   challenge: string;
@@ -24,17 +30,18 @@ export function ProveQualification({ tenderId }: { tenderId: number }) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [description, setDescription] = useState<string>();
   const [message, setMessage] = useState<string>();
-  const [subjects, setSubjects] = useState<string[]>([]);
+  const [bidder, setBidder] = useState("");
+  const [recorded, setRecorded] = useState<Recorded>();
 
   async function run() {
     setMessage(undefined);
-    setSubjects([]);
+    setRecorded(undefined);
     try {
       setPhase("requesting");
       const issued = await fetch("/api/concordium/challenge", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ tenderId }),
+        body: JSON.stringify({ tenderId, bidder }),
       });
       if (!issued.ok) throw new Error((await issued.json()).error ?? "could not get a challenge");
       const { challenge, statement, description }: ChallengeResponse = await issued.json();
@@ -80,14 +87,14 @@ export function ProveQualification({ tenderId }: { tenderId: number }) {
       const checked = await fetch("/api/concordium/verify", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ tenderId, challenge, presentation }),
+        body: JSON.stringify({ tenderId, bidder, challenge, presentation }),
       });
       const result = await checked.json();
       if (!checked.ok || !result.ok) {
         // The server's reason is worth showing: it tells a supplier whether to try again.
         throw new Error(result.detail ?? result.error ?? result.reason ?? "the proof was refused");
       }
-      setSubjects(result.subjects ?? []);
+      setRecorded(result.qualification);
       setPhase("done");
     } catch (e) {
       setMessage(e instanceof Error ? e.message : String(e));
@@ -95,6 +102,7 @@ export function ProveQualification({ tenderId }: { tenderId: number }) {
     }
   }
 
+  const validBidder = isAddress(bidder);
   const busy =
     phase === "requesting" ||
     phase === "connecting" ||
@@ -122,7 +130,29 @@ export function ProveQualification({ tenderId }: { tenderId: number }) {
         checking anything at all.
       </div>
 
-      <button className="btn-primary" type="button" onClick={run} disabled={busy}>
+      <label className="note" style={{ display: "block" }}>
+        <b>Bidder address</b>
+        <input
+          className="input"
+          style={{ display: "block", width: "100%", marginTop: 4 }}
+          value={bidder}
+          onChange={(e) => setBidder(e.target.value.trim())}
+          placeholder="0x…"
+          spellCheck={false}
+        />
+      </label>
+      <div className="note warn">
+        <b>This binds the proof to that address; it does not prove you control it.</b> A proof made
+        for one address is refused if it is submitted for another. Nothing here checks that you hold
+        the address's key, and that check is not built yet.
+      </div>
+
+      <button
+        className="btn-primary"
+        type="button"
+        onClick={run}
+        disabled={busy || !validBidder}
+      >
         {phase === "requesting" && "Asking for a challenge…"}
         {phase === "connecting" && "Allow this site in your wallet…"}
         {phase === "proving" && "Waiting for your wallet…"}
@@ -132,14 +162,33 @@ export function ProveQualification({ tenderId }: { tenderId: number }) {
 
       {phase === "done" && (
         <div className="note">
-          <b>Proof accepted.</b> The challenge it answered has been spent, so this proof cannot be
-          presented again.
-          {subjects.length > 0 && (
+          <b>Proof accepted.</b> Your identity was established. The challenge it answered has been
+          spent, so this proof cannot be presented again.
+          {recorded?.status === "recorded" && (
             <>
               <br />
-              <span className="mono-sm">{subjects.join(", ")}</span>
+              <b>Qualification recorded on Arc testnet.</b>{" "}
+              <span className="mono-sm">{recorded.tx}</span>
             </>
           )}
+          {recorded?.status === "already-qualified" && (
+            <>
+              <br />
+              <b>Already qualified.</b> This address already holds an unexpired qualification for
+              this tender; nothing was sent.
+            </>
+          )}
+        </div>
+      )}
+
+      {phase === "done" && recorded?.status === "not-recorded" && (
+        <div className="note warn">
+          <b>Accepted, but not recorded.</b> This is not a rejection of you.{" "}
+          {recorded.reason === "nullifier-used"
+            ? "Another wallet has already used this credential for this tender."
+            : `We could not write it on chain: ${recorded.detail}.`}{" "}
+          {recorded.reason !== "nullifier-used" &&
+            "The proof is spent, so once the cause is fixed you will need to prove again."}
         </div>
       )}
 

@@ -5,6 +5,8 @@ import {
 } from "@sealedrfq/concordium/presentation";
 import { PostgresChallengeStore } from "@sealedrfq/db";
 import { NextResponse } from "next/server";
+import { isAddress } from "viem";
+import { recordQualification } from "@/lib/agent";
 
 export const dynamic = "force-dynamic";
 
@@ -18,16 +20,22 @@ const NETWORK = "Testnet" as const;
  * every request to this app rather than on requests to this route is a cost paid for nothing.
  */
 export async function POST(request: Request) {
-  let body: { tenderId?: unknown; challenge?: unknown; presentation?: unknown };
+  let body: { tenderId?: unknown; bidder?: unknown; challenge?: unknown; presentation?: unknown };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "expected a JSON body" }, { status: 400 });
   }
-  const { tenderId, challenge, presentation } = body;
+  const { tenderId, bidder, challenge, presentation } = body;
   if (typeof tenderId !== "number" || !Number.isInteger(tenderId) || tenderId < 1) {
     return NextResponse.json({ error: "tenderId must be a positive integer" }, { status: 400 });
   }
+  if (typeof bidder !== "string" || !isAddress(bidder)) {
+    return NextResponse.json({ error: "bidder must be an EVM address" }, { status: 400 });
+  }
+  // Recomputed from our own arguments, never read from the challenge row or the caller: the
+  // comparison against what was issued is what refuses a proof carried to a different address.
+  const purpose = purposeFor(tenderId, bidder);
   if (typeof challenge !== "string" || !/^[0-9a-fA-F]{64}$/.test(challenge)) {
     return NextResponse.json({ error: "challenge must be 32 bytes of hex" }, { status: 400 });
   }
@@ -38,7 +46,7 @@ export async function POST(request: Request) {
   // The cheap checks first. Resolving credentials costs several round trips to a Concordium node,
   // and spending them on a challenge we were never going to accept would also mean reporting the
   // refusal as though the node were at fault.
-  const precheck = await precheckChallenge(store, challenge, purposeFor(tenderId));
+  const precheck = await precheckChallenge(store, challenge, purpose);
   if (precheck) {
     return NextResponse.json(
       { ok: false, reason: precheck.reason, detail: precheck.detail },
@@ -107,7 +115,7 @@ export async function POST(request: Request) {
       credentials: credentialData,
       requested: QUALIFICATION_STATEMENT,
       challenge,
-      purpose: purposeFor(tenderId),
+      purpose,
       store,
     });
 
@@ -118,7 +126,20 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    return NextResponse.json({ ok: true, subjects: result.subjects });
+
+    // The subject is a persistent identifier for a real person's credential. It goes from here to
+    // the agent to derive a nullifier and nowhere else: not into a row, a log line, an error, or
+    // the response. The browser never needed it.
+    const subject = result.subjects[0];
+    if (!subject) {
+      return NextResponse.json(
+        { ok: false, reason: "proof_invalid", detail: "the proof named no credential holder" },
+        { status: 400 },
+      );
+    }
+    // Accepted from here on. Whatever happens next is about recording, not about the supplier.
+    const qualification = await recordQualification({ subject, bidder, tenderId });
+    return NextResponse.json({ ok: true, qualification });
   } catch (e) {
     console.error("concordium verification could not complete", e);
     return NextResponse.json({ error: "could not reach Concordium to check the proof" }, {

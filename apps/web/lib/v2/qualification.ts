@@ -30,7 +30,21 @@ export const QUALIFICATION_POLICY: QualificationPolicy = {
 export const QUALIFICATION_STATEMENT = qualificationStatement(QUALIFICATION_POLICY);
 export const QUALIFICATION_DESCRIPTION = describeStatement(QUALIFICATION_POLICY);
 
-/** What a challenge is for. Scoped to the tender, so one proof cannot be reused on another. */
-export function purposeFor(tenderId: number | string, action: "bid" | "award" = "bid"): string {
-  return `tender:${tenderId}:${action}`;
+/**
+ * What a challenge is for: one tender, one bidder address.
+ *
+ * The bidder is in the purpose because the purpose is the only thing recorded with a challenge and
+ * compared again when the proof comes back. A proof obtained for one address therefore fails
+ * `wrong_purpose` when it is submitted for another, with no schema change.
+ *
+ * Lowercased so the checksummed and plain forms of one address cannot become two purposes. This
+ * binds a proof to an address and nothing more: it does not show that whoever asked controls that
+ * address. That needs the organisation-signer layer, which does not exist yet.
+ */
+export function purposeFor(
+  tenderId: number | string,
+  bidder: string,
+  action: "bid" | "award" = "bid",
+): string {
+  return `tender:${tenderId}:${action}:${bidder.toLowerCase()}`;
 }

@@ -401,3 +401,117 @@ export const agent = {
 };
 
 export const AGENT_URL = BASE;
+
+export type QualificationRecord =
+  | { status: "recorded"; tx: string }
+  | { status: "already-qualified" }
+  | {
+      status: "not-recorded";
+      /**
+       * Every one of these means the proof was accepted. `nullifier-used` is a decision about the
+       * credential; the rest are about us.
+       */
+      reason:
+        | "agent-unreachable"
+        | "agent-not-configured"
+        | "agent-error"
+        | "registry-behind"
+        | "below-quorum"
+        | "nullifier-used";
+      detail: string;
+    };
+
+/**
+ * Ask the agent to record a qualification for a subject this app has just verified.
+ *
+ * The agent holds the qualifier key; this app never does. The bearer token is server-only (no
+ * NEXT_PUBLIC_ prefix) and is sent here and nowhere else. The subject is in the request body so the
+ * agent can derive the nullifier, and is deliberately not in any message this function returns or
+ * logs — responses from the agent are mapped to fixed strings rather than echoed.
+ *
+ * Never throws and never reads as a refusal: by the time this runs the proof has been accepted, so
+ * every failure is "could not record", which is not "you are not qualified".
+ */
+export async function recordQualification(input: {
+  subject: string;
+  bidder: string;
+  tenderId: number;
+}): Promise<QualificationRecord> {
+  const fail = (
+    reason: Extract<QualificationRecord, { status: "not-recorded" }>["reason"],
+    detail: string,
+  ): QualificationRecord => ({ status: "not-recorded", reason, detail });
+
+  if (agentConfigError) return fail("agent-not-configured", agentConfigError);
+  const token = process.env.AGENT_API_TOKEN?.trim();
+  if (!token) {
+    return fail(
+      "agent-not-configured",
+      "AGENT_API_TOKEN is not set on this deployment, so it cannot ask the agent to record anything.",
+    );
+  }
+  try {
+    const res = await fetch(`${BASE}/qualifications`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      // `synthetic: false` is a claim about where the subject came from, and this is the only
+      // caller that can truthfully make it: the subject comes out of a verified presentation.
+      body: JSON.stringify({
+        subject: input.subject,
+        bidder: input.bidder,
+        tenderId: input.tenderId,
+        synthetic: false,
+      }),
+      cache: "no-store",
+      // A real transaction is sent and waited on, so this is longer than the read path's budget.
+      signal: AbortSignal.timeout(90_000),
+    });
+    const body = (await res.json().catch(() => null)) as {
+      status?: string;
+      tx?: string;
+    } | null;
+
+    if (res.ok) {
+      if (body?.status === "recorded" && typeof body.tx === "string") {
+        return { status: "recorded", tx: body.tx };
+      }
+      if (body?.status === "already-qualified") return { status: "already-qualified" };
+      return fail("agent-error", "the agent answered, but not in a form this app understands");
+    }
+    if (res.status === 409 || body?.status === "nullifier-used") {
+      return fail(
+        "nullifier-used",
+        "another wallet has already used this credential for this tender",
+      );
+    }
+    if (body?.status === "registry-behind") {
+      return fail(
+        "registry-behind",
+        "the contract has no committee registered for the current reward period and fails closed. An operator needs to run scripts/concordium/update-committee.mjs.",
+      );
+    }
+    if (body?.status === "below-quorum") {
+      return fail("below-quorum", "the finality certificate did not carry enough stake");
+    }
+    if (res.status === 401) {
+      return fail("agent-error", "the agent did not accept this app's token (AGENT_API_TOKEN)");
+    }
+    if (res.status === 404) {
+      return fail(
+        "agent-not-configured",
+        "the agent URL is not pointing at the agent (404). Check NEXT_PUBLIC_AGENT_URL.",
+      );
+    }
+    if (res.status === 503) {
+      return fail(
+        "agent-not-configured",
+        "the agent has this endpoint disabled: AGENT_API_TOKEN is not set on the agent",
+      );
+    }
+    return fail("agent-error", `the agent returned ${res.status}`);
+  } catch {
+    // Deliberately not the thrown message: nothing in this call should be able to carry the subject
+    // into a log or a response, and a network error is not worth that risk.
+    return fail("agent-unreachable", "the agent could not be reached");
+  }
+}
