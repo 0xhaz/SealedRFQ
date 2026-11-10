@@ -11,7 +11,7 @@ import {
 import { revalidatePath } from "next/cache";
 
 /**
- * Server actions for the workspace.
+ * Server actions for an organization's requests.
  *
  * Each one reads the session itself rather than taking a user id from the caller. A user id passed
  * in from a form is a user id an attacker can change, and the whole tenant model rests on that

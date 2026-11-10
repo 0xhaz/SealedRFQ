@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import pg from "pg";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import {
@@ -41,27 +40,27 @@ beforeEach(async () => {
 afterAll(() => admin.end());
 
 withDb("Clerk identity columns", () => {
-  it("accepts a user with no Clerk id yet, because wallet login still creates them", async () => {
-    // NOT NULL lands in Task 6, when wallet login is removed and the claim becomes true.
-    await expect(admin.query("INSERT INTO users (wallet) VALUES ('0xabc')")).resolves.toBeTruthy();
+  it("refuses a user with no Clerk id, since every user now comes from Clerk", async () => {
+    // 23502 is not_null_violation.
+    await expect(admin.query("INSERT INTO users DEFAULT VALUES")).rejects.toMatchObject({
+      code: "23502",
+    });
   });
 
   it("refuses two users sharing a Clerk id", async () => {
-    await admin.query("INSERT INTO users (wallet, clerk_user_id) VALUES ('0x1','user_dup')");
+    await admin.query("INSERT INTO users (clerk_user_id) VALUES ('user_dup')");
     await expect(
-      admin.query("INSERT INTO users (wallet, clerk_user_id) VALUES ('0x2','user_dup')"),
+      admin.query("INSERT INTO users (clerk_user_id) VALUES ('user_dup')"),
     ).rejects.toThrow(/unique|duplicate/i);
   });
 
-  it("allows many users with no Clerk id, since NULLs are distinct in a unique index", async () => {
-    // This is the property that lets the column be unique and nullable at once.
-    await admin.query("INSERT INTO users (wallet) VALUES ('0x3'), ('0x4')");
-    const { rows } = await admin.query("SELECT count(*)::int AS n FROM users");
-    expect(rows[0].n).toBe(2);
+  it("refuses an organization with no Clerk id", async () => {
+    await expect(
+      admin.query("INSERT INTO organizations (name) VALUES ('a')"),
+    ).rejects.toMatchObject({ code: "23502" });
   });
 
-  it("refuses two organizations sharing a Clerk id, but allows many without one", async () => {
-    await admin.query("INSERT INTO organizations (name) VALUES ('a'), ('b')");
+  it("refuses two organizations sharing a Clerk id", async () => {
     await admin.query("INSERT INTO organizations (name, clerk_org_id) VALUES ('c','org_dup')");
     await expect(
       admin.query("INSERT INTO organizations (name, clerk_org_id) VALUES ('d','org_dup')"),
@@ -69,7 +68,10 @@ withDb("Clerk identity columns", () => {
   });
 
   it("defaults the company profile to self-declared and organization-only", async () => {
-    await admin.query("INSERT INTO organizations (id, name) VALUES ($1,'Northwind')", [ORG]);
+    await admin.query(
+      "INSERT INTO organizations (id, name, clerk_org_id) VALUES ($1,'Northwind','org_n')",
+      [ORG],
+    );
     const { rows } = await admin.query(
       "SELECT verification_status, legal_profile_visibility FROM organizations WHERE id=$1",
       [ORG],
@@ -83,19 +85,24 @@ withDb("Clerk identity columns", () => {
   it("rejects values outside the verification and visibility vocabularies", async () => {
     // 23514 is check_violation; matching the SQLSTATE avoids passing on any error that says "check".
     await expect(
-      admin.query("INSERT INTO organizations (name, verification_status) VALUES ('x','trusted')"),
+      admin.query(
+        "INSERT INTO organizations (name, clerk_org_id, verification_status) VALUES ('x','org_x','trusted')",
+      ),
     ).rejects.toMatchObject({ code: "23514" });
     await expect(
-      admin.query("INSERT INTO organizations (name, legal_profile_visibility) VALUES ('x','all')"),
+      admin.query(
+        "INSERT INTO organizations (name, clerk_org_id, legal_profile_visibility) VALUES ('x','org_x','all')",
+      ),
     ).rejects.toMatchObject({ code: "23514" });
   });
 
   it.each(["self_declared", "pending", "issuer_verified", "expired", "revoked"])(
     "accepts verification_status %s",
     async (v) => {
-      await admin.query("INSERT INTO organizations (name, verification_status) VALUES ('x',$1)", [
-        v,
-      ]);
+      await admin.query(
+        "INSERT INTO organizations (name, clerk_org_id, verification_status) VALUES ('x','org_x',$1)",
+        [v],
+      );
     },
   );
 
@@ -103,17 +110,17 @@ withDb("Clerk identity columns", () => {
     "accepts legal_profile_visibility %s",
     async (v) => {
       await admin.query(
-        "INSERT INTO organizations (name, legal_profile_visibility) VALUES ('x',$1)",
+        "INSERT INTO organizations (name, clerk_org_id, legal_profile_visibility) VALUES ('x','org_x',$1)",
         [v],
       );
     },
   );
 
   it("keeps the legal profile unreadable by the application role, even when discoverable", async () => {
-    await admin.query("INSERT INTO users (id, wallet) VALUES ($1,'0xu')", [USER]);
+    await admin.query("INSERT INTO users (id, clerk_user_id) VALUES ($1,'user_u')", [USER]);
     await admin.query(
-      `INSERT INTO organizations (id, name, discoverable, legal_name, jurisdiction, encrypted_company_number)
-       VALUES ($1,'Open Co', true, 'Open Co Ltd', 'MY', 'ciphertext')`,
+      `INSERT INTO organizations (id, name, clerk_org_id, discoverable, legal_name, jurisdiction, encrypted_company_number)
+       VALUES ($1,'Open Co', 'org_open', true, 'Open Co Ltd', 'MY', 'ciphertext')`,
       [ORG],
     );
     // 42501 is insufficient_privilege. Each column alone, since a refusal of one must not hide a
@@ -129,9 +136,9 @@ withDb("Clerk identity columns", () => {
   });
 
   it("still serves the directory and the organization switcher", async () => {
-    await admin.query("INSERT INTO users (id, wallet) VALUES ($1,'0xu')", [USER]);
+    await admin.query("INSERT INTO users (id, clerk_user_id) VALUES ($1,'user_u')", [USER]);
     await admin.query(
-      "INSERT INTO organizations (id, name, discoverable) VALUES ($1,'Open Co', true)",
+      "INSERT INTO organizations (id, name, clerk_org_id, discoverable) VALUES ($1,'Open Co','org_open', true)",
       [ORG],
     );
     await admin.query("INSERT INTO memberships (user_id, org_id) VALUES ($1,$2)", [USER, ORG]);
@@ -140,8 +147,11 @@ withDb("Clerk identity columns", () => {
   });
 
   it("defaults membership role and sync time so (user_id, org_id) seeds still work", async () => {
-    await admin.query("INSERT INTO users (id, wallet) VALUES ($1,'0xu')", [USER]);
-    await admin.query("INSERT INTO organizations (id, name) VALUES ($1,'N')", [ORG]);
+    await admin.query("INSERT INTO users (id, clerk_user_id) VALUES ($1,'user_u')", [USER]);
+    await admin.query(
+      "INSERT INTO organizations (id, name, clerk_org_id) VALUES ($1,'N','org_n')",
+      [ORG],
+    );
     await admin.query("INSERT INTO memberships (user_id, org_id) VALUES ($1,$2)", [USER, ORG]);
     const { rows } = await admin.query(
       "SELECT clerk_role, synced_at IS NOT NULL AS synced FROM memberships",
@@ -377,7 +387,7 @@ withDb("wallet links", () => {
   const CCD_ADDR = "3kBx2h5Y2veb4hZgAJWPrr8RyQESKm5TjzF3ti1QQ4VSYLwK1G";
   const BASE = { userId: USER, chainNamespace: "eip155", chainId: 5042002 };
 
-  // A challenge issued for the address, as sign-in would have. Seeded privileged: the application
+  // A challenge issued for the address, as the linking flow will. Seeded privileged: the application
   // role has no access to the table, only to the functions over it.
   let n = 0;
   async function challengeFor(wallet: string, ttl = "5 minutes"): Promise<string> {
@@ -399,40 +409,9 @@ withDb("wallet links", () => {
     if (!reachable) return;
     await admin.query("TRUNCATE wallet_links, organization_signers, wallet_challenges CASCADE");
     await admin.query(
-      "INSERT INTO users (id, wallet) VALUES ($1, '0xlegacy1'), ($2, '0xlegacy2')",
+      "INSERT INTO users (id, clerk_user_id) VALUES ($1, 'user_1'), ($2, 'user_2')",
       [USER, U2],
     );
-  });
-
-  it("backfills a link for exactly the users that have a wallet, stamped with their creation time", async () => {
-    // Seeded through the privileged pool, then the migration's own INSERT is run against them, so
-    // this fails if the real statement stops filtering or stops copying created_at.
-    await admin.query("TRUNCATE wallet_links, users CASCADE");
-    await admin.query(
-      `INSERT INTO users (id, wallet, clerk_user_id, created_at) VALUES
-        ('aaaaaaaa-1111-1111-1111-000000000001', '0xAAAA000000000000000000000000000000000001', 'u_a', '2024-01-02T03:04:05Z'),
-        ('aaaaaaaa-1111-1111-1111-000000000002', NULL, 'u_clerk_only', '2024-02-03T04:05:06Z'),
-        ('aaaaaaaa-1111-1111-1111-000000000003', '0xbbbb000000000000000000000000000000000003', 'u_b', '2024-03-04T05:06:07Z')`,
-    );
-    const sql = readFileSync(
-      new URL("../migrations/0011_wallet_links.sql", import.meta.url),
-      "utf8",
-    );
-    const backfill = sql.match(/INSERT INTO wallet_links[\s\S]*?;/)?.[0];
-    expect(backfill).toBeTruthy();
-    await admin.query(backfill as string);
-
-    const { rows } = await admin.query(
-      `SELECT l.user_id, l.address, l.chain_namespace, l.chain_id, (l.verified_at = u.created_at) AS stamped
-         FROM wallet_links l JOIN users u ON u.id = l.user_id ORDER BY l.user_id`,
-    );
-    expect(rows.map((r) => r.user_id)).toEqual([
-      "aaaaaaaa-1111-1111-1111-000000000001",
-      "aaaaaaaa-1111-1111-1111-000000000003",
-    ]);
-    expect(rows.every((r) => r.stamped)).toBe(true);
-    expect(rows.every((r) => r.chain_namespace === "eip155" && r.chain_id === 5042002)).toBe(true);
-    expect(rows[0].address).toBe("0xaaaa000000000000000000000000000000000001");
   });
 
   it("refuses the same address linked twice while both links are live", async () => {

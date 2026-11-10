@@ -50,12 +50,12 @@ beforeEach(async () => {
   await admin.query(`
     TRUNCATE request_responses, request_invitations, documents, requests, memberships,
              organizations, users RESTART IDENTITY CASCADE;
-    INSERT INTO users (id, wallet) VALUES
-      ('${BUYER}','0xbuyer'), ('${SUP_A}','0xsupplierA'), ('${SUP_B}','0xsupplierB');
-    INSERT INTO organizations (id, name) VALUES
-      ('${ORG_BUYER}','Northwind'), ('${ORG_A}','Supplier A'), ('${ORG_B}','Supplier B');
-    INSERT INTO memberships (org_id, user_id, role) VALUES
-      ('${ORG_BUYER}','${BUYER}','owner'), ('${ORG_A}','${SUP_A}','owner'), ('${ORG_B}','${SUP_B}','owner');
+    INSERT INTO users (id, clerk_user_id) VALUES
+      ('${BUYER}','user_buyer'), ('${SUP_A}','user_a'), ('${SUP_B}','user_b');
+    INSERT INTO organizations (id, name, clerk_org_id) VALUES
+      ('${ORG_BUYER}','Northwind','org_buyer'), ('${ORG_A}','Supplier A','org_a'), ('${ORG_B}','Supplier B','org_b');
+    INSERT INTO memberships (org_id, user_id) VALUES
+      ('${ORG_BUYER}','${BUYER}'), ('${ORG_A}','${SUP_A}'), ('${ORG_B}','${SUP_B}');
     INSERT INTO requests (id, org_id, type, status, title) VALUES
       ('${OPEN_RFI}','${ORG_BUYER}','RFI','open','Route optimisation'),
       ('${PRIVATE_DRAFT}','${ORG_BUYER}','RFI','draft','Unsent private draft');

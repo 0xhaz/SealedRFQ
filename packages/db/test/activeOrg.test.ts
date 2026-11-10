@@ -43,9 +43,9 @@ beforeEach(async () => {
   await admin.query(`
     TRUNCATE request_responses, request_invitations, documents, requests, memberships,
              organizations, users RESTART IDENTITY CASCADE;
-    INSERT INTO users (id, wallet) VALUES ('${USER_BOTH}','0xboth');
-    INSERT INTO organizations (id, name) VALUES
-      ('${ORG_A}','Org A'), ('${ORG_B}','Org B'), ('${ORG_STRANGER}','Stranger'), ('${SUPPLIER}','Supplier');
+    INSERT INTO users (id, clerk_user_id) VALUES ('${USER_BOTH}','user_both');
+    INSERT INTO organizations (id, name, clerk_org_id) VALUES
+      ('${ORG_A}','Org A','org_a'), ('${ORG_B}','Org B','org_b'), ('${ORG_STRANGER}','Stranger','org_stranger'), ('${SUPPLIER}','Supplier','org_supplier');
     INSERT INTO memberships (user_id, org_id) VALUES
       ('${USER_BOTH}','${ORG_A}'), ('${USER_BOTH}','${ORG_B}');
     INSERT INTO requests (id, org_id, type, status, title) VALUES

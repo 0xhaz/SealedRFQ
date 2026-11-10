@@ -59,7 +59,7 @@ export default async function RequestPage({
             {responses.length === 0 ? (
               <div className="note" style={{ margin: "0 20px 18px" }}>
                 {isOwner
-                  ? "Nobody has answered yet. Invited suppliers see this request on their own workspace."
+                  ? "Nobody has answered yet. Invited suppliers see this request in their own organization."
                   : "You have not answered yet."}
               </div>
             ) : (

@@ -120,7 +120,7 @@ export async function applyClerkEvent(
  * so a replayed nonce links nothing; and it must have been issued for this address, or a nonce
  * obtained for a wallet you control could be spent to claim one you do not. The mismatch throws
  * after the spend, which rolls the spend back with everything else, so an honest retry is not
- * punished for a caller's bug. Verifying the signature itself is the caller's job, as in sign-in.
+ * punished for a caller's bug. Verifying the signature itself is the caller's job.
  *
  * Runs as the user, not an organization: a wallet belongs to a person.
  */
