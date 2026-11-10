@@ -8,3 +8,4 @@ export * from "./requirements.js";
 export * from "./windows.js";
 export * from "./shipment.js";
 export * from "./invoice.js";
+export * from "./walletSignature.js";

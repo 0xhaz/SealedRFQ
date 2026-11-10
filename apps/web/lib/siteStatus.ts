@@ -1,19 +1,14 @@
 /**
- * Whether this deployment is accepting new commitments.
+ * The banner on the landing page: whether this deployment says it is open for new tenders.
  *
- * Set while V2 is built, so the site stops inviting tenders against contracts that are no longer
- * being developed. Three rules shape what "paused" is allowed to mean:
+ * It is a label and nothing more. It was written while V1 was live to gate posting, committing and
+ * revealing, and it is kept honest here rather than describing gates it no longer has: those
+ * surfaces were retired with V1, so there is nothing left for a flag to refuse. Reducing it to a
+ * label was the alternative to deleting it, and it earns its place only as long as it over-claims
+ * nothing — `app/page.tsx` is its one consumer.
  *
- * 1. It defaults to `live`. A pause has to be switched on deliberately, because a typo in an
- *    environment variable must not be able to take the site down by accident.
- * 2. It blocks **new commitments only**: posting a tender, and committing or revealing a bid.
- *    Money already committed must still be able to come out. The V2 architecture's own legacy-safety
- *    gate says a new deployment must not hide withdrawal paths, and a maintenance mode that also
- *    freezes withdrawals is precisely the thing that warns against. Balances are zero today, which
- *    is exactly why this is cheap to get right now rather than later.
- * 3. It never blocks reading. The board, the tender pages, the decision memos and the audit view
- *    stay up. A project whose whole claim is that its decisions are checkable cannot make them
- *    uncheckable while it rebuilds.
+ * It defaults to `live`, which is the one behaviour worth keeping deliberate: a typo in an
+ * environment variable must not be able to take the site's own description down with it.
  */
 export type SiteStatus = "live" | "paused";
 
@@ -22,11 +17,11 @@ export const SITE_STATUS: SiteStatus =
 
 export const isPaused = SITE_STATUS === "paused";
 
-/** Why it is paused, shown wherever an action is refused. One place, so the reason cannot drift. */
+/** What the banner says when paused. One place, so the reason cannot drift. */
 export const PAUSE_REASON = {
   headline: "Not accepting new tenders",
   body:
-    "This deployment is paused while the next version is built. The contracts stay on-chain and " +
-    "everything here stays readable: tenders, decision memos and the audit trail. Payouts and " +
-    "refunds still work, so anything already committed can still be withdrawn.",
+    "This deployment is paused while the next version is built. The V1 contracts stay on-chain " +
+    "and callable by anyone, and the record stays readable: the evidence pack, the decision " +
+    "memos and the audit view.",
 } as const;

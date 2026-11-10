@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 /**
- * A pause must refuse new commitments without trapping money or hiding the record.
+ * The pause is a banner, and these keep it one.
  *
- * The temptation with a maintenance mode is to switch the whole site off, which here would break
- * the two things the project promises: that committed funds can always be withdrawn, and that any
- * decision can be re-checked against the chain. These pin the shape of the pause so a later change
- * cannot quietly widen it.
+ * It defaults to live so a mistyped environment variable cannot flip the site's own description,
+ * and it stays out of the audit view, which is the page whose availability the project's central
+ * claim rests on. Both are small; the reason they are tested is that this flag used to gate real
+ * actions and the docstring went on saying so after the actions were gone.
  */
 describe("site status", () => {
   it("defaults to live, so a typo cannot take the site down", async () => {
@@ -25,22 +25,10 @@ describe("site status", () => {
   });
 });
 
-describe("what a pause is allowed to touch", () => {
+describe("what the pause flag reaches", () => {
   const read = (p: string) => require("node:fs").readFileSync(new URL(p, import.meta.url), "utf8");
 
-  it("gates the two pages that create a new commitment", () => {
-    expect(read("../app/rfqs/new/page.tsx")).toContain("isPaused");
-    expect(read("../app/rfqs/[id]/bid/page.tsx")).toContain("isPaused");
-  });
-
-  it("never gates a route that returns money", () => {
-    // Withdrawals and deposit settlement are how committed funds come back. The V2 plan's own
-    // legacy-safety gate says a new deployment must not hide withdrawal paths.
-    expect(read("../components/Payouts.tsx")).not.toContain("isPaused");
-    expect(read("../components/SettleDeposit.tsx")).not.toContain("isPaused");
-  });
-
-  it("never gates the audit trail", () => {
+  it("does not reach the audit view", () => {
     expect(read("../app/audit/[id]/page.tsx")).not.toContain("isPaused");
   });
 });

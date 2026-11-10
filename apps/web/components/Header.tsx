@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { WalletChip } from "./WalletChip";
 
 export function Header() {
   return (
@@ -9,12 +8,8 @@ export function Header() {
       </Link>
       <span className="tagline">sealed-bid procurement · on arc</span>
       <div className="spacer" />
-      <WalletChip />
-      <Link className="chip" href="/rfqs">
-        RFQ board
-      </Link>
-      <Link className="chip" href="/suppliers">
-        Suppliers
+      <Link className="chip" href="/app">
+        App
       </Link>
       {/*
         The cross-chain claims, checked on load rather than recited. In the header because a

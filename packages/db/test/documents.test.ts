@@ -36,11 +36,11 @@ beforeEach(async () => {
   await admin.query(`
     TRUNCATE request_responses, request_invitations, documents, requests, memberships,
              organizations, users RESTART IDENTITY CASCADE;
-    INSERT INTO users (id, wallet) VALUES ('${BUYER}','0xbuyer'), ('${SUP_A}','0xa'), ('${SUP_B}','0xb');
-    INSERT INTO organizations (id, name) VALUES
-      ('${ORG_BUYER}','Northwind'), ('${ORG_A}','Supplier A'), ('${ORG_B}','Supplier B');
-    INSERT INTO memberships (org_id, user_id, role) VALUES
-      ('${ORG_BUYER}','${BUYER}','owner'), ('${ORG_A}','${SUP_A}','owner'), ('${ORG_B}','${SUP_B}','owner');
+    INSERT INTO users (id, clerk_user_id) VALUES ('${BUYER}','user_buyer'), ('${SUP_A}','user_a'), ('${SUP_B}','user_b');
+    INSERT INTO organizations (id, name, clerk_org_id) VALUES
+      ('${ORG_BUYER}','Northwind','org_buyer'), ('${ORG_A}','Supplier A','org_a'), ('${ORG_B}','Supplier B','org_b');
+    INSERT INTO memberships (org_id, user_id) VALUES
+      ('${ORG_BUYER}','${BUYER}'), ('${ORG_A}','${SUP_A}'), ('${ORG_B}','${SUP_B}');
     INSERT INTO requests (id, org_id, type, status, title) VALUES
       ('${RFI}','${ORG_BUYER}','RFI','open','Route optimisation');
     INSERT INTO request_invitations (request_id, org_id) VALUES ('${RFI}','${ORG_A}'), ('${RFI}','${ORG_B}');
@@ -60,28 +60,30 @@ const upload = () =>
 withDb("reading a private document", () => {
   it("returns the exact bytes to the organization that uploaded it", async () => {
     const doc = await upload();
-    const got = await getDocument(SUP_A, doc.id);
+    const got = await getDocument(SUP_A, ORG_A, doc.id);
     expect(got.bytes.equals(SECRET)).toBe(true);
     expect(got.filename).toBe("a-pricing.pdf");
   });
 
   it("reaches the buyer who asked for it", async () => {
     const doc = await upload();
-    await expect(getDocument(BUYER, doc.id)).resolves.toMatchObject({ filename: "a-pricing.pdf" });
+    await expect(getDocument(BUYER, ORG_BUYER, doc.id)).resolves.toMatchObject({
+      filename: "a-pricing.pdf",
+    });
   });
 
   it("is refused to a rival supplier holding the document id", async () => {
     // Supplier B is invited to the same request, so it is not a stranger. It still must not read
     // another bidder's attachment.
     const doc = await upload();
-    await expect(getDocument(SUP_B, doc.id)).rejects.toThrow(/not yours to read/);
+    await expect(getDocument(SUP_B, ORG_B, doc.id)).rejects.toThrow(/not yours to read/);
   });
 
   it("is refused to a caller with no session at all", async () => {
     const doc = await upload();
-    await expect(getDocument("00000000-0000-0000-0000-000000000000", doc.id)).rejects.toThrow(
-      DocumentError,
-    );
+    await expect(
+      getDocument("00000000-0000-0000-0000-000000000000", ORG_A, doc.id),
+    ).rejects.toThrow(DocumentError);
   });
 });
 
@@ -128,7 +130,7 @@ withDb("what is actually on disk", () => {
     const raw = readFileSync(file);
     raw[raw.length - 1] ^= 0xff; // flip a bit in the ciphertext
     writeFileSync(file, raw);
-    await expect(getDocument(SUP_A, doc.id)).rejects.toThrow(/integrity check/);
+    await expect(getDocument(SUP_A, ORG_A, doc.id)).rejects.toThrow(/integrity check/);
   });
 });
 

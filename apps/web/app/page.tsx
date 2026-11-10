@@ -2,7 +2,7 @@ import { Header } from "@/components/Header";
 import { HeroRFQ } from "@/components/landing/HeroRFQ";
 import { TrustBoundary } from "@/components/landing/TrustBoundary";
 import { WhereThisFits } from "@/components/landing/WhereThisFits";
-import { chain, contracts, explorerAddress, isMainnet } from "@/lib/chain";
+import { chain, contracts, explorerAddress } from "@/lib/chain";
 import { evidence, evidenceChainName, evidenceIsLive, evidenceTx } from "@/lib/evidence";
 import { PAUSE_REASON, isPaused } from "@/lib/siteStatus";
 import Link from "next/link";
@@ -24,15 +24,12 @@ export default function Home() {
               <>
                 <b>{PAUSE_REASON.headline}.</b> {PAUSE_REASON.body}
               </>
-            ) : isMainnet ? (
-              <>
-                Every RFQ, sealed bid and payout here spends <b>real USDC</b> on Arc mainnet.
-                Settlement is forward-only: there is no undo and no chargeback.
-              </>
             ) : (
               <>
-                Every RFQ, sealed bid and payout on this site is a <b>real Arc transaction</b>,
-                settled in USDC.
+                The contracts are deployed on {chain.name} and a complete lifecycle{" "}
+                <b>already ran</b> on {evidenceIsLive ? chain.name : evidenceChainName}; every
+                transaction is linked below. What this site does today is earlier than that: it
+                keeps organisations and requests, and <b>moves no USDC</b>.
               </>
             )}
           </span>
@@ -50,23 +47,28 @@ export default function Home() {
             <span className="h1-line accent">Suppliers get paid.</span>
           </h1>
           <p className="hero-sub">
-            SealedRFQ is sealed-bid procurement for B2B buyers. Suppliers commit sealed bids backed
-            by a refundable <span className="arc-word">USDC</span> deposit. An AI evaluator scores
-            them against a rubric published before bidding opened, an on-chain policy decides
-            whether the award is allowed, and the winner is paid milestone by milestone.
+            SealedRFQ is sealed-bid procurement for B2B buyers, and the mechanism is built and
+            proven on <span className="arc-word">Arc</span>: a full lifecycle ran on-chain — sealed
+            bids backed by refundable <span className="arc-word">USDC</span> deposits, an AI
+            evaluator scoring against a rubric fixed before bidding opened, an on-chain policy
+            refusing an over-budget award, payment released milestone by milestone. Every
+            transaction of it is linked below.
+          </p>
+          <p className="hero-sub">
+            What this site offers today is the front of that lifecycle: organisations, RFIs and
+            tenders, held in a database. <b>The sealed bid, the award and the escrow have no screen
+            here.</b> They live in the contracts, and in the run you can re-check yourself.
           </p>
           <p className="hero-tagline">
             An AI can recommend the winner. <b>Only the contract can award.</b>
           </p>
           <div className="hero-cta">
-            <Link className="btn-primary" href="/rfqs">
-              ▶ Browse open RFQs
+            <Link className="btn-primary" href="/app">
+              ▶ Open the app
             </Link>
-            {!isPaused && (
-              <Link className="btn-outline" href="/rfqs/new">
-                Post an RFQ
-              </Link>
-            )}
+            <Link className="btn-outline" href="/evidence">
+              Check the evidence
+            </Link>
           </div>
           <p className="hero-links">
             <a href={explorerAddress(contracts.RFQRegistry)} target="_blank" rel="noreferrer">
@@ -94,21 +96,29 @@ export default function Home() {
         <HeroRFQ />
       </section>
 
-      {/* ---- One RFQ, sealed bids, two gates, paid by milestone ---- */}
+      {/* ---- One RFQ, sealed bids, two gates, paid by milestone ----
+          This section describes the run in the evidence pack, which is why its tenses are mixed
+          on purpose: what happened is past, what the immutable contracts enforce is present. The
+          one thing it must never do is use the present tense for a step a visitor could take here,
+          because none of these four has a screen on this site. */}
       <section className="story">
         <h2 className="section-title">One RFQ. Sealed bids. Two gates. Paid by milestone.</h2>
         <p className="story-lede">
-          Northwind needs a vendor. Three suppliers bid without seeing each other&apos;s prices.
-          Before any money moves, the award has to pass two gates. After that, payment follows
-          delivery. Every arrow below runs on <span className="arc-word">Arc</span>.
+          This is the run in the evidence pack, not a sketch of one. Northwind needed a vendor.
+          Three suppliers bid without seeing each other&apos;s prices, the award had to clear two
+          gates before any money moved, and payment then followed delivery. Every arrow below
+          happened on <span className="arc-word">Arc</span> and resolves in a block explorer — and
+          none of it has a screen here: the steps describe the contracts and the transactions they
+          produced.
         </p>
         <div className="flow">
           <div className="flow-step">
             <span className="flow-n">STEP 01 · SEALED</span>
-            <h3>Bids go on-chain as hashes</h3>
+            <h3>Bids went on-chain as hashes</h3>
             <p>
-              Each supplier posts a commitment and a USDC deposit. Prices stay invisible until the
-              reveal window, and a supplier that never reveals <b>forfeits its deposit</b>.
+              Each supplier posted a commitment and a USDC deposit. A price is unreadable before
+              the reveal window because only its hash is stored, and a supplier that never revealed{" "}
+              <b>forfeited its deposit</b>.
             </p>
             <div className="gate-verdicts">
               <span className="gv ok">REVEAL ✓</span>
@@ -118,13 +128,13 @@ export default function Home() {
 
           <div className="flow-step">
             <span className="flow-n">STEP 02 · GATE 1 · AI</span>
-            <h3>Bids are scored against a published rubric</h3>
+            <h3>Bids were scored against a published rubric</h3>
             <p>
-              The rubric&apos;s hash is fixed when the RFQ opens, so it cannot be rewritten to fit a
-              favoured bid. The buyer&apos;s terms and requirements are fixed the same way, and
-              revealed bids are screened against them automatically; a requirement no bid can prove,
-              like a certification, is reported as <b>still needing a human</b> rather than quietly
-              passed. The memo is anchored whether it recommends or rejects.
+              The rubric&apos;s hash is fixed when an RFQ opens, so it cannot be rewritten to fit a
+              favoured bid, and the buyer&apos;s terms and requirements are fixed the same way.
+              Revealed bids were screened against them automatically; a requirement no bid can
+              prove, like a certification, is reported as <b>still needing a human</b> rather than
+              quietly passed. The memo is anchored whether it recommends or rejects.
             </p>
             <div className="gate-verdicts">
               <span className="gv no">REJECT ✕</span>
@@ -134,11 +144,11 @@ export default function Home() {
 
           <div className="flow-step is-gate">
             <span className="flow-n">STEP 03 · GATE 2 · ARC</span>
-            <h3>The contract decides if the award is allowed</h3>
+            <h3>The contract decided whether the award was allowed</h3>
             <p>
               Budget cap, minimum bidders, deposit ratio, rubric match and concentration limits are
-              enforced inside <span className="mono-sm">award()</span>. An over-budget
-              recommendation reverts with <span className="mono-sm">AwardExceedsBudget</span>.
+              enforced inside <span className="mono-sm">award()</span>. In this run an over-budget
+              recommendation reverted with <span className="mono-sm">AwardExceedsBudget</span>.
             </p>
             <div className="gate-verdicts">
               <span className="gv no">BLOCK ⛔</span>
@@ -156,11 +166,11 @@ export default function Home() {
 
           <div className="flow-step">
             <span className="flow-n">STEP 04 · MILESTONES</span>
-            <h3>Payment follows delivery</h3>
+            <h3>Payment followed delivery</h3>
             <p>
-              One escrow job per milestone. The supplier submits a deliverable hash; the buyer
-              accepts or rejects with a reason. If the buyer goes silent, payment{" "}
-              <b>auto-releases</b>. Retention is held until final acceptance.
+              One escrow job per milestone. The supplier submitted a deliverable hash and the buyer
+              accepted or rejected it with a reason. If a buyer goes silent, payment{" "}
+              <b>auto-releases</b>; retention is held until final acceptance.
             </p>
             <div className="gate-verdicts">
               <span className="gv ok">ACCEPT ↗</span>

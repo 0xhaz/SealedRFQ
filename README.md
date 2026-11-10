@@ -1,12 +1,20 @@
 # SealedRFQ on Arc
 
-Sealed-bid B2B procurement on [Arc](https://docs.arc.io): suppliers commit sealed bids with a USDC
-deposit, an AI evaluator scores them against a rubric published before bidding opened, an on-chain
-procurement policy enforces the award, and the winner is paid milestone by milestone through
-ERC-8183 escrow.
+Sealed-bid B2B procurement on [Arc](https://docs.arc.io). The mechanism is five contracts:
+suppliers commit sealed bids with a USDC deposit, an AI evaluator scores them against a rubric
+published before bidding opened, an on-chain procurement policy decides whether the award is
+allowed, and the winner is paid milestone by milestone through ERC-8183 escrow. A complete
+lifecycle has run on-chain, including the policy refusing an over-budget award, and every
+transaction of it is linked in the evidence pack.
 
-**Live on Arc mainnet: [www.sealedrfq.com](https://www.sealedrfq.com)** — chain 5042, real USDC.
-Contract addresses [below](#live-on-arc-mainnet-chain-5042).
+**The application is earlier than the mechanism.** The wallet-first V1 interface is
+[retired](#v1-is-retired-legacy-contracts-no-v1-interface). What runs at
+[www.sealedrfq.com](https://www.sealedrfq.com) today is a Clerk-organization workspace under
+`/app`: organisations, RFIs and tenders, held in Postgres under row-level security. Committing a
+sealed bid, revealing it, awarding and accepting a milestone have **no screen** — they are contract
+calls, and what vouches for them is the on-chain record: the evidence pack, and `/audit/{id}` to
+re-hash a decision memo against it. The contracts are deployed on Arc mainnet (chain 5042, real
+USDC); addresses [below](#live-on-arc-mainnet-chain-5042).
 
 > Work in progress for the Arc Microgrants program. Plan: [`docs/workplan.md`](docs/workplan.md).
 > Design: [`docs/architecture.md`](docs/architecture.md) · Stack: [`docs/techstack.md`](docs/techstack.md).
@@ -25,9 +33,9 @@ the whole stack runs offline — and its clock can be pushed forward instead of 
 reveal and acceptance windows.
 
 ```bash
-pnpm local            # chain + contracts + seeded RFQs + agent + web on localhost:3000
+pnpm local            # builds the packages, then chain + contracts + seeded RFQs + agent + web on :3000
 pnpm local:demo       # the full lifecycle end to end in ~90s, warping past every window
-pnpm local:warp 5m    # skip a window while clicking through the UI yourself
+pnpm local:warp 5m    # skip a window without waiting it out
 pnpm local:status
 pnpm local:down
 ```
@@ -35,10 +43,40 @@ pnpm local:down
 `pnpm local` prints the MetaMask settings (chain 31337) and the account keys to import. Each starts
 with 1,000,000 USDC. The seeded RFQs deliberately sit in different phases — one sealed, one in
 reveal as an RFP, one price-only — and supplier 3 never reveals anywhere, so deposit forfeiture is
-visible too.
+part of the seeded state. The lifecycle itself is driven by `local:demo` and read back from the
+chain and the agent; there is no V1 interface left to click it through.
 
 > Account #9 is skipped throughout: it is the USDC proxy admin on a local Arc chain, and the proxy
 > refuses calls from its own admin.
+
+### Accounts are optional locally
+
+Clerk keys are not in the repository — `apps/web/.env.local` is gitignored — and `pnpm local` does
+not invent them. Without them the site still serves everything that needs no account: the landing
+page, `/evidence`, `/audit/{id}`, `/qualify` and `/docs`. Every route under `/app` answers **503**.
+It degrades rather than opening: a missing key must never turn a protected route into a public one.
+
+To turn accounts on, create a Clerk development instance and put its keys in `apps/web/.env.local`.
+Next reads that file, not the repo root's `.env.local`, which `tools/local.sh` regenerates on every
+run; keys already exported in your shell are forwarded to the web app by `tools/local.sh`, so either
+place works.
+
+```bash
+# apps/web/.env.local
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_…   # the browser bundle only sees NEXT_PUBLIC_*
+CLERK_PUBLISHABLE_KEY=pk_test_…               # the server reads this name
+CLERK_SECRET_KEY=sk_test_…
+CLERK_WEBHOOK_SIGNING_SECRET=whsec_…          # only exists once a webhook endpoint does
+APP_DATABASE_URL=postgres://sealedrfq_app:localdev@localhost:5433/sealedrfq
+DOCUMENT_ENCRYPTION_KEY=                      # 32 bytes of hex: openssl rand -hex 32
+```
+
+`/app` also needs the Postgres that holds the tenant state, which `pnpm local` does not start:
+
+```bash
+pnpm --filter @sealedrfq/db db:up
+pnpm --filter @sealedrfq/db db:migrate
+```
 
 ## Develop
 
@@ -120,6 +158,65 @@ publish, not ours, and the pack says so rather than implying an on-chain trail t
 exist.
 
 Run it yourself: `./script/demo.sh testnet`.
+
+## V1 is retired: legacy contracts, no V1 interface
+
+The wallet-first V1 pages (`/rfqs`, `/suppliers`, `/admin`) are gone from the application, which now
+runs on Clerk organizations under `/app`. The contracts they talked to are **not** gone and were not
+touched: they are immutable, still deployed, and still callable by anyone. The addresses above are
+the **legacy V1** deployments, kept because they are part of the record.
+
+It is worth being plain about what that cost, because the rest of this file describes the mechanism
+rather than the product. Every step of the lifecycle lost its interface: **posting** a tender, **committing** a
+sealed bid, **revealing** it, **awarding**, **accepting a milestone** and **withdrawing** are all
+contract calls now, with no screen anywhere in the application. The decision memo and the audit
+check survived (`/audit/{id}`, and `/evidence` for the completed run), because re-checking a
+decision is the one claim that cannot be allowed to depend on having an account. What V2 offers in
+their place is one tier earlier — organisations, RFIs and tenders in Postgres — and it does not
+touch the chain at all yet.
+
+Retiring the interface did not hide a withdrawal path, and any funds still in V1 remain reachable by
+permissionless calls on those immutable contracts:
+
+1. `settleDeposit(rfqId, bidder)` on an RFQ that is `Awarded` or `NoAward`, callable by anyone, which
+   moves a held deposit to its beneficiary's `withdrawable` balance.
+2. `withdraw()`, called by each beneficiary, which pays `msg.sender` only.
+
+An RFQ still `Open` needs a **third** call before either of those does anything, and testnet RFQ
+**3** is in exactly that state: its award window closed with nobody awarded, so
+`settleDeposit(3, …)` reverts with `WrongPhase` and nothing on it can move. `closeNoAward(3)` closes
+it — crediting the buyer with the escrowed budget and stake — and `settleDeposit(3, …)` then works
+on the bid deposit. Like the other two, **anyone may call it**: it is in the
+[permissionless row](#why-that-last-row-is-permissionless) above. (`settleExpired` is the equivalent
+for an engagement that is already past award; it lives on `SealedRFQAdapter`, not on the registry,
+so it is not the call RFQ 3 needs.) The dry run labels this case rather than hiding it: `RFQ not yet
+closed; settleDeposit would revert`.
+
+`scripts/v1/settle-and-withdraw.mjs` is the convenience path. It imports `@sealedrfq/shared`, whose
+`dist/` is gitignored, so build the workspace packages first or it fails with
+`ERR_MODULE_NOT_FOUND`:
+
+```bash
+pnpm --filter "./packages/*" build
+node scripts/v1/settle-and-withdraw.mjs --dry-run
+```
+
+`--dry-run` lists what it would send without needing a key; without the flag it sends the
+`settleDeposit` calls and then `withdraw()` for the key in `PRIVATE_KEY`. It does not call
+`closeNoAward`, because closing a tender is a decision about the tender rather than a settlement —
+make that call yourself. Calling the contracts directly works just as well; the script is not
+required.
+
+State as of **2026-11-10**:
+
+- **Arc mainnet** V1 `RFQRegistry`: `rfqCount` is 0 and every balance is 0. Nothing was ever held.
+- **Arc testnet** V1 `RFQRegistry`: `rfqCount` is 6 and it holds 4.650000 USDC of test money,
+  accounted for as 0.25 credited (`totalWithdrawable`, awaiting `withdraw()` by its beneficiary)
+  plus 4.40 `totalHeld`. The held figure is **not** all bid deposits: 1.00 is four settleable
+  deposits on RFQs 2 and 6, and the remaining 3.40 is RFQ 3 — its 3.00 escrowed budget plus 0.15
+  buyer stake, which `closeNoAward(3)` releases, and one 0.25 deposit that `settleDeposit` can take
+  afterwards. It has not been drained: the funds have no value, and the exit path is a property of
+  the contracts rather than of having exercised it.
 
 ## How it works
 
@@ -396,6 +493,10 @@ Two things a v2 must carry rather than abandon:
 
 ## Which procurement instruments this covers
 
+This table is about the **contracts**. The V2 application does hold RFIs, off-chain in Postgres, and
+converting one produces a new tender rather than rewriting the RFI — see `packages/db/README.md`.
+That does not change the row below: an RFI still has nothing on-chain to guarantee.
+
 | | Covered | How |
 |---|---|---|
 | **RFQ** | yes | Sealed price + delivery bids on defined items, awarded against a published rubric |
@@ -412,10 +513,16 @@ Revealing needs that exact salt, and an unrevealed bid forfeits its deposit — 
 makes a commitment binding, so there is no contract-level "I lost it" refund: it would let a bidder
 decline to reveal whenever the reveal looked unprofitable.
 
-Recovery therefore lives in the client. The salt is derived from a wallet signature over a
-bid-scoped message, so the same wallet regenerates it on any device; it is also cached locally and
-downloaded as a reveal file. During bidding, a bidder can simply re-commit with a fresh secret,
-which takes no second deposit.
+Recovery therefore has to live in the client, and the V1 client did it two ways: the salt was
+derived from a wallet signature over a bid-scoped message, so the same wallet could regenerate it on
+any device, and every commit was also cached in the browser and offered as a downloadable reveal
+file before the transaction was sent. Re-committing with a fresh secret during bidding takes no
+second deposit — that part is a property of the contract and is still true.
+
+That client is retired. `apps/web/lib/bidStore.ts` still carries the derivation and the file format,
+but `BidForm.tsx`, the only thing that called it, is gone with the rest of the V1 surfaces. So this
+section records how the problem was solved, not something the site does for you: whoever commits a
+bid against these contracts today keeps the salt themselves.
 
 ## Arc rules this codebase follows
 

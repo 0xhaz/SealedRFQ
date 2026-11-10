@@ -1,7 +1,7 @@
 "use client";
 
-import { createRequestAction } from "@/app/workspace/requests/actions";
-import { useRouter } from "next/navigation";
+import { createRequestAction } from "@/app/app/[org]/requests/actions";
+import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 
 export function NewRequestForm({
@@ -10,6 +10,7 @@ export function NewRequestForm({
   organisations: { id: string; name: string }[];
 }) {
   const router = useRouter();
+  const { org } = useParams<{ org: string }>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,7 +23,7 @@ export function NewRequestForm({
       setError(result.error);
       return;
     }
-    router.push(`/workspace/requests/${result.id}`);
+    router.push(`/app/${org}/requests/${result.id}`);
   }
 
   return (

@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-/** The split Prose applies. Kept in step with components/Prose.tsx. */
+/**
+ * The paragraph split that `generateTerms` output needs before it reads as HTML.
+ *
+ * It mirrored `components/Prose.tsx`, which went with the V1 surfaces, and `lib/terms.ts` has no
+ * renderer in the V2 app yet — so this pins the rule rather than a component. Worth keeping as the
+ * rule: breaking on a single newline as well as a blank line is the part that was got wrong, not
+ * the JSX around it.
+ */
 const toParagraphs = (text: string) =>
   text
     .split(/\n\s*\n|\n/)

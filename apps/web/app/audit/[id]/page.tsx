@@ -193,11 +193,8 @@ export default async function AuditPage({ params }: { params: Promise<{ id: stri
       </div>
 
       <nav className="page-nav">
-        <Link className="btn-nav" href={`/rfqs/${id}`}>
-          ← Back to the RFQ
-        </Link>
-        <Link className="btn-nav ghost" href="/rfqs">
-          All RFQs
+        <Link className="btn-nav" href="/app">
+          Open the app
         </Link>
       </nav>
     </div>

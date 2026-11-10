@@ -10,6 +10,7 @@
     "test": "tsc --noEmit && vitest run"
   },
   "dependencies": {
+    "@clerk/nextjs": "7.9.21",
     "@concordium/browser-wallet-api-helpers": "3.3.0",
     "@concordium/web-sdk": "^8.1.1",
     "@sealedrfq/concordium": "workspace:*",

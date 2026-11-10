@@ -1,4 +1,4 @@
-import { withTenant } from "./index.js";
+import { withTenant, withUser } from "./index.js";
 import type { RequestRow } from "./requests.js";
 
 /**
@@ -18,10 +18,17 @@ export type Organization = {
   role: string;
 };
 
+/**
+ * Every organization the user belongs to: the one read that spans organizations, so no active one.
+ *
+ * `role` is Clerk's role key (`org:admin`, or any custom `org:*` key), read from `clerk_role`,
+ * which the membership webhook keeps current. It replaces the old `memberships.role` enum, which
+ * could not represent Clerk's custom roles.
+ */
 export async function myOrganizations(userId: string): Promise<Organization[]> {
-  return withTenant(userId, async (q) => {
+  return withUser(userId, async (q) => {
     const { rows } = await q.query<Organization>(
-      `SELECT o.id, o.name, o.country, o.can_buy, o.can_supply, m.role
+      `SELECT o.id, o.name, o.country, o.can_buy, o.can_supply, m.clerk_role AS role
          FROM organizations o
          JOIN memberships m ON m.org_id = o.id AND m.user_id = $1
         ORDER BY o.name`,
@@ -38,14 +45,14 @@ export type RequestSummary = RequestRow & {
 };
 
 /**
- * Requests this user can see: the ones their organizations own, and the ones they were invited to.
+ * Requests the active organization can see: the ones it owns, and the ones they were invited to.
  *
  * The counts come from the same tenant-scoped connection, so an invited supplier counts only the
  * responses it is allowed to read, which is its own. A buyer sees all of them. Nothing here has to
  * know that rule; the policies express it once.
  */
-export async function visibleRequests(userId: string): Promise<RequestSummary[]> {
-  return withTenant(userId, async (q) => {
+export async function visibleRequests(userId: string, orgId: string): Promise<RequestSummary[]> {
+  return withTenant(userId, orgId, async (q) => {
     const { rows } = await q.query<RequestSummary>(
       `SELECT r.*, o.name AS org_name,
               (SELECT count(*) FROM request_responses rr WHERE rr.request_id = r.id) AS response_count,
@@ -62,8 +69,12 @@ export async function visibleRequests(userId: string): Promise<RequestSummary[]>
   });
 }
 
-export async function getRequest(userId: string, id: string): Promise<RequestSummary | null> {
-  const all = await visibleRequests(userId);
+export async function getRequest(
+  userId: string,
+  orgId: string,
+  id: string,
+): Promise<RequestSummary | null> {
+  const all = await visibleRequests(userId, orgId);
   return all.find((r) => r.id === id) ?? null;
 }
 
@@ -75,8 +86,12 @@ export type ResponseRow = {
   created_at: string;
 };
 
-export async function responsesFor(userId: string, requestId: string): Promise<ResponseRow[]> {
-  return withTenant(userId, async (q) => {
+export async function responsesFor(
+  userId: string,
+  orgId: string,
+  requestId: string,
+): Promise<ResponseRow[]> {
+  return withTenant(userId, orgId, async (q) => {
     const { rows } = await q.query<ResponseRow>(
       `SELECT rr.id, rr.org_id, o.name AS org_name, rr.body, rr.created_at
          FROM request_responses rr
@@ -109,7 +124,7 @@ export async function directory(
   userId: string | null,
   opts: { supplying?: boolean } = {},
 ): Promise<DirectoryEntry[]> {
-  return withTenant(userId, async (q) => {
+  return withUser(userId, async (q) => {
     const { rows } = await q.query<DirectoryEntry>(
       `SELECT id, name, country, can_supply
          FROM organizations
