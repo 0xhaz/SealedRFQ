@@ -289,12 +289,16 @@ if (balance.accountAmount.microCcdAmount < 1_000_000n) {
   die("Less than 1 CCD. Top the account up from the faucet before registering.");
 }
 
+/** A reject reason as readable text. Never JSON.stringify: these objects carry bigints and throw. */
+function describeReason(reason) {
+  if (!reason) return "no reason given";
+  const code = reason.rejectReason;
+  if (typeof code === "number") return `${describeReject(code)} (${code})`;
+  return String(reason.tag ?? "rejected");
+}
+
 function reject(result) {
-  if (result.tag !== "failure") return undefined;
-  const code = result.reason?.rejectReason;
-  return typeof code === "number"
-    ? `${describeReject(code)} (${code})`
-    : JSON.stringify(result.reason);
+  return result.tag === "failure" ? describeReason(result.reason) : undefined;
 }
 
 /**
@@ -313,27 +317,47 @@ async function submit(label, { contract, method, parameter, energy, expectedDryR
     return null;
   }
   if (refusal) die(`${label} would be rejected: ${refusal}`);
+
+  const dryReturnValue = dry.returnValue;
   const used = dry.usedEnergy.value;
   // Headroom over the dry run, because the real call runs against a later block.
   const maxEnergy = energy ?? used + used / 4n + 500n;
   console.log(`\n${label}`);
   console.log(`  dry run ok, ${used} energy; sending with a ${maxEnergy} limit`);
-  if (dryRun) return null;
-  const hash = await client.sendUpdateTransaction(
-    {
+
+  // Built and signed even on a dry run. Only the send is skipped, so a mistake in the header, the
+  // payload or the signer surfaces here instead of after the first transaction has already landed.
+  const nonce = await client.getNextAccountNonce(sender);
+  const transaction = {
+    type: SDK.AccountTransactionType.Update,
+    header: { sender, nonce: nonce.nonce, expiry: SDK.TransactionExpiry.futureMinutes(10) },
+    payload: {
       amount: SDK.CcdAmount.zero(),
       address: contract,
       receiveName: method,
+      message: parameter,
       maxContractExecutionEnergy: SDK.Energy.create(maxEnergy),
     },
-    parameter,
-    sender,
-    signer,
-  );
+  };
+  const signature = await SDK.signTransaction(transaction, signer);
+  if (dryRun) {
+    const credentials = Object.keys(signature).length;
+    console.log(`  built and signed with ${credentials} credential(s); not sending`);
+    return null;
+  }
+
+  const hash = await client.sendAccountTransaction(transaction, signature);
   console.log(`  ${SDK.TransactionHash.toHexString(hash)}`);
   const summary = await client.waitForTransactionFinalization(hash);
-  if (summary.summary.transactionType === "failed") {
-    die(`${label} failed on chain: ${JSON.stringify(summary.summary.rejectReason)}`);
+  // The SDK's own predicate rather than a string compare, and its reason decoder rather than
+  // JSON: a reject reason carries bigints, so stringifying one throws at exactly the moment the
+  // message is needed and turns a plain on-chain refusal into a crash.
+  if (SDK.isRejectTransaction(summary.summary)) {
+    die(
+      `${label} was rejected on chain: ${describeReason(
+        SDK.getTransactionRejectReason(summary.summary),
+      )}\n  ${EXPLORER[network]}/${network}/transaction/${SDK.TransactionHash.toHexString(hash)}`,
+    );
   }
   console.log(
     `  finalised: ${EXPLORER[network]}/${network}/transaction/${SDK.TransactionHash.toHexString(hash)}`,
