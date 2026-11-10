@@ -19,11 +19,20 @@
 --
 -- Collapsing them would either hide the switcher's data or reopen the cross-organization read.
 
+-- Every SECURITY DEFINER function here pins search_path. Without it `memberships` resolves against
+-- the caller's path, which searches pg_temp first, and the app role may create temp tables: a
+-- forged temp `memberships` would make active_org() confirm any organization and open every policy
+-- below. Objects are therefore schema-qualified (public.*, app.*) rather than found by search.
 CREATE OR REPLACE FUNCTION app.active_org() RETURNS uuid
-  LANGUAGE sql STABLE SECURITY DEFINER AS
-$$ SELECT m.org_id FROM memberships m
+  LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS
+$$ SELECT m.org_id FROM public.memberships m
     WHERE m.user_id = app.current_user_id()
       AND m.org_id = nullif(current_setting('app.current_org_id', true), '')::uuid $$;
+
+-- member_orgs() is redefined only to pin its search_path; its meaning is unchanged from 0001.
+CREATE OR REPLACE FUNCTION app.member_orgs() RETURNS SETOF uuid
+  LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS
+$$ SELECT org_id FROM public.memberships WHERE user_id = app.current_user_id() $$;
 
 GRANT EXECUTE ON FUNCTION app.active_org() TO sealedrfq_app;
 
@@ -31,15 +40,15 @@ GRANT EXECUTE ON FUNCTION app.active_org() TO sealedrfq_app;
 -- they would keep leaking across organizations through the visibility policies below, so they
 -- ask about the active organization only.
 CREATE OR REPLACE FUNCTION app.owns_request(req uuid) RETURNS boolean
-  LANGUAGE sql STABLE SECURITY DEFINER AS
+  LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS
 $$ SELECT EXISTS (
-     SELECT 1 FROM requests r WHERE r.id = req AND r.org_id = app.active_org()
+     SELECT 1 FROM public.requests r WHERE r.id = req AND r.org_id = app.active_org()
    ) $$;
 
 CREATE OR REPLACE FUNCTION app.invited_to_request(req uuid) RETURNS boolean
-  LANGUAGE sql STABLE SECURITY DEFINER AS
+  LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS
 $$ SELECT EXISTS (
-     SELECT 1 FROM request_invitations i WHERE i.request_id = req AND i.org_id = app.active_org()
+     SELECT 1 FROM public.request_invitations i WHERE i.request_id = req AND i.org_id = app.active_org()
    ) $$;
 
 DROP POLICY requests_owner_or_invited ON requests;

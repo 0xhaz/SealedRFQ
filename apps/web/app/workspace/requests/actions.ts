@@ -41,11 +41,13 @@ const fail = (e: unknown): ActionResult => ({
 
 export async function createRequestAction(form: FormData): Promise<ActionResult> {
   try {
-    const userId = await requireUser();
+    const { userId, orgId } = await requireTenant();
     const title = String(form.get("title") ?? "").trim();
     if (!title) return { ok: false, error: "a request needs a title" };
     const row = await createRequest(userId, {
-      orgId: String(form.get("orgId")),
+      // Not the form's orgId: the organization acted as is the session's, so a request cannot be
+      // created somewhere the user then cannot see or act on.
+      orgId,
       type: form.get("type") === "RFQ" ? "RFQ" : "RFI",
       title,
     });
@@ -69,10 +71,10 @@ export async function setStatusAction(requestId: string, next: string): Promise<
   }
 }
 
-export async function inviteAction(requestId: string, orgId: string): Promise<ActionResult> {
+export async function inviteAction(requestId: string, inviteeOrgId: string): Promise<ActionResult> {
   try {
     const tenant = await requireTenant();
-    await invite(tenant.userId, tenant.orgId, requestId, orgId);
+    await invite(tenant.userId, tenant.orgId, requestId, inviteeOrgId);
     revalidatePath(`/workspace/requests/${requestId}`);
     return { ok: true };
   } catch (e) {
@@ -82,11 +84,13 @@ export async function inviteAction(requestId: string, orgId: string): Promise<Ac
 
 export async function respondAction(
   requestId: string,
-  orgId: string,
+  _formOrgId: string,
   body: string,
 ): Promise<ActionResult> {
   try {
-    const id = await respond(await requireUser(), { requestId, orgId, body });
+    // Responds as the session's organization; the argument is kept only so callers need not change.
+    const { userId, orgId } = await requireTenant();
+    const id = await respond(userId, { requestId, orgId, body });
     revalidatePath(`/workspace/requests/${requestId}`);
     return { ok: true, id };
   } catch (e) {

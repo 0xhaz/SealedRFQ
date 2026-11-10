@@ -25,10 +25,19 @@ Two conditions make that true, and both fail silently if broken, so both are tes
 no tables. A table owner bypasses its own policies, so connecting as the migration role would leave
 every policy in place and inert. `assertNotPrivileged()` refuses to start in that case.
 
-**The acting user is set per transaction.** `withTenant(userId, fn)` sets `app.current_user_id` with
-`SET LOCAL`, so it is discarded at commit and cannot leak onto the next borrower of a pooled
-connection. An unset user matches nothing rather than everything: an unauthenticated request sees
-zero rows instead of all of them.
+**The acting user and organization are set per transaction.** `withTenant(userId, orgId, fn)` sets
+`app.current_user_id` and `app.current_org_id` transaction-locally, so they are discarded at commit
+and cannot leak onto the next borrower of a pooled connection. An unset user matches nothing rather
+than everything: an unauthenticated request sees zero rows instead of all of them.
+
+**Procurement is scoped to one active organization, not to all of a user's.** `app.active_org()`
+returns the named organization only if the `memberships` projection confirms the user is in it, and
+the policies on `requests`, `request_invitations`, `request_responses` and `documents` (and the
+`owns_request` / `invited_to_request` helpers) use it. `app.member_orgs()` stays cross-organization
+for `users`, `organizations` and `memberships`, because listing which organizations you belong to is
+the one legitimate cross-organization read; `withUser(userId, fn)` is the wrapper for it. A named
+organization the user is not in, or no organization, matches nothing. These `SECURITY DEFINER`
+functions pin `search_path` so a temp table cannot shadow `memberships`.
 
 Policies never read another protected table directly. The first version had `requests` consult
 `request_invitations` while `request_invitations` consulted `requests`, and Postgres rejected it

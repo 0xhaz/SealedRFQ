@@ -28,6 +28,8 @@ const ORG_B = "aaaaaaaa-0000-0000-0000-000000000002";
 const ORG_STRANGER = "aaaaaaaa-0000-0000-0000-000000000003";
 const REQ_A = "bbbbbbbb-0000-0000-0000-000000000001";
 const REQ_B = "bbbbbbbb-0000-0000-0000-000000000002";
+const SUPPLIER = "aaaaaaaa-0000-0000-0000-000000000004";
+const REQ_Z = "bbbbbbbb-0000-0000-0000-000000000003";
 
 const admin = new pg.Pool({
   connectionString:
@@ -43,12 +45,19 @@ beforeEach(async () => {
              organizations, users RESTART IDENTITY CASCADE;
     INSERT INTO users (id, wallet) VALUES ('${USER_BOTH}','0xboth');
     INSERT INTO organizations (id, name) VALUES
-      ('${ORG_A}','Org A'), ('${ORG_B}','Org B'), ('${ORG_STRANGER}','Stranger');
+      ('${ORG_A}','Org A'), ('${ORG_B}','Org B'), ('${ORG_STRANGER}','Stranger'), ('${SUPPLIER}','Supplier');
     INSERT INTO memberships (user_id, org_id) VALUES
       ('${USER_BOTH}','${ORG_A}'), ('${USER_BOTH}','${ORG_B}');
     INSERT INTO requests (id, org_id, type, status, title) VALUES
       ('${REQ_A}','${ORG_A}','RFI','open','A work'),
-      ('${REQ_B}','${ORG_B}','RFI','open','B work');
+      ('${REQ_B}','${ORG_B}','RFI','open','B work'),
+      ('${REQ_Z}','${ORG_STRANGER}','RFI','open','Z work');
+    -- ORG_B is invited to Z, and a supplier has answered B's request: the two helper functions
+    -- must not let that reach the user while acting as A.
+    INSERT INTO request_invitations (request_id, org_id) VALUES
+      ('${REQ_Z}','${ORG_B}'), ('${REQ_B}','${SUPPLIER}');
+    INSERT INTO request_responses (request_id, org_id, body) VALUES
+      ('${REQ_Z}','${ORG_B}','B answers Z'), ('${REQ_B}','${SUPPLIER}','supplier answers B');
   `);
 });
 
@@ -62,7 +71,48 @@ withDb("a user who belongs to two organizations", () => {
     const a = await withTenant(USER_BOTH, ORG_A, (q) => q.query("SELECT id FROM requests"));
     expect(a.rows.map((r) => r.id)).toEqual([REQ_A]);
     const b = await withTenant(USER_BOTH, ORG_B, (q) => q.query("SELECT id FROM requests"));
-    expect(b.rows.map((r) => r.id)).toEqual([REQ_B]);
+    // B also sees Z, which invited it; that is the invitation rule, not a leak from A.
+    expect(b.rows.map((r) => r.id).sort()).toEqual([REQ_B, REQ_Z]);
+  });
+
+  it("does not inherit another of its organizations' invitations", async () => {
+    // Fails if invited_to_request() asks about every membership instead of the active one.
+    const r = await withTenant(USER_BOTH, ORG_A, (q) => q.query("SELECT id FROM requests"));
+    expect(r.rows.map((x) => x.id)).not.toContain(REQ_Z);
+  });
+
+  it("does not read responses to a request another of its organizations owns", async () => {
+    // Fails if owns_request() asks about every membership instead of the active one.
+    const r = await withTenant(USER_BOTH, ORG_A, (q) =>
+      q.query("SELECT body FROM request_responses"),
+    );
+    expect(r.rows).toEqual([]);
+  });
+
+  it("sees those same rows when it is acting as the organization they belong to", async () => {
+    // The control: without it the two tests above would also pass against an empty database.
+    const r = await withTenant(USER_BOTH, ORG_B, (q) =>
+      q.query("SELECT body FROM request_responses ORDER BY body"),
+    );
+    expect(r.rows.map((x) => x.body)).toEqual(["B answers Z", "supplier answers B"]);
+  });
+
+  it("cannot be fooled by a temp table shadowing memberships", async () => {
+    // active_org() pins its search_path; without that this forged row would confirm ORG_STRANGER.
+    const r = await withTenant(USER_BOTH, ORG_STRANGER, async (q) => {
+      await q.query("CREATE TEMP TABLE memberships (org_id uuid, user_id uuid, role text)");
+      await q.query("INSERT INTO pg_temp.memberships VALUES ($1,$2,'owner')", [
+        ORG_STRANGER,
+        USER_BOTH,
+      ]);
+      return q.query("SELECT id FROM requests");
+    });
+    expect(r.rows).toEqual([]);
+  });
+
+  it("sees nothing when an organization is named but no user is", async () => {
+    const r = await withTenant(null, ORG_A, (q) => q.query("SELECT id FROM requests"));
+    expect(r.rows).toEqual([]);
   });
 
   it("sees no procurement work with no active organization", async () => {

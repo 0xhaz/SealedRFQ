@@ -1,6 +1,6 @@
 import { Header } from "@/components/Header";
 import { NewRequestForm } from "@/components/v2/NewRequestForm";
-import { currentUserId } from "@/lib/v2/session";
+import { activeOrgId, currentUserId } from "@/lib/v2/session";
 import { myOrganizations } from "@sealedrfq/db/workspace";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -11,7 +11,9 @@ export default async function NewRequest() {
   const userId = await currentUserId();
   if (!userId) redirect("/workspace");
 
-  const buying = (await myOrganizations(userId)).filter((o) => o.can_buy);
+  // Offered only the organization actually acted as; the action ignores any other.
+  const orgId = await activeOrgId(userId);
+  const buying = (await myOrganizations(userId)).filter((o) => o.can_buy && o.id === orgId);
 
   return (
     <div className="shell">
