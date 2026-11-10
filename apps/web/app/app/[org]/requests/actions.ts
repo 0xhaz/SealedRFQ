@@ -35,7 +35,7 @@ const fail = (e: unknown): ActionResult => ({
 
 export async function createRequestAction(form: FormData): Promise<ActionResult> {
   try {
-    const { userId, orgId, orgSlug } = await requireTenant();
+    const { userId, orgId, orgSegment } = await requireTenant();
     const title = String(form.get("title") ?? "").trim();
     if (!title) return { ok: false, error: "a request needs a title" };
     const row = await createRequest(userId, {
@@ -45,7 +45,7 @@ export async function createRequestAction(form: FormData): Promise<ActionResult>
       type: form.get("type") === "RFQ" ? "RFQ" : "RFI",
       title,
     });
-    revalidatePath(`/app/${orgSlug}/inbox`);
+    revalidatePath(`/app/${orgSegment}/inbox`);
     return { ok: true, id: row.id };
   } catch (e) {
     return fail(e);
@@ -54,11 +54,11 @@ export async function createRequestAction(form: FormData): Promise<ActionResult>
 
 export async function setStatusAction(requestId: string, next: string): Promise<ActionResult> {
   try {
-    const { userId, orgId, orgSlug } = await requireTenant();
+    const { userId, orgId, orgSegment } = await requireTenant();
     // The database holds the state machine; this does not second-guess which moves are legal.
     await setStatus(userId, orgId, requestId, next as never);
-    revalidatePath(`/app/${orgSlug}/requests/${requestId}`);
-    revalidatePath(`/app/${orgSlug}/inbox`);
+    revalidatePath(`/app/${orgSegment}/requests/${requestId}`);
+    revalidatePath(`/app/${orgSegment}/inbox`);
     return { ok: true };
   } catch (e) {
     return fail(e);
@@ -69,7 +69,7 @@ export async function inviteAction(requestId: string, inviteeOrgId: string): Pro
   try {
     const tenant = await requireTenant();
     await invite(tenant.userId, tenant.orgId, requestId, inviteeOrgId);
-    revalidatePath(`/app/${tenant.orgSlug}/requests/${requestId}`);
+    revalidatePath(`/app/${tenant.orgSegment}/requests/${requestId}`);
     return { ok: true };
   } catch (e) {
     return fail(e);
@@ -83,9 +83,9 @@ export async function respondAction(
 ): Promise<ActionResult> {
   try {
     // Responds as the session's organization; the argument is kept only so callers need not change.
-    const { userId, orgId, orgSlug } = await requireTenant();
+    const { userId, orgId, orgSegment } = await requireTenant();
     const id = await respond(userId, { requestId, orgId, body });
-    revalidatePath(`/app/${orgSlug}/requests/${requestId}`);
+    revalidatePath(`/app/${orgSegment}/requests/${requestId}`);
     return { ok: true, id };
   } catch (e) {
     return fail(e);
@@ -98,13 +98,13 @@ export async function respondAction(
  */
 export async function convertAction(rfiId: string, title: string): Promise<ActionResult> {
   try {
-    const { userId, orgId, orgSlug } = await requireTenant();
+    const { userId, orgId, orgSegment } = await requireTenant();
     const { tender } = await convertToTender(userId, orgId, {
       rfiId,
       type: "RFQ",
       title: title.trim() || "Untitled tender",
     });
-    revalidatePath(`/app/${orgSlug}/inbox`);
+    revalidatePath(`/app/${orgSegment}/inbox`);
     return { ok: true, id: tender.id };
   } catch (e) {
     return fail(e);

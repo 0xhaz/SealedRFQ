@@ -3,7 +3,8 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 
-export type Tenant = { userId: string; orgId: string; orgSlug: string; role: string };
+/** `orgSegment` is a Clerk slug *or* a Clerk organization id; `segment` below says why. */
+export type Tenant = { userId: string; orgId: string; orgSegment: string; role: string };
 
 /**
  * The segment that names this organization in a URL.
@@ -11,6 +12,10 @@ export type Tenant = { userId: string; orgId: string; orgSlug: string; role: str
  * Clerk slugs are optional: an organization made through the Backend API or CLI can be active with
  * no slug at all. Falling back to the id keeps such a session usable instead of dead-ending, and
  * stays collision-free because an id cannot equal another organization's slug.
+ *
+ * Called a segment rather than a slug because it is sometimes not one. Anything building an
+ * `/app/…` link has to apply this same rule: `components/v2/OrgSwitcher.tsx` was written against
+ * Clerk's `:slug` placeholder and dead-ended on `/app//inbox` for a slugless organization.
  */
 const segment = (orgSlug: string | null | undefined, orgId: string) => orgSlug || orgId;
 
@@ -21,7 +26,7 @@ async function resolve(
   // Upserted rather than looked up, so a first sign-in does not race the webhook. No name is passed:
   // auth() does not carry one, and the webhook supplies it.
   const [userId, orgId] = await Promise.all([upsertUser(s.userId), upsertOrganization(s.orgId)]);
-  return { userId, orgId, orgSlug: segmentValue, role: (s.orgRole ?? "").replace(/^org:/, "") };
+  return { userId, orgId, orgSegment: segmentValue, role: (s.orgRole ?? "").replace(/^org:/, "") };
 }
 
 /**

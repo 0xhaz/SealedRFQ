@@ -12,7 +12,7 @@ export default async function RequestPage({
   params: Promise<{ org: string; id: string }>;
 }) {
   const { org, id } = await params;
-  const { userId, orgId, orgSlug } = await requireOrg(org);
+  const { userId, orgId, orgSegment } = await requireOrg(org);
 
   // Invisible and absent are the same answer here, deliberately. A request you were not invited to
   // should not be distinguishable from one that does not exist, or the id becomes an oracle.
@@ -39,7 +39,7 @@ export default async function RequestPage({
           {request.parent_rfi_id && (
             <>
               {" · converted from "}
-              <Link className="linklike" href={`/app/${orgSlug}/requests/${request.parent_rfi_id}`}>
+              <Link className="linklike" href={`/app/${orgSegment}/requests/${request.parent_rfi_id}`}>
                 the original RFI
               </Link>
             </>

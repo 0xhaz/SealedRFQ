@@ -16,7 +16,7 @@ export default async function Inbox({ params }: { params: Promise<{ org: string 
   const { org } = await params;
   // Run again here although the layout has: Next renders a layout and its page independently, so a
   // page cannot assume the layout's redirect happened. The call is memoised per request.
-  const { userId, orgId, orgSlug, role } = await requireOrg(org);
+  const { userId, orgId, orgSegment, role } = await requireOrg(org);
   const [orgs, requests] = await Promise.all([
     myOrganizations(userId),
     visibleRequests(userId, orgId),
@@ -94,7 +94,7 @@ export default async function Inbox({ params }: { params: Promise<{ org: string 
                   {requests.map((r) => (
                     <tr className="row" key={r.id}>
                       <td data-label="Title">
-                        <Link className="linklike" href={`/app/${orgSlug}/requests/${r.id}`}>
+                        <Link className="linklike" href={`/app/${orgSegment}/requests/${r.id}`}>
                           {r.title}
                         </Link>
                         <span className="hint"> {r.org_name}</span>
@@ -120,7 +120,7 @@ export default async function Inbox({ params }: { params: Promise<{ org: string 
             <div style={{ padding: "0 20px 18px" }}>
               {active?.can_buy && (
                 <>
-                  <Link className="btn-primary" href={`/app/${orgSlug}/requests/new`}>
+                  <Link className="btn-primary" href={`/app/${orgSegment}/requests/new`}>
                     New request
                   </Link>
                   <span className="under-button">

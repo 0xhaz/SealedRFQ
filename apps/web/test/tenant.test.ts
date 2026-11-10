@@ -90,7 +90,7 @@ describe("requireOrg", () => {
     await expect(requireOrg("acme")).resolves.toEqual({
       userId: USER,
       orgId: ORG,
-      orgSlug: "acme",
+      orgSegment: "acme",
       role: "admin",
     });
     expect(upsertUser).toHaveBeenCalledWith("user_1");
@@ -109,7 +109,7 @@ describe("an organization without a slug", () => {
   it("is addressed by its id rather than dead-ending", async () => {
     authMock.mockResolvedValue({ userId: "user_1", orgId: "org_1", orgSlug: null });
     await expect(capture(() => requireOrg("anything"))).resolves.toBe("/app/org_1/inbox");
-    await expect(requireOrg("org_1")).resolves.toMatchObject({ orgId: ORG, orgSlug: "org_1" });
+    await expect(requireOrg("org_1")).resolves.toMatchObject({ orgId: ORG, orgSegment: "org_1" });
   });
 });
 
@@ -124,7 +124,7 @@ describe("sessionTenant", () => {
     await expect(sessionTenant()).resolves.toEqual({
       userId: USER,
       orgId: ORG,
-      orgSlug: "acme",
+      orgSegment: "acme",
       role: "member",
     });
     expect(myOrganizations).not.toHaveBeenCalled();

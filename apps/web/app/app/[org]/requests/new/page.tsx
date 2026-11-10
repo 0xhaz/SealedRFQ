@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function NewRequest({ params }: { params: Promise<{ org: string }> }) {
   const { org } = await params;
-  const { userId, orgId, orgSlug } = await requireOrg(org);
+  const { userId, orgId, orgSegment } = await requireOrg(org);
 
   // Offered only the organization actually acted as; the action ignores any other.
   const buying = (await myOrganizations(userId)).filter((o) => o.can_buy && o.id === orgId);
@@ -28,7 +28,7 @@ export default async function NewRequest({ params }: { params: Promise<{ org: st
             <div className="panel">
               <div className="head">Nothing to post from</div>
               <div className="note" style={{ margin: "0 20px 18px" }}>
-                This organisation cannot buy. <Link href={`/app/${orgSlug}/inbox`}>Back to the inbox</Link>.
+                This organisation cannot buy. <Link href={`/app/${orgSegment}/inbox`}>Back to the inbox</Link>.
               </div>
             </div>
           ) : (
