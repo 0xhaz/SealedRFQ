@@ -1,5 +1,7 @@
 import pg from "pg";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { withUser } from "../src/index.js";
+import { directory, myOrganizations } from "../src/workspace.js";
 
 const url =
   process.env.ADMIN_DATABASE_URL ?? "postgres://sealedrfq:localdev@localhost:5433/sealedrfq";
@@ -70,12 +72,62 @@ withDb("Clerk identity columns", () => {
   });
 
   it("rejects values outside the verification and visibility vocabularies", async () => {
+    // 23514 is check_violation; matching the SQLSTATE avoids passing on any error that says "check".
     await expect(
       admin.query("INSERT INTO organizations (name, verification_status) VALUES ('x','trusted')"),
-    ).rejects.toThrow(/check/i);
+    ).rejects.toMatchObject({ code: "23514" });
     await expect(
       admin.query("INSERT INTO organizations (name, legal_profile_visibility) VALUES ('x','all')"),
-    ).rejects.toThrow(/check/i);
+    ).rejects.toMatchObject({ code: "23514" });
+  });
+
+  it.each(["self_declared", "pending", "issuer_verified", "expired", "revoked"])(
+    "accepts verification_status %s",
+    async (v) => {
+      await admin.query("INSERT INTO organizations (name, verification_status) VALUES ('x',$1)", [
+        v,
+      ]);
+    },
+  );
+
+  it.each(["public", "organization", "verification_only"])(
+    "accepts legal_profile_visibility %s",
+    async (v) => {
+      await admin.query(
+        "INSERT INTO organizations (name, legal_profile_visibility) VALUES ('x',$1)",
+        [v],
+      );
+    },
+  );
+
+  it("keeps the legal profile unreadable by the application role, even when discoverable", async () => {
+    await admin.query("INSERT INTO users (id, wallet) VALUES ($1,'0xu')", [USER]);
+    await admin.query(
+      `INSERT INTO organizations (id, name, discoverable, legal_name, jurisdiction, encrypted_company_number)
+       VALUES ($1,'Open Co', true, 'Open Co Ltd', 'MY', 'ciphertext')`,
+      [ORG],
+    );
+    // 42501 is insufficient_privilege. Each column alone, since a refusal of one must not hide a
+    // leak of another.
+    for (const col of ["legal_name", "jurisdiction", "encrypted_company_number"]) {
+      await expect(
+        withUser(USER, (q) => q.query(`SELECT ${col} FROM organizations`)),
+      ).rejects.toMatchObject({ code: "42501" });
+    }
+    await expect(
+      withUser(USER, (q) => q.query("SELECT * FROM organizations")),
+    ).rejects.toMatchObject({ code: "42501" });
+  });
+
+  it("still serves the directory and the organization switcher", async () => {
+    await admin.query("INSERT INTO users (id, wallet) VALUES ($1,'0xu')", [USER]);
+    await admin.query(
+      "INSERT INTO organizations (id, name, discoverable) VALUES ($1,'Open Co', true)",
+      [ORG],
+    );
+    await admin.query("INSERT INTO memberships (user_id, org_id) VALUES ($1,$2)", [USER, ORG]);
+    expect((await directory(USER)).map((o) => o.name)).toEqual(["Open Co"]);
+    expect((await myOrganizations(USER)).map((o) => o.name)).toEqual(["Open Co"]);
   });
 
   it("defaults membership role and sync time so (user_id, org_id) seeds still work", async () => {
