@@ -4,6 +4,7 @@
   "type": "module",
   "dependencies": {
     "@concordium/web-sdk": "^8.1.1",
-    "@sealedrfq/concordium": "workspace:*"
+    "@sealedrfq/concordium": "workspace:*",
+    "viem": "^2"
   }
 }

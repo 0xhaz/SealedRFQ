@@ -275,8 +275,29 @@ checkably the same entity instead of two unrelated registrations that merely sha
       prover so a second wallet collides, unlinkable across tenders, and one-way so an on-chain
       value does not identify a supplier. It binds a *credential*, not a person — one Concordium
       identity can back several, so this resists casual duplication rather than a deliberate sybil.
-- [ ] Wire the agent to Arc. Needs the V2 contracts deployed, which is Phase 4; everything up to
-      the transaction exists and is tested
+- [x] **V2 deployed to Arc testnet**, and the badge's claim made true. The key bound in CIS-8,
+      `0x82D0ab44CBdd811E6836C7F88ff6eCb094D26774`, now holds `EVALUATOR` on the attestation log,
+      so the agent that holds the Concordium badge and the key Arc records decisions from are the
+      same key, checkably.
+
+      | Contract | Address |
+      |---|---|
+      | `ConcordiumEpochRegistry` | `0xf5c335a603193ca5CBb93b6362510d022F264EA6` |
+      | `ConcordiumQualifier` | `0xfF49A3A89739b390161Be11F57dd5c945647C334` |
+      | `QualifiedRFQRegistryV2` | `0x24cedDfcBd0E63829a561fb5c701a9Dc4430FF6c` |
+
+      Only these three were deployed. The policy, attestation log and escrow adapter already on
+      this chain are reused: redeploying them would orphan the evidence V1 produced and change
+      nothing about how V2 behaves.
+
+      The Concordium testnet committee for period 271 is registered and `periodsBehind` reads 0.
+      **It must be re-registered every reward period, which is 24 hours.** The registry is
+      fail-closed, so a period with no committee refuses every certificate — the intended failure,
+      and still one that needs someone to notice. `scripts/concordium/update-committee.mjs` does
+      it, refusing to register against a period the registry disagrees about.
+- [ ] Wire the Qualification Agent end to end: verify a presentation, derive the nullifier, call
+      `recordQualification`. Every piece exists and is tested; what is missing is the agent process
+      that joins them
 - [ ] Capture CCDExplorer links for every registration as they happen, not at the end
 
 ### Evidence

@@ -1,0 +1,37 @@
+{
+  "chainId": 5042002,
+  "note": "V2 qualification stack. Reuses the V1 policy, attestation log and escrow adapter on this chain; only the three new contracts were deployed.",
+  "ConcordiumEpochRegistry": "0xf5c335a603193ca5CBb93b6362510d022F264EA6",
+  "ConcordiumQualifier": "0xfF49A3A89739b390161Be11F57dd5c945647C334",
+  "QualifiedRFQRegistryV2": "0x24cedDfcBd0E63829a561fb5c701a9Dc4430FF6c",
+  "reused": {
+    "ProcurementPolicy": "0xa92F54993dDBc38C35f60445A1e4c38bc7e73B9F",
+    "AttestationLog": "0xBE3b811E8c812910E8bCC662Deff9C0CB829C24a",
+    "SealedRFQAdapter": "0xD63Be85613D24701678978AF208d72E38025d34c",
+    "usdc": "0x3600000000000000000000000000000000000000"
+  },
+  "admin": "0x7a3c60eBB395bE2E3a4fb4e3356B7ba9FA8360c9",
+  "evaluator": {
+    "address": "0x82D0ab44CBdd811E6836C7F88ff6eCb094D26774",
+    "note": "The key bound in Concordium CIS-8. Holds EVALUATOR on the attestation log, which is what makes the agent's badge claim true."
+  },
+  "concordium": {
+    "network": "testnet",
+    "eraGenesis": "0x4620735e8e751209610f4d45873606d6c4c5c3a1c5f8c2cd92eb47f141527b17",
+    "eraGenesisMs": 1770814826179,
+    "epochMs": 3600000,
+    "rewardPeriodEpochs": 24,
+    "maxCertificateAgeEpochs": 2,
+    "confirmationsRequired": 1,
+    "agentRegistry": "13042.0",
+    "keyRegistry": "12940.0",
+    "agentId": 1
+  },
+  "committee": {
+    "period": 271,
+    "membersHash": "0x6256a6e89fb30711adf6c09f6071d990056a43f8cc48302832c96cb35f6eb0a7",
+    "totalStake": "26992086996748425",
+    "tx": "0x4e1deb6b1823bac4a686bae7fc2be8b21874c7701dfafb6e2c012adf2eab0982",
+    "note": "Must be re-registered every reward period, which is 24 hours. The registry is fail-closed: a period with no committee refuses every certificate."
+  }
+}
